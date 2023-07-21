@@ -1,0 +1,8 @@
+{}
+{"level":"info","message":"server start work successfully!"}
+{"level":"debug","message":"server start work successfully!"}
+{"level":"debug","message":"server start work successfully!"}
+{"level":"debug","time":"2023-07-10 12:14:33.960","line":"/Users/dcoin/workspace/private/backend/shitangguanli/logger/logger.go:81","func":"github.com/canteen_management/logger.Debug","msg":"server start work successfully!"}
+{"level":"debug","time":"2023-07-10 12:17:06.989","msg":"server start work successfully!"}
+{"level":"debug","time":"2023-07-10 12:21:42.443","msg":"server start work successfully!"}
+{"level":"debug","time":"2023-07-10 12:48:00.690","msg":"server start work successfully!|pl","tag":"main"}

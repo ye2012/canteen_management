@@ -1,0 +1,152 @@
+package main
+
+import (
+	"flag"
+	"github.com/canteen_management/config"
+	"net/http"
+
+	"github.com/canteen_management/dto"
+	"github.com/canteen_management/enum"
+	"github.com/canteen_management/logger"
+	"github.com/canteen_management/server"
+	"github.com/gin-gonic/gin"
+)
+
+const (
+	serverLogTag = "Server"
+)
+
+var (
+	configPath = flag.String("config", "./config.json", "config file abs path")
+)
+
+func main() {
+	flag.Parsed()
+	config.LoadConfig(*configPath)
+	StartServer()
+}
+
+func StartServer() {
+	router := gin.Default()
+
+	HandleUserApi(router)
+	HandlePurchaseApi(router)
+	HandleStorehouseApi(router)
+	err := HandleMenuApi(router)
+	if err != nil {
+		logger.Warn(serverLogTag, "HandleMenuApi Failed|Err:%v", err)
+		return
+	}
+	HandleStatisticApi(router)
+
+	router.Run(":8081")
+}
+
+func HandleUserApi(router *gin.Engine) {
+	//userRouter := router.Group("/user")
+	//
+	//userRouter.POST("/login", NewHandler(storeServer.,
+	//	&dto.{}))
+	//userRouter.POST("/userList", NewHandler(storeServer.,
+	//	&dto.{}))
+	//userRouter.POST("/modifyUser", NewHandler(storeServer.,
+	//	&dto.{}))
+}
+
+func HandlePurchaseApi(router *gin.Engine) {
+	//purchaseRouter := router.Group("/purchase")
+	//
+	//purchaseRouter.POST("/purchaseList", NewHandler(storeServer.,
+	//	&dto.{}))
+	//
+	//purchaseRouter.POST("/applyPurchase", NewHandler(storeServer.,
+	//	&dto.{}))
+	//purchaseRouter.POST("/reviewPurchase", NewHandler(storeServer.,
+	//	&dto.{}))
+	//purchaseRouter.POST("/confirmPurchase", NewHandler(storeServer.,
+	//	&dto.{}))
+	//purchaseRouter.POST("/finishPurchase", NewHandler(storeServer.,
+	//	&dto.{}))
+	//
+	//
+	//purchaseRouter.POST("/supplierList", NewHandler(storeServer.,
+	//	&dto.{}))
+	//purchaseRouter.POST("/modifySupplier", NewHandler(storeServer.,
+	//	&dto.{}))
+	//purchaseRouter.POST("/updateDiscount", NewHandler(storeServer.,
+	//	&dto.{}))
+}
+
+func HandleStorehouseApi(router *gin.Engine) {
+	//storeRouter := router.Group("/store")
+	//storeServer := server.NewStorehouseServer()
+	//storeRouter.POST("/storeList", NewHandler(storeServer.,
+	//	&dto.{}))
+	//storeRouter.POST("/modifyStoreInfo", NewHandler(storeServer.,
+	//	&dto.{}))
+	//
+	//storeRouter.POST("/applyConsumeGoods", NewHandler(storeServer.,
+	//	&dto.{}))
+	//storeRouter.POST("/confirmConsumeGoods", NewHandler(storeServer.,
+	//	&dto.{}))
+	//
+	//storeRouter.POST("/resetGoods", NewHandler(storeServer.,
+	//	&dto.{}))
+}
+func HandleMenuApi(router *gin.Engine) error {
+	menuRouter := router.Group("/api/menu")
+	menuServer, err := server.NewMenuServer(config.Config.MysqlConfig)
+	if err != nil {
+		logger.Warn(serverLogTag, "NewMenuServer Failed|Err:%v", err)
+		return err
+	}
+	menuRouter.POST("/dishTypeList", NewHandler(menuServer.RequestDishTypeList,
+		&dto.DishTypeListReq{}))
+	menuRouter.POST("/modifyDishType", NewHandler(menuServer.RequestModifyDishType,
+		&dto.ModifyDishTypeReq{}))
+
+	menuRouter.POST("/dishList", NewHandler(menuServer.RequestDishList,
+		&dto.DishListReq{}))
+	menuRouter.POST("/modifyDish", NewHandler(menuServer.RequestModifyDish,
+		&dto.ModifyDishReq{}))
+
+	menuRouter.POST("/menuList", NewHandler(menuServer.RequestMenuList,
+		&dto.MenuListReq{}))
+	menuRouter.POST("/modifyMenu", NewHandler(menuServer.RequestModifyMenu,
+		&dto.ModifyMenuReq{}))
+
+	menuRouter.POST("/menuTypeList", NewHandler(menuServer.RequestMenuTypeList,
+		&dto.MenuTypeListReq{}))
+	menuRouter.POST("/modifyMenuType", NewHandler(menuServer.RequestModifyMenuType,
+		&dto.ModifyMenuTypeReq{}))
+
+	menuRouter.POST("/generateMenu", NewHandler(menuServer.RequestGenerateMenu,
+		&dto.GenerateMenuReq{}))
+	return nil
+}
+
+func HandleStatisticApi(router *gin.Engine) {
+	//statisticRouter := router.Group("/statistic")
+	//statisticServer := server.NewStatisticServer()
+	//statisticRouter.POST("", NewHandler(statisticServer))
+}
+
+type RequestDealFunc func(*gin.Context, interface{}, *dto.Response)
+
+func NewHandler(dealFunc RequestDealFunc, req interface{}) gin.HandlerFunc {
+	handleFunc := func(ctx *gin.Context) {
+		res := dto.GetInitResponse()
+		defer func() {
+			logger.Debug(serverLogTag, "Path:%v|Res:%+v", ctx.FullPath(), res)
+			ctx.JSON(http.StatusOK, res)
+		}()
+		err := ctx.ShouldBind(req)
+		if err != nil {
+			logger.Warn(serverLogTag, "parse req failed|Err:%v", err)
+			res.Code = enum.ParseRequestFailed
+			return
+		}
+		dealFunc(ctx, req, res)
+	}
+	return handleFunc
+}
