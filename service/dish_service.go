@@ -15,9 +15,6 @@ const (
 type DishService struct {
 	dishModel     *model.DishesModel
 	dishTypeModel *model.DishTypeModel
-
-	dishTypeMap map[uint32][]*model.Dish // type => dish list
-	dishIDMap   map[uint32]*model.Dish
 }
 
 func NewDishService(sqlCli *sql.DB) *DishService {
@@ -26,74 +23,42 @@ func NewDishService(sqlCli *sql.DB) *DishService {
 	return &DishService{
 		dishModel:     dishModel,
 		dishTypeModel: dishTypeModel,
-		dishTypeMap:   make(map[uint32][]*model.Dish),
-		dishIDMap:     make(map[uint32]*model.Dish),
 	}
 }
 
 func (ds *DishService) Init() error {
-	dishList, err := ds.dishModel.GetDishes(0)
-	if err != nil {
-		logger.Warn(dishServiceLogTag, "GetDishList Failed|Err:%v", err)
-		return err
-	}
-
-	for _, dish := range dishList {
-		ds.addDishCache(dish)
-	}
 	return nil
 }
 
-func (ds *DishService) addDishCache(dish *model.Dish) {
-	_, ok := ds.dishTypeMap[dish.DishType]
-	if ok == false {
-		ds.dishTypeMap[dish.DishType] = make([]*model.Dish, 0)
-	}
-	ds.dishTypeMap[dish.DishType] = append(ds.dishTypeMap[dish.DishType], dish)
-
-	_, ok = ds.dishIDMap[dish.ID]
-	if ok {
-		logger.Warn(dishServiceLogTag, "DishID Complex|ID:%v", dish.ID)
-	}
-	ds.dishIDMap[dish.ID] = dish
-}
-
 func (ds *DishService) GetDishIDMap() map[uint32]*model.Dish {
-	return ds.dishIDMap
+	dishList, err := ds.dishModel.GetDishes(0)
+	if err != nil {
+		logger.Warn(dishServiceLogTag, "GetDishIDMap GetDishes Failed|Err:%v", err)
+		return make(map[uint32]*model.Dish)
+	}
+	idMap := make(map[uint32]*model.Dish)
+	for _, dish := range dishList {
+		idMap[dish.ID] = dish
+	}
+	return idMap
 }
 
-func (ds *DishService) updateDishCache(dish *model.Dish) {
-	_, ok := ds.dishIDMap[dish.ID]
-	if ok == false {
-		logger.Warn(dishServiceLogTag, "DishID Not Found|Type:%v", dish.DishType)
-		return
+func (ds *DishService) GetDishTypeMap() map[uint32][]*model.Dish {
+	dishList, err := ds.dishModel.GetDishes(0)
+	if err != nil {
+		logger.Warn(dishServiceLogTag, "GetDishTypeMap GetDishes Failed|Err:%v", err)
+		return make(map[uint32][]*model.Dish)
 	}
-	preType := ds.dishIDMap[dish.ID].DishType
-	ds.dishIDMap[dish.ID] = dish
 
-	if preType != dish.DishType {
-		_, ok = ds.dishTypeMap[preType]
-		if ok {
-			for index, dishDao := range ds.dishTypeMap[preType] {
-				if dishDao.ID == dish.ID {
-					ds.dishTypeMap[preType] = append(ds.dishTypeMap[preType][:index], ds.dishTypeMap[preType][index+1:]...)
-				}
-			}
+	typeMap := make(map[uint32][]*model.Dish)
+	for _, dish := range dishList {
+		_, ok := typeMap[dish.DishType]
+		if ok == false {
+			typeMap[dish.DishType] = make([]*model.Dish, 0)
 		}
+		typeMap[dish.DishType] = append(typeMap[dish.DishType], dish)
 	}
-
-	_, ok = ds.dishTypeMap[dish.DishType]
-	if ok == false {
-		logger.Warn(dishServiceLogTag, "DishType Not Found|Type:%v", dish.DishType)
-		return
-	}
-	for index, dishDao := range ds.dishTypeMap[dish.DishType] {
-		if dish.ID == dishDao.ID {
-			ds.dishTypeMap[dish.DishType][index] = dish
-			return
-		}
-	}
-
+	return typeMap
 }
 
 func (ds *DishService) GetDishList(dishType uint32) ([]*model.Dish, error) {
@@ -111,7 +76,6 @@ func (ds *DishService) AddDish(dish *model.Dish) error {
 		logger.Warn(dishServiceLogTag, "Insert Dish Failed|Err:%v", err)
 		return err
 	}
-	ds.addDishCache(dish)
 	return nil
 }
 
@@ -121,7 +85,6 @@ func (ds *DishService) ModifyDish(dish *model.Dish) error {
 		logger.Warn(dishServiceLogTag, "Update Dish Failed|Err:%v", err)
 		return err
 	}
-	ds.updateDishCache(dish)
 	return nil
 }
 
@@ -154,7 +117,8 @@ func (ds *DishService) ModifyDishType(dishType *model.DishType) error {
 
 func (ds *DishService) RandDishByType(typeID uint32, number int) []*model.Dish {
 	retList := make([]*model.Dish, 0)
-	dishList, ok := ds.dishTypeMap[typeID]
+	dishTypeMap := ds.GetDishTypeMap()
+	dishList, ok := dishTypeMap[typeID]
 	if ok == false {
 		return retList
 	}

@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/canteen_management/logger"
@@ -13,6 +14,7 @@ const (
 )
 
 type MenuService struct {
+	weekMenuModel *model.WeekMenuModel
 	menuModel     *model.MenuModel
 	menuTypeModel *model.MenuTypeModel
 
@@ -20,9 +22,11 @@ type MenuService struct {
 }
 
 func NewMenuService(sqlCli *sql.DB) *MenuService {
+	weekMenuModel := model.NewWeekMenuModelWithDB(sqlCli)
 	menuModel := model.NewMenuModelWithDB(sqlCli)
 	menuTypeModel := model.NewMenuTypeModelWithDB(sqlCli)
 	return &MenuService{
+		weekMenuModel: weekMenuModel,
 		menuModel:     menuModel,
 		menuTypeModel: menuTypeModel,
 		menuTypeMap:   make(map[uint32]*model.MenuType),
@@ -122,6 +126,45 @@ func (ms *MenuService) UpdateMenu(menu *model.Menu) error {
 	return nil
 }
 
-func (ms *MenuService) GenerateMenu(menuType uint32) {
+func (ms *MenuService) GetWeekMenuList(menuType uint32, startTime, endTime int64) ([]*model.WeekMenu, error) {
+	menuList, err := ms.weekMenuModel.GetWeekMenus(0, menuType, startTime, endTime)
+	if err != nil {
+		logger.Warn(menuServiceLogTag, "GetWeekMenuList Failed|Err:%v", err)
+		return nil, err
+	}
 
+	return menuList, nil
+}
+
+func (ms *MenuService) GetWeekMenu(menuID uint32) (*model.WeekMenu, error) {
+	menuList, err := ms.weekMenuModel.GetWeekMenus(menuID, 0, 0, 0)
+	if err != nil {
+		logger.Warn(menuServiceLogTag, "GetWeekMenu Failed|Err:%v", err)
+		return nil, err
+	}
+
+	if len(menuList) == 0 {
+		logger.Warn(menuServiceLogTag, "GetWeekMenu Not Found|ID:%v", menuID)
+		return nil, fmt.Errorf("week menu not found")
+	}
+
+	return menuList[0], nil
+}
+
+func (ms *MenuService) AddWeekMenu(weekMenu *model.WeekMenu) error {
+	err := ms.weekMenuModel.Insert(weekMenu)
+	if err != nil {
+		logger.Warn(menuServiceLogTag, "Insert WeekMenu Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
+func (ms *MenuService) UpdateWeekMenu(weekMenu *model.WeekMenu) error {
+	err := ms.weekMenuModel.UpdateWeekMenu(weekMenu)
+	if err != nil {
+		logger.Warn(menuServiceLogTag, "Update WeekMenu Failed|Err:%v", err)
+		return err
+	}
+	return nil
 }

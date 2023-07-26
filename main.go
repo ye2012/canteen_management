@@ -4,6 +4,7 @@ import (
 	"flag"
 	"github.com/canteen_management/config"
 	"net/http"
+	"reflect"
 
 	"github.com/canteen_management/dto"
 	"github.com/canteen_management/enum"
@@ -93,6 +94,7 @@ func HandleStorehouseApi(router *gin.Engine) {
 	//storeRouter.POST("/resetGoods", NewHandler(storeServer.,
 	//	&dto.{}))
 }
+
 func HandleMenuApi(router *gin.Engine) error {
 	menuRouter := router.Group("/api/menu")
 	menuServer, err := server.NewMenuServer(config.Config.MysqlConfig)
@@ -101,40 +103,52 @@ func HandleMenuApi(router *gin.Engine) error {
 		return err
 	}
 	menuRouter.POST("/dishTypeList", NewHandler(menuServer.RequestDishTypeList,
-		&dto.DishTypeListReq{}))
+		func() interface{} { return new(dto.DishTypeListReq) }))
 	menuRouter.POST("/modifyDishType", NewHandler(menuServer.RequestModifyDishType,
-		&dto.ModifyDishTypeReq{}))
+		func() interface{} { return new(dto.ModifyDishTypeReq) }))
 
 	menuRouter.POST("/dishList", NewHandler(menuServer.RequestDishList,
-		&dto.DishListReq{}))
+		func() interface{} { return new(dto.DishListReq) }))
 	menuRouter.POST("/modifyDish", NewHandler(menuServer.RequestModifyDish,
-		&dto.ModifyDishReq{}))
+		func() interface{} { return new(dto.ModifyDishReq) }))
 
 	menuRouter.POST("/menuList", NewHandler(menuServer.RequestMenuList,
-		&dto.MenuListReq{}))
+		func() interface{} { return new(dto.MenuListReq) }))
 	menuRouter.POST("/modifyMenu", NewHandler(menuServer.RequestModifyMenu,
-		&dto.ModifyMenuReq{}))
+		func() interface{} { return new(dto.ModifyMenuReq) }))
+
+	menuRouter.POST("/weekMenuList", NewHandler(menuServer.RequestWeekMenuList,
+		func() interface{} { return new(dto.WeekMenuListReq) }))
+	menuRouter.POST("/weekMenuDetail", NewHandler(menuServer.RequestWeekMenuDetail,
+		func() interface{} { return new(dto.WeekMenuDetailReq) }))
+	menuRouter.POST("/modifyWeekMenu", NewHandler(menuServer.RequestModifyWeekMenu,
+		func() interface{} { return new(dto.ModifyWeekMenuReq) }))
 
 	menuRouter.POST("/menuTypeList", NewHandler(menuServer.RequestMenuTypeList,
-		&dto.MenuTypeListReq{}))
+		func() interface{} { return new(dto.MenuTypeListReq) }))
 	menuRouter.POST("/modifyMenuType", NewHandler(menuServer.RequestModifyMenuType,
-		&dto.ModifyMenuTypeReq{}))
+		func() interface{} { return new(dto.ModifyMenuTypeReq) }))
 
 	menuRouter.POST("/generateMenu", NewHandler(menuServer.RequestGenerateMenu,
-		&dto.GenerateMenuReq{}))
+		func() interface{} { return new(dto.GenerateMenuReq) }))
+	menuRouter.POST("/generateWeekMenu", NewHandler(menuServer.RequestGenerateWeekMenu,
+		func() interface{} { return new(dto.GenerateWeekMenuReq) }))
 	return nil
 }
 
 func HandleStatisticApi(router *gin.Engine) {
 	//statisticRouter := router.Group("/statistic")
 	//statisticServer := server.NewStatisticServer()
-	//statisticRouter.POST("", NewHandler(statisticServer))
+	//statisticRouter.POST("enterDinerNumber", NewHandler(statisticServer))
 }
 
 type RequestDealFunc func(*gin.Context, interface{}, *dto.Response)
+type ReqGenerateFunc func() interface{}
 
-func NewHandler(dealFunc RequestDealFunc, req interface{}) gin.HandlerFunc {
+func NewHandler(dealFunc RequestDealFunc, reqGen ReqGenerateFunc) gin.HandlerFunc {
 	handleFunc := func(ctx *gin.Context) {
+		req := reqGen()
+		logger.Debug(serverLogTag, "%v", reflect.TypeOf(req))
 		res := dto.GetInitResponse()
 		defer func() {
 			logger.Debug(serverLogTag, "Path:%v|Res:%+v", ctx.FullPath(), res)
@@ -146,7 +160,11 @@ func NewHandler(dealFunc RequestDealFunc, req interface{}) gin.HandlerFunc {
 			res.Code = enum.ParseRequestFailed
 			return
 		}
+		logger.Debug(serverLogTag, "Req:%#v", req)
 		dealFunc(ctx, req, res)
+		if res.Code != 0 {
+			res.Success = false
+		}
 	}
 	return handleFunc
 }

@@ -70,6 +70,39 @@ type ModifyMenuReq struct {
 	Menu    MenuInfo         `json:"menu"`
 }
 
+type WeekMenuListReq MenuListReq
+
+type WeekMenuInfo struct {
+	WeekMenuID    uint32   `json:"week_menu_id"`
+	MenuType      uint32   `json:"menu_type"`
+	MenuStartDate int64    `json:"menu_start_time"`
+	MenuEndDate   int64    `json:"menu_end_time"`
+	MenuContent   []string `json:"menu_content"`
+}
+
+type WeekMenuListRes struct {
+	MenuList []*WeekMenuInfo `json:"menu_list"`
+}
+
+type WeekMenuDetailReq struct {
+	WeekMenuID uint32 `json:"week_menu_id"`
+}
+
+type WeekMenuDetailInfo struct {
+	WeekMenuID    uint32      `json:"week_menu_id"`
+	MenuType      uint32      `json:"menu_type"`
+	MenuStartDate int64       `json:"menu_start_time"`
+	MenuEndDate   int64       `json:"menu_end_time"`
+	MenuList      []*MenuInfo `json:"menu_list"`
+}
+
+type WeekMenuDetailRes WeekMenuDetailInfo
+
+type ModifyWeekMenuReq struct {
+	Operate  enum.OperateType   `json:"operate"`
+	WeekMenu WeekMenuDetailInfo `json:"week_menu"`
+}
+
 type MenuTypeListReq struct {
 }
 
@@ -95,11 +128,15 @@ type ModifyMenuTypeReq struct {
 }
 
 type GenerateMenuReq struct {
-	MenuType  uint32 `json:"menu_type"`
-	TimeStart int64  `json:"time_start"`
-	TimeEnd   int64  `json:"time_end"`
+	MenuType uint32 `json:"menu_type"`
+	MenuDate int64  `json:"menu_date"`
 }
 
-type GenerateMenuRes struct {
-	MenuList []*MenuInfo `json:"menu_list"`
+type GenerateMenuRes = MenuInfo
+
+type GenerateWeekMenuReq struct {
+	MenuType  uint32 `json:"menu_type"`
+	TimeStart int64  `json:"time_start"`
 }
+
+type GenerateWeekMenuRes = WeekMenuDetailInfo

@@ -59,6 +59,28 @@ func (dm *DishesModel) Insert(dao *Dish) error {
 	return nil
 }
 
+func (dm *DishesModel) GetDishByCondition(condition string, params ...interface{}) ([]*Dish, error) {
+	retList, err := utils.SqlQuery(dm.sqlCli, dishTable, &Dish{}, condition, params...)
+	if err != nil {
+		logger.Warn(dishLogTag, "GetDishes Failed|Err:%v", err)
+		return nil, err
+	}
+	return retList.([]*Dish), nil
+}
+
+func (dm *DishesModel) GetDishByName(dishName string) (*Dish, error) {
+	condition := " WHERE `dish_name` = ? "
+	dishList, err := dm.GetDishByCondition(condition, dishName)
+	if err != nil {
+		logger.Warn(dishLogTag, "GetDishByName Failed|Err:%v", err)
+		return nil, err
+	}
+	if len(dishList) > 0 {
+		return dishList[0], nil
+	}
+	return nil, nil
+}
+
 func (dm *DishesModel) GetDishes(dishType uint32) ([]*Dish, error) {
 	var params []interface{}
 	condition := " WHERE 1=1 "
@@ -66,13 +88,8 @@ func (dm *DishesModel) GetDishes(dishType uint32) ([]*Dish, error) {
 		condition += " AND `dish_type` = ? "
 		params = append(params, dishType)
 	}
-	retList, err := utils.SqlQuery(dm.sqlCli, dishTable, &Dish{}, condition, params...)
-	if err != nil {
-		logger.Warn(dishLogTag, "GetDishes Failed|Err:%v", err)
-		return nil, err
-	}
 
-	return retList.([]*Dish), nil
+	return dm.GetDishByCondition(condition, params...)
 }
 
 func (dm *DishesModel) UpdateDish(dao *Dish) error {
