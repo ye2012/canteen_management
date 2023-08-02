@@ -3,7 +3,6 @@ package service
 import (
 	"database/sql"
 	"fmt"
-	"time"
 
 	"github.com/canteen_management/logger"
 	"github.com/canteen_management/model"
@@ -17,8 +16,6 @@ type MenuService struct {
 	weekMenuModel *model.WeekMenuModel
 	menuModel     *model.MenuModel
 	menuTypeModel *model.MenuTypeModel
-
-	menuTypeMap map[uint32]*model.MenuType
 }
 
 func NewMenuService(sqlCli *sql.DB) *MenuService {
@@ -29,20 +26,10 @@ func NewMenuService(sqlCli *sql.DB) *MenuService {
 		weekMenuModel: weekMenuModel,
 		menuModel:     menuModel,
 		menuTypeModel: menuTypeModel,
-		menuTypeMap:   make(map[uint32]*model.MenuType),
 	}
 }
 
 func (ms *MenuService) Init() error {
-	typeList, err := ms.GetMenuTypeList()
-	if err != nil {
-		logger.Warn(menuServiceLogTag, "Init Failed|Err:%v", err)
-		return err
-	}
-
-	for _, typeInfo := range typeList {
-		ms.menuTypeMap[typeInfo.ID] = typeInfo
-	}
 	return nil
 }
 
@@ -55,12 +42,32 @@ func (ms *MenuService) GetMenuTypeList() ([]*model.MenuType, error) {
 	return typeList, nil
 }
 
-func (ms *MenuService) GetMenuTypeConfig(typeID uint32) *model.MenuType {
-	_, ok := ms.menuTypeMap[typeID]
-	if ok {
-		return ms.menuTypeMap[typeID]
+func (ms *MenuService) GetMenuType(typeID uint32) (*model.MenuType, error) {
+	typeInfo, err := ms.menuTypeModel.GetMenuType(typeID)
+	if err != nil {
+		logger.Warn(menuServiceLogTag, "GetMenuType Failed|Err:%v", err)
+		return nil, err
 	}
-	return nil
+
+	if typeInfo == nil {
+		logger.Warn(menuServiceLogTag, "GetMenuType Not Found|Type:%v", typeID)
+		return nil, fmt.Errorf("not found|id:%v", typeID)
+	}
+	return typeInfo, nil
+}
+
+func (ms *MenuService) GetMenuTypeConfig(typeID uint32) (map[uint32]*model.MenuType, error) {
+	typeList, err := ms.GetMenuTypeList()
+	if err != nil {
+		logger.Warn(menuServiceLogTag, "GetMenuTypeConfig Failed|Err:%v", err)
+		return nil, err
+	}
+
+	menuTypeMap := make(map[uint32]*model.MenuType)
+	for _, typeInfo := range typeList {
+		menuTypeMap[typeInfo.ID] = typeInfo
+	}
+	return menuTypeMap, nil
 }
 
 func (ms *MenuService) AddMenuType(dao *model.MenuType) error {
@@ -69,7 +76,6 @@ func (ms *MenuService) AddMenuType(dao *model.MenuType) error {
 		logger.Warn(menuServiceLogTag, "Insert MenuType Failed|Err:%v", err)
 		return err
 	}
-	ms.updateMenuTypeCache(dao)
 	return nil
 }
 
@@ -79,24 +85,27 @@ func (ms *MenuService) UpdateMenuType(dao *model.MenuType) error {
 		logger.Warn(menuServiceLogTag, "Update MenuType Failed|Err:%v", err)
 		return err
 	}
-	ms.updateMenuTypeCache(dao)
 	return nil
 }
 
-func (ms *MenuService) updateMenuTypeCache(dao *model.MenuType) {
-	ms.menuTypeMap[dao.ID] = dao
-}
-
 func (ms *MenuService) GetMenuList(menuType uint32, startTime, endTime int64) ([]*model.Menu, error) {
-	start := time.Unix(startTime, 0)
-	end := time.Unix(endTime, 0)
-	menuList, err := ms.menuModel.GetMenus(menuType, start, end)
+	menuList, err := ms.menuModel.GetMenus(menuType, startTime, endTime)
 	if err != nil {
 		logger.Warn(menuServiceLogTag, "GetMenuList Failed|Err:%v", err)
 		return nil, err
 	}
 
 	return menuList, nil
+}
+
+func (ms *MenuService) GetMenu(menuID uint32) (*model.Menu, error) {
+	menu, err := ms.menuModel.GetMenu(menuID)
+	if err != nil {
+		logger.Warn(menuServiceLogTag, "GetMenu Failed|Err:%v", err)
+		return nil, err
+	}
+
+	return menu, nil
 }
 
 func (ms *MenuService) AddMenu(menu *model.Menu) error {

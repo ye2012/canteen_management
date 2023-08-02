@@ -124,15 +124,30 @@ func HandleMenuApi(router *gin.Engine) error {
 	menuRouter.POST("/modifyWeekMenu", NewHandler(menuServer.RequestModifyWeekMenu,
 		func() interface{} { return new(dto.ModifyWeekMenuReq) }))
 
-	menuRouter.POST("/menuTypeList", NewHandler(menuServer.RequestMenuTypeList,
-		func() interface{} { return new(dto.MenuTypeListReq) }))
-	menuRouter.POST("/modifyMenuType", NewHandler(menuServer.RequestModifyMenuType,
-		func() interface{} { return new(dto.ModifyMenuTypeReq) }))
-
-	menuRouter.POST("/generateMenu", NewHandler(menuServer.RequestGenerateMenu,
-		func() interface{} { return new(dto.GenerateMenuReq) }))
+	menuRouter.POST("/generateStaffMenu", NewHandler(menuServer.RequestGenerateStaffMenu,
+		func() interface{} { return new(dto.GenerateStaffMenuReq) }))
 	menuRouter.POST("/generateWeekMenu", NewHandler(menuServer.RequestGenerateWeekMenu,
 		func() interface{} { return new(dto.GenerateWeekMenuReq) }))
+
+	menuRouter.POST("/staffMenuListHead", NewHandler(menuServer.RequestStaffMenuListHead,
+		func() interface{} { return new(dto.StaffMenuListHeadReq) }))
+	menuRouter.POST("/staffMenuListData", NewHandler(menuServer.RequestStaffMenuListData,
+		func() interface{} { return new(dto.StaffMenuListDataReq) }))
+	menuRouter.POST("/staffMenuHead", NewHandler(menuServer.RequestStaffMenuDetailHead,
+		func() interface{} { return new(dto.StaffMenuDetailHeadReq) }))
+	menuRouter.POST("/staffMenuData", NewHandler(menuServer.RequestStaffMenuDetailData,
+		func() interface{} { return new(dto.StaffMenuDetailDataReq) }))
+
+	menuRouter.POST("/menuTypeListHead", NewHandler(menuServer.RequestMenuTypeListHead,
+		func() interface{} { return new(dto.MenuTypeListHeadReq) }))
+	menuRouter.POST("/menuTypeListData", NewHandler(menuServer.RequestMenuTypeListData,
+		func() interface{} { return new(dto.MenuTypeListDataReq) }))
+	menuRouter.POST("/menuTypeDetailHead", NewHandler(menuServer.RequestMenuTypeDetailHead,
+		func() interface{} { return new(dto.MenuTypeDetailHeadReq) }))
+	menuRouter.POST("/menuTypeDetailData", NewHandler(menuServer.RequestMenuTypeDetailData,
+		func() interface{} { return new(dto.MenuTypeDetailDataReq) }))
+	menuRouter.POST("/modifyMenuType", NewHandler(menuServer.RequestModifyMenuType,
+		func() interface{} { return new(dto.ModifyMenuTypeReq) }))
 	return nil
 }
 

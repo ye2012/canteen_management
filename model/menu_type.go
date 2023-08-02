@@ -2,6 +2,8 @@ package model
 
 import (
 	"database/sql"
+	"encoding/json"
+	"fmt"
 	"github.com/canteen_management/logger"
 	"github.com/canteen_management/utils"
 	"time"
@@ -23,6 +25,26 @@ type MenuType struct {
 	MenuConfig   string    `json:"menu_config"`
 	CreateAt     time.Time `json:"created_at"`
 	UpdateAt     time.Time `json:"updated_at"`
+}
+
+func (mt *MenuType) FromMenuConfig(menuConf map[uint8]map[uint32]int32) error {
+	conf, err := json.Marshal(menuConf)
+	if err != nil {
+		logger.Warn(menuTypeLogTag, "FromMenuConfig Failed|Err:%v", err)
+		return err
+	}
+	mt.MenuConfig = string(conf)
+	return nil
+}
+
+func (mt *MenuType) ToMenuConfig() map[uint8]map[uint32]int32 {
+	menuConfig := make(map[uint8]map[uint32]int32, 0)
+	err := json.Unmarshal([]byte(mt.MenuConfig), &menuConfig)
+	if err != nil {
+		logger.Warn(menuTypeLogTag, "convertFromMenuTypeConfig Failed|Err:%v", err)
+		return nil
+	}
+	return menuConfig
 }
 
 type MenuTypeModel struct {
@@ -53,6 +75,22 @@ func (mtm *MenuTypeModel) GetMenuTypes() ([]*MenuType, error) {
 	}
 
 	return retList.([]*MenuType), nil
+}
+
+func (mtm *MenuTypeModel) GetMenuType(typeID uint32) (*MenuType, error) {
+	retList, err := utils.SqlQuery(mtm.sqlCli, menuTypeTable, &MenuType{}, " WHERE `id` = ? ", typeID)
+	if err != nil {
+		logger.Warn(menuTypeLogTag, "GetMenuType Failed|Err:%v", err)
+		return nil, err
+	}
+
+	menuList := retList.([]*MenuType)
+	if len(menuList) < 1 {
+		logger.Warn(menuTypeLogTag, "GetMenuType Not Found|ID:%v", typeID)
+		return nil, fmt.Errorf("not found|id:%v", typeID)
+	}
+
+	return menuList[0], nil
 }
 
 func (mtm *MenuTypeModel) UpdateMenuType(dao *MenuType) error {

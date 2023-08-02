@@ -30,24 +30,24 @@ func (ds *DishService) Init() error {
 	return nil
 }
 
-func (ds *DishService) GetDishIDMap() map[uint32]*model.Dish {
+func (ds *DishService) GetDishIDMap() (map[uint32]*model.Dish, error) {
 	dishList, err := ds.dishModel.GetDishes(0)
 	if err != nil {
 		logger.Warn(dishServiceLogTag, "GetDishIDMap GetDishes Failed|Err:%v", err)
-		return make(map[uint32]*model.Dish)
+		return nil, err
 	}
 	idMap := make(map[uint32]*model.Dish)
 	for _, dish := range dishList {
 		idMap[dish.ID] = dish
 	}
-	return idMap
+	return idMap, nil
 }
 
-func (ds *DishService) GetDishTypeMap() map[uint32][]*model.Dish {
+func (ds *DishService) GetDishMap() map[uint32][]*model.Dish {
 	dishList, err := ds.dishModel.GetDishes(0)
 	if err != nil {
-		logger.Warn(dishServiceLogTag, "GetDishTypeMap GetDishes Failed|Err:%v", err)
-		return make(map[uint32][]*model.Dish)
+		logger.Warn(dishServiceLogTag, "GetDishMap GetDishes Failed|Err:%v", err)
+		return nil
 	}
 
 	typeMap := make(map[uint32][]*model.Dish)
@@ -88,10 +88,33 @@ func (ds *DishService) ModifyDish(dish *model.Dish) error {
 	return nil
 }
 
-func (ds *DishService) GetDishTypeList() ([]*model.DishType, error) {
+func (ds *DishService) GetDishTypeMap() (map[uint32]*model.DishType, error) {
 	dishTypeList, err := ds.dishTypeModel.GetDishTypes()
 	if err != nil {
-		logger.Warn(dishServiceLogTag, "GetDishTypes Failed|Err:%v", err)
+		logger.Warn(dishServiceLogTag, "GetDishTypeMap Failed|Err:%v", err)
+		return nil, err
+	}
+
+	retMap := make(map[uint32]*model.DishType)
+	for _, typeInfo := range dishTypeList {
+		retMap[typeInfo.ID] = typeInfo
+	}
+	return retMap, nil
+}
+
+func (ds *DishService) GetDishTypeList(masterType uint32, includeMaster bool) ([]*model.DishType, error) {
+	if masterType == 0 && includeMaster {
+		dishTypeList, err := ds.dishTypeModel.GetMasterDishTypes()
+		if err != nil {
+			logger.Warn(dishServiceLogTag, "GetMasterDishTypes Failed|Err:%v", err)
+			return nil, err
+		}
+		return dishTypeList, err
+	}
+
+	dishTypeList, err := ds.dishTypeModel.GetDishTypesByMasterType(masterType)
+	if err != nil {
+		logger.Warn(dishServiceLogTag, "GetDishTypesByMasterType Failed|Err:%v", err)
 		return nil, err
 	}
 	return dishTypeList, err
@@ -116,20 +139,51 @@ func (ds *DishService) ModifyDishType(dishType *model.DishType) error {
 }
 
 func (ds *DishService) RandDishByType(typeID uint32, number int) []*model.Dish {
-	retList := make([]*model.Dish, 0)
-	dishTypeMap := ds.GetDishTypeMap()
+	dishTypeMap := ds.GetDishMap()
+	if dishTypeMap == nil {
+		return nil
+	}
 	dishList, ok := dishTypeMap[typeID]
 	if ok == false {
-		return retList
+		return nil
 	}
 
 	dishLen := len(dishList)
 	times := number/dishLen + 1
 
+	retList := make([]*model.Dish, 0)
 	for curRound := 0; curRound < times && number > 0; curRound++ {
 		randList := rand.Perm(dishLen)
 		for _, randIndex := range randList {
 			retList = append(retList, dishList[randIndex%dishLen])
+			number--
+			if number <= 0 {
+				break
+			}
+		}
+	}
+
+	return retList
+}
+
+func (ds *DishService) RandDishIDByType(typeID uint32, number int) []uint32 {
+	dishTypeMap := ds.GetDishMap()
+	if dishTypeMap == nil {
+		return nil
+	}
+	dishList, ok := dishTypeMap[typeID]
+	if ok == false {
+		return nil
+	}
+
+	dishLen := len(dishList)
+	times := number/dishLen + 1
+
+	retList := make([]uint32, 0)
+	for curRound := 0; curRound < times && number > 0; curRound++ {
+		randList := rand.Perm(dishLen)
+		for _, randIndex := range randList {
+			retList = append(retList, dishList[randIndex%dishLen].ID)
 			number--
 			if number <= 0 {
 				break

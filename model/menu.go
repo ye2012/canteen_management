@@ -2,6 +2,8 @@ package model
 
 import (
 	"database/sql"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/canteen_management/logger"
@@ -23,6 +25,26 @@ type Menu struct {
 	MenuDate    time.Time `json:"menu_date"`
 	CreateAt    time.Time `json:"created_at"`
 	UpdateAt    time.Time `json:"updated_at"`
+}
+
+func (m *Menu) FromMenuContent(content map[uint32][]uint32) error {
+	contentStr, err := json.Marshal(content)
+	if err != nil {
+		logger.Warn(menuLogTag, "FromMenuContent Failed|Err:%v", err)
+		return err
+	}
+	m.MenuContent = string(contentStr)
+	return nil
+}
+
+func (m *Menu) ToMenuContent(content string) map[uint32][]uint32 {
+	contentMap := make(map[uint32][]uint32, 0)
+	err := json.Unmarshal([]byte(content), &contentMap)
+	if err != nil {
+		logger.Warn(menuLogTag, "ToMenuContent Failed|Err:%v", err)
+		return nil
+	}
+	return contentMap
 }
 
 type MenuModel struct {
@@ -54,15 +76,24 @@ func (mm *MenuModel) BatchInsert(menuList []*Menu) error {
 	return nil
 }
 
-func (mm *MenuModel) GetMenus(menuType uint32, startTime, endTime time.Time) ([]*Menu, error) {
+func (mm *MenuModel) GetMenus(menuType uint32, startTime, endTime int64) ([]*Menu, error) {
 	var params []interface{}
 	condition := " WHERE 1=1 "
 	if menuType > 0 {
 		condition += " AND `menu_type_id` = ? "
 		params = append(params, menuType)
 	}
-	condition += " AND `menu_date` >= ? AND `menu_date` <= ? "
-	params = append(params, startTime, endTime)
+	if startTime > 0 {
+		start := time.Unix(startTime, 0)
+		condition += " AND `menu_date` >= ? "
+		params = append(params, start)
+	}
+	if endTime > 0 {
+		end := time.Unix(endTime, 0)
+		condition += " AND `menu_date` <= ? "
+		params = append(params, end)
+	}
+
 	retList, err := utils.SqlQuery(mm.sqlCli, menuTable, &Menu{}, condition, params...)
 	if err != nil {
 		logger.Warn(menuLogTag, "GetMenus Failed|Err:%v", err)
@@ -70,6 +101,23 @@ func (mm *MenuModel) GetMenus(menuType uint32, startTime, endTime time.Time) ([]
 	}
 
 	return retList.([]*Menu), nil
+}
+
+func (mm *MenuModel) GetMenu(menuID uint32) (*Menu, error) {
+	condition := " WHERE `id` = ? "
+	retList, err := utils.SqlQuery(mm.sqlCli, menuTable, &Menu{}, condition, menuID)
+	if err != nil {
+		logger.Warn(menuLogTag, "GetMenu Failed|Err:%v", err)
+		return nil, err
+	}
+
+	menuList := retList.([]*Menu)
+	if len(menuList) == 0 {
+		logger.Warn(menuLogTag, "GetMenu Not Found|ID:%v|Err:%v", menuID, err)
+		return nil, fmt.Errorf("menu not found|ID:%v", menuID)
+	}
+
+	return menuList[0], nil
 }
 
 func (mm *MenuModel) UpdateMenu(dao *Menu) error {

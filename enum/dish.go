@@ -9,18 +9,29 @@ const (
 	MealBreakfast
 	MealLunch
 	MealDinner
+	MealALL
 )
 
 const (
-	MealBreakfastName = "Breakfast"
-	MealLunchName     = "Lunch"
-	MealDinnerName    = "Dinner"
+	MealBreakfastName = "早餐"
+	MealLunchName     = "午餐"
+	MealDinnerName    = "晚餐"
+
+	MealBreakfastKey = "Breakfast"
+	MealLunchKey     = "Lunch"
+	MealDinnerKey    = "Dinner"
 )
 
 var mealNameMap = map[MealType]string{
 	MealBreakfast: MealBreakfastName,
 	MealLunch:     MealLunchName,
 	MealDinner:    MealDinnerName,
+}
+
+var mealKeyMap = map[MealType]string{
+	MealBreakfast: MealBreakfastKey,
+	MealLunch:     MealLunchKey,
+	MealDinner:    MealDinnerKey,
 }
 
 var mealTypeMap = map[string]MealType{
@@ -31,6 +42,14 @@ var mealTypeMap = map[string]MealType{
 
 func GetMealName(timeType MealType) string {
 	name, ok := mealNameMap[timeType]
+	if ok {
+		return name
+	}
+	return fmt.Sprintf("Unknown Meal:%v", timeType)
+}
+
+func GetMealKey(timeType MealType) string {
+	name, ok := mealKeyMap[timeType]
 	if ok {
 		return name
 	}

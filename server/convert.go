@@ -10,6 +10,10 @@ import (
 	"github.com/canteen_management/model"
 )
 
+const (
+	convertLogTag = "Convert"
+)
+
 func ConvertToDishTypeInfoList(daoList []*model.DishType) []*dto.DishTypeInfo {
 	retList := make([]*dto.DishTypeInfo, 0, len(daoList))
 	for _, dao := range daoList {
@@ -19,30 +23,43 @@ func ConvertToDishTypeInfoList(daoList []*model.DishType) []*dto.DishTypeInfo {
 }
 
 func ConvertFromDishTypeInfo(info *dto.DishTypeInfo) *model.DishType {
-	return &model.DishType{ID: info.DishTypeID, DishTypeName: info.DishTypeName}
+	return &model.DishType{ID: info.DishTypeID, DishTypeName: info.DishTypeName, MasterType: info.MasterTypeID}
 }
 
-func ConvertToDishInfoList(daoList []*model.Dish) []*dto.DishInfo {
+func ConvertToDishInfoList(daoList []*model.Dish, dishTypeMap map[uint32]*model.DishType) []*dto.DishInfo {
 	retList := make([]*dto.DishInfo, 0, len(daoList))
 	for _, dao := range daoList {
-		retList = append(retList, ConvertToDishInfo(dao))
+		retList = append(retList, ConvertToDishInfo(dao, dishTypeMap))
 	}
 	return retList
 }
-func ConvertToDishInfo(dao *model.Dish) *dto.DishInfo {
-	return &dto.DishInfo{DishID: dao.ID, DishName: dao.DishName,
-		DishType: dao.DishType, Material: dao.Material, Price: dao.Price}
+
+func ConvertToDishInfo(dao *model.Dish, dishTypeMap map[uint32]*model.DishType) *dto.DishInfo {
+	dishInfo := &dto.DishInfo{DishID: dao.ID, DishName: dao.DishName, Material: dao.Material, Price: dao.Price}
+	typeInfo, ok := dishTypeMap[dao.DishType]
+	if ok {
+		dishInfo.DishTypeID = typeInfo.ID
+		dishInfo.DishTypeName = typeInfo.DishTypeName
+		if typeInfo.MasterType != 0 {
+			masterType, ok := dishTypeMap[typeInfo.MasterType]
+			if ok {
+				dishInfo.MasterTypeName = masterType.DishTypeName
+			}
+		}
+	}
+	return dishInfo
 }
 
 func ConvertFromDishInfo(info *dto.DishInfo) *model.Dish {
-	return &model.Dish{ID: info.DishID, DishName: info.DishName, DishType: info.DishType,
+	return &model.Dish{ID: info.DishID, DishName: info.DishName, DishType: info.DishTypeID,
 		Price: info.Price, Material: info.Material}
 }
 
-func ConvertToMenuInfoList(daoList []*model.Menu, dishList map[uint32]*model.Dish) []*dto.MenuInfo {
+func ConvertToMenuInfoList(daoList []*model.Menu, dishList map[uint32]*model.Dish,
+	dishTypeList map[uint32]*model.DishType) []*dto.MenuInfo {
 	retList := make([]*dto.MenuInfo, 0, len(daoList))
 	for _, dao := range daoList {
-		mealList, err := ConvertFromMenuContent(dao.MenuContent, dishList)
+		mealList, err := ConvertFromMenuContent(dao.MenuContent, dishList, dishTypeList)
 		if err != nil {
 			continue
 		}
@@ -69,7 +86,7 @@ func ConvertFromWeekMenuInfo(weekMenu *dto.WeekMenuDetailInfo) (*model.WeekMenu,
 
 	content, err := json.Marshal(menuContent)
 	if err != nil {
-		logger.Warn(dishServerLogTag, "ConvertFromWeekMenu Failed|Err:%v", err)
+		logger.Warn(convertLogTag, "ConvertFromWeekMenu Failed|Err:%v", err)
 		return nil, err
 	}
 
@@ -85,16 +102,17 @@ func ConvertToWeekMenuList(daoList []*model.WeekMenu, dishList map[uint32]*model
 			continue
 		}
 		retList = append(retList, &dto.WeekMenuInfo{WeekMenuID: dao.ID, MenuType: dao.MenuTypeID,
-			MenuStartDate: dao.MenuStartDate.Unix(), MenuEndDate: dao.MenuStartDate.Add(time.Hour * 25 * 7).Unix(),
+			MenuStartDate: dao.MenuStartDate.Unix(), MenuEndDate: dao.MenuStartDate.Add(time.Hour * 24 * 7).Unix(),
 			MenuContent: mealStrList})
 	}
 	return retList
 }
 
-func ConvertToWeekMenuDetail(dao *model.WeekMenu, dishList map[uint32]*model.Dish) (*dto.WeekMenuDetailInfo, error) {
-	menuList, err := ConvertDetailFromWeekMenuContent(dao.MenuStartDate, dao.MenuContent, dishList)
+func ConvertToWeekMenuDetail(dao *model.WeekMenu, dishList map[uint32]*model.Dish,
+	dishTypeMap map[uint32]*model.DishType) (*dto.WeekMenuDetailInfo, error) {
+	menuList, err := ConvertDetailFromWeekMenuContent(dao.MenuStartDate, dao.MenuContent, dishList, dishTypeMap)
 	if err != nil {
-		logger.Warn(dishServerLogTag, "ConvertDetailFromWeekMenuContent Failed|Err:%v", err)
+		logger.Warn(convertLogTag, "ConvertDetailFromWeekMenuContent Failed|Err:%v", err)
 		return nil, err
 	}
 
@@ -111,7 +129,7 @@ func ConvertFromWeekMenuContent(content string, dishMap map[uint32]*model.Dish) 
 	contentMap := make([]map[uint8][]uint32, 0)
 	err := json.Unmarshal([]byte(content), &contentMap)
 	if err != nil {
-		logger.Warn(dishServerLogTag, "ConvertFromMenuContent Failed|Err:%v", err)
+		logger.Warn(convertLogTag, "ConvertFromMenuContent Failed|Err:%v", err)
 		return nil, err
 	}
 
@@ -120,28 +138,29 @@ func ConvertFromWeekMenuContent(content string, dishMap map[uint32]*model.Dish) 
 		for _, dishContent := range dayMenu {
 			mealStr := ""
 			for _, dishID := range dishContent {
-				mealStr += dishMap[dishID].DishName
+				mealStr += dishMap[dishID].DishName + ","
 			}
-			mealStrList = append(mealStrList, mealStr)
+			mealStrList = append(mealStrList, mealStr[:len(mealStr)-1])
 		}
 	}
 
 	return mealStrList, nil
 }
 
-func ConvertDetailFromWeekMenuContent(startDate time.Time, content string, dishMap map[uint32]*model.Dish) ([]*dto.MenuInfo, error) {
+func ConvertDetailFromWeekMenuContent(startDate time.Time, content string, dishMap map[uint32]*model.Dish,
+	dishTypeMap map[uint32]*model.DishType) ([]*dto.MenuInfo, error) {
 	contentMap := make([]map[uint8][]uint32, 0)
 	err := json.Unmarshal([]byte(content), &contentMap)
 	if err != nil {
-		logger.Warn(dishServerLogTag, "ConvertFromMenuContent Failed|Err:%v", err)
+		logger.Warn(convertLogTag, "ConvertFromMenuContent Failed|Err:%v", err)
 		return nil, err
 	}
 
 	menuList := make([]*dto.MenuInfo, 0)
 	for _, dayMenu := range contentMap {
-		mealList, err := convertFromMenuContent(dayMenu, dishMap)
+		mealList, err := ConvertFromMenuContent2(dayMenu, dishMap, dishTypeMap)
 		if err != nil {
-			logger.Warn(dishServerLogTag, "ConvertDetailFromWeekMenuContent Failed|Err:%v", err)
+			logger.Warn(convertLogTag, "ConvertDetailFromWeekMenuContent Failed|Err:%v", err)
 			return nil, err
 		}
 		menuInfo := &dto.MenuInfo{MenuDate: startDate.Unix(), MealList: mealList}
@@ -167,13 +186,37 @@ func ConvertToMenuContent(mealList []*dto.MealInfo) (string, error) {
 	contentMap := convertToMenuContent(mealList)
 	content, err := json.Marshal(contentMap)
 	if err != nil {
-		logger.Warn(dishServerLogTag, "ConvertToMenuContent Failed|Err:%v", err)
+		logger.Warn(convertLogTag, "ConvertToMenuContent Failed|Err:%v", err)
 		return "", err
 	}
 	return string(content), nil
 }
 
-func convertFromMenuContent(contentMap map[uint8][]uint32, dishMap map[uint32]*model.Dish) ([]*dto.MealInfo, error) {
+func ConvertFromMenuContent2(mealMap map[uint8][]uint32, dishMap map[uint32]*model.Dish,
+	dishTypeMap map[uint32]*model.DishType) ([]*dto.MealInfo, error) {
+	mealList := make([]*dto.MealInfo, 0)
+	for mealType, dishContent := range mealMap {
+		mealInfo := &dto.MealInfo{
+			MealName: enum.GetMealName(mealType),
+			MealType: mealType,
+			DishList: make([]*dto.DishInfo, 0),
+		}
+		for _, dishID := range dishContent {
+			dishInfo := ConvertToDishInfo(dishMap[dishID], dishTypeMap)
+			mealInfo.DishList = append(mealInfo.DishList, dishInfo)
+		}
+		mealList = append(mealList, mealInfo)
+	}
+	return mealList, nil
+}
+
+func ConvertFromMenuContent(content string, dishMap map[uint32]*model.Dish,
+	dishTypeMap map[uint32]*model.DishType) ([]*dto.MealInfo, error) {
+	contentMap, err := convertFromMenuContent(content)
+	if err != nil {
+		return nil, err
+	}
+
 	mealList := make([]*dto.MealInfo, 0)
 	for mealType, dishContent := range contentMap {
 		mealInfo := &dto.MealInfo{
@@ -182,7 +225,7 @@ func convertFromMenuContent(contentMap map[uint8][]uint32, dishMap map[uint32]*m
 			DishList: make([]*dto.DishInfo, 0),
 		}
 		for _, dishID := range dishContent {
-			dishInfo := ConvertToDishInfo(dishMap[dishID])
+			dishInfo := ConvertToDishInfo(dishMap[dishID], dishTypeMap)
 			mealInfo.DishList = append(mealInfo.DishList, dishInfo)
 		}
 		mealList = append(mealList, mealInfo)
@@ -190,69 +233,13 @@ func convertFromMenuContent(contentMap map[uint8][]uint32, dishMap map[uint32]*m
 	return mealList, nil
 }
 
-func ConvertFromMenuContent(content string, dishMap map[uint32]*model.Dish) ([]*dto.MealInfo, error) {
+func convertFromMenuContent(content string) (map[uint8][]uint32, error) {
 	contentMap := make(map[uint8][]uint32, 0)
 	err := json.Unmarshal([]byte(content), &contentMap)
 	if err != nil {
-		logger.Warn(dishServerLogTag, "ConvertFromMenuContent Failed|Err:%v", err)
+		logger.Warn(convertLogTag, "convertFromMenuContent Failed|Err:%v", err)
 		return nil, err
 	}
 
-	return convertFromMenuContent(contentMap, dishMap)
-}
-
-func ConvertToMenuTypeList(daoList []*model.MenuType) []*dto.MenuTypeInfo {
-	retList := make([]*dto.MenuTypeInfo, 0, len(daoList))
-	for _, dao := range daoList {
-		menuConf, err := ConvertFromMenuTypeConfig(dao.MenuConfig)
-		if err != nil {
-			logger.Warn(dishServerLogTag, "ConvertFromMenuTypeConfig Failed|Err:%v", err)
-			continue
-		}
-		retList = append(retList, &dto.MenuTypeInfo{MenuTypeID: dao.ID, Name: dao.MenuTypeName,
-			MenuConfig: menuConf})
-	}
-	return retList
-}
-
-func ConvertFromMenuTypeInfo(typeInfo *dto.MenuTypeInfo) (*model.MenuType, error) {
-	menuConf, err := ConvertToMenuTypeConfig(typeInfo.MenuConfig)
-	if err != nil {
-		logger.Warn(dishServerLogTag, "ConvertToMenuTypeConfig Failed|Err:%v", err)
-		return nil, err
-	}
-	return &model.MenuType{ID: typeInfo.MenuTypeID, MenuTypeName: typeInfo.Name, MenuConfig: menuConf}, nil
-}
-
-func ConvertToMenuTypeConfig(menuConfList []*dto.MenuConfigInfo) (string, error) {
-	menuConfig := make(map[uint8]map[uint32]int32, 0)
-	for _, confInfo := range menuConfList {
-		menuConfig[confInfo.MealType] = confInfo.DishNumberMap
-	}
-	menuConf, err := json.Marshal(menuConfig)
-	if err != nil {
-		logger.Warn(dishServerLogTag, "ConvertToMenuTypeConfig Failed|Err:%v", err)
-		return "", err
-	}
-	return string(menuConf), nil
-}
-
-func ConvertFromMenuTypeConfig(menuConf string) ([]*dto.MenuConfigInfo, error) {
-	menuConfig := make(map[uint8]map[uint32]int32, 0)
-	err := json.Unmarshal([]byte(menuConf), &menuConfig)
-	if err != nil {
-		logger.Warn(dishServerLogTag, "ConvertFromMenuTypeConfig Failed|Err:%v", err)
-		return nil, err
-	}
-
-	retList := make([]*dto.MenuConfigInfo, 0)
-	for mealType, dishNumberMap := range menuConfig {
-		confInfo := &dto.MenuConfigInfo{
-			MealName:      enum.GetMealName(mealType),
-			MealType:      mealType,
-			DishNumberMap: dishNumberMap,
-		}
-		retList = append(retList, confInfo)
-	}
-	return retList, nil
+	return contentMap, nil
 }
