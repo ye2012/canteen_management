@@ -32,8 +32,12 @@ func StartServer() {
 
 	HandleUserApi(router)
 	HandlePurchaseApi(router)
-	HandleStorehouseApi(router)
-	err := HandleMenuApi(router)
+	err := HandleStorehouseApi(router)
+	if err != nil {
+		logger.Warn(serverLogTag, "HandleStorehouseApi Failed|Err:%v", err)
+		return
+	}
+	err = HandleMenuApi(router)
 	if err != nil {
 		logger.Warn(serverLogTag, "HandleMenuApi Failed|Err:%v", err)
 		return
@@ -78,21 +82,34 @@ func HandlePurchaseApi(router *gin.Engine) {
 	//	&dto.{}))
 }
 
-func HandleStorehouseApi(router *gin.Engine) {
-	//storeRouter := router.Group("/store")
-	//storeServer := server.NewStorehouseServer()
-	//storeRouter.POST("/storeList", NewHandler(storeServer.,
-	//	&dto.{}))
-	//storeRouter.POST("/modifyStoreInfo", NewHandler(storeServer.,
-	//	&dto.{}))
-	//
+func HandleStorehouseApi(router *gin.Engine) error {
+	storeRouter := router.Group("/store")
+	storeServer, err := server.NewStorehouseServer(config.Config.MysqlConfig)
+	if err != nil {
+		logger.Warn(serverLogTag, "NewStorehouseServer Failed|Err:%v", err)
+		return err
+	}
+
+	storeRouter.POST("/storeTypeList", NewHandler(storeServer.RequestStoreTypeList,
+		func() interface{} { return new(dto.StoreTypeListReq) }))
+	storeRouter.POST("/modifyStoreType", NewHandler(storeServer.RequestModifyStoreType,
+		func() interface{} { return new(dto.ModifyStoreTypeReq) }))
+
+	storeRouter.POST("/goodsTypeList", NewHandler(storeServer.RequestGoodsTypeList,
+		func() interface{} { return new(dto.GoodsTypeListReq) }))
+	storeRouter.POST("/modifyGoodsType", NewHandler(storeServer.RequestModifyGoodsType,
+		func() interface{} { return new(dto.ModifyGoodsInfoReq) }))
+
+	storeRouter.POST("/goodsList", NewHandler(storeServer.RequestGoodsList,
+		func() interface{} { return new(dto.GoodsTypeListReq) }))
+	storeRouter.POST("/modifyGoods", NewHandler(storeServer.RequestModifyGoods,
+		func() interface{} { return new(dto.ModifyGoodsInfoReq) }))
+
 	//storeRouter.POST("/applyConsumeGoods", NewHandler(storeServer.,
 	//	&dto.{}))
 	//storeRouter.POST("/confirmConsumeGoods", NewHandler(storeServer.,
 	//	&dto.{}))
-	//
-	//storeRouter.POST("/resetGoods", NewHandler(storeServer.,
-	//	&dto.{}))
+	return nil
 }
 
 func HandleMenuApi(router *gin.Engine) error {
@@ -111,11 +128,6 @@ func HandleMenuApi(router *gin.Engine) error {
 		func() interface{} { return new(dto.DishListReq) }))
 	menuRouter.POST("/modifyDish", NewHandler(menuServer.RequestModifyDish,
 		func() interface{} { return new(dto.ModifyDishReq) }))
-
-	menuRouter.POST("/menuList", NewHandler(menuServer.RequestMenuList,
-		func() interface{} { return new(dto.MenuListReq) }))
-	menuRouter.POST("/modifyMenu", NewHandler(menuServer.RequestModifyMenu,
-		func() interface{} { return new(dto.ModifyMenuReq) }))
 
 	menuRouter.POST("/weekMenuList", NewHandler(menuServer.RequestWeekMenuList,
 		func() interface{} { return new(dto.WeekMenuListReq) }))
@@ -137,6 +149,8 @@ func HandleMenuApi(router *gin.Engine) error {
 		func() interface{} { return new(dto.StaffMenuDetailHeadReq) }))
 	menuRouter.POST("/staffMenuData", NewHandler(menuServer.RequestStaffMenuDetailData,
 		func() interface{} { return new(dto.StaffMenuDetailDataReq) }))
+	menuRouter.POST("/modifyStaffMenu", NewHandler(menuServer.RequestModifyMenuDetail,
+		func() interface{} { return new(dto.ModifyStaffMenuDetailReq) }))
 
 	menuRouter.POST("/menuTypeListHead", NewHandler(menuServer.RequestMenuTypeListHead,
 		func() interface{} { return new(dto.MenuTypeListHeadReq) }))

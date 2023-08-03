@@ -127,29 +127,6 @@ func (ms *MenuServer) RequestModifyDish(ctx *gin.Context, rawReq interface{}, re
 	return
 }
 
-func (ms *MenuServer) RequestMenuList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
-	req := rawReq.(*dto.MenuListReq)
-	dishIDMap, err := ms.dishService.GetDishIDMap()
-	if err != nil {
-		res.Code = enum.SqlError
-		return
-	}
-	dishTypeMap, err := ms.dishService.GetDishTypeMap()
-	if err != nil {
-		res.Code = enum.SqlError
-		return
-	}
-
-	menuList, err := ms.menuService.GetMenuList(req.MenuType, req.TimeStart, req.TimeEnd)
-	if err != nil {
-		res.Code = enum.SqlError
-		return
-	}
-	res.Data = &dto.MenuListRes{
-		MenuList: ConvertToMenuInfoList(menuList, dishIDMap, dishTypeMap),
-	}
-}
-
 func (ms *MenuServer) RequestWeekMenuList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.WeekMenuListReq)
 
@@ -221,57 +198,33 @@ func (ms *MenuServer) RequestModifyWeekMenu(ctx *gin.Context, rawReq interface{}
 	}
 }
 
-func (ms *MenuServer) RequestModifyMenu(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
-	req := rawReq.(*dto.ModifyMenuReq)
-	menuDao, err := ConvertFromMenuInfo(&req.Menu)
-	if err != nil {
+func (ms *MenuServer) RequestModifyMenuType(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.ModifyMenuTypeReq)
+
+	if len(req.MenuTypeRows) != 1 {
 		res.Code = enum.ParamsError
 		return
 	}
+	menuTypeDao := ParseMenuTypeDetailData(req.MenuTypeRows[0], req.MenuTypeID, req.MenuTypeName)
+	logger.Info(menuServerLogTag, "ModifyMenuType:%#v", menuTypeDao)
+
 	switch req.Operate {
 	case enum.OperateTypeAdd:
-		err = ms.menuService.AddMenu(menuDao)
+		err := ms.menuService.AddMenuType(menuTypeDao)
 		if err != nil {
 			res.Code = enum.SqlError
 			return
 		}
 	case enum.OperateTypeModify:
-		err = ms.menuService.UpdateMenu(menuDao)
+		err := ms.menuService.UpdateMenuType(menuTypeDao)
 		if err != nil {
 			res.Code = enum.SqlError
 			return
 		}
 	default:
-		logger.Warn(menuServerLogTag, "RequestModifyMenu Unknown OperateType|Type:%v", req.Operate)
+		logger.Warn(menuServerLogTag, "RequestModifyMenuType Unknown OperateType|Type:%v", req.Operate)
 		res.Code = enum.SystemError
 	}
-}
-
-func (ms *MenuServer) RequestModifyMenuType(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
-	//req := rawReq.(*dto.ModifyMenuTypeReq)
-	//
-	//menuTypeDao, err := ConvertFromMenuTypeInfo(&req.MenuType)
-	//if err != nil {
-	//	res.Code = enum.ParamsError
-	//	return
-	//}
-	//switch req.Operate {
-	//case enum.OperateTypeAdd:
-	//	err := ms.menuService.AddMenuType(menuTypeDao)
-	//	if err != nil {
-	//		res.Code = enum.SqlError
-	//		return
-	//	}
-	//case enum.OperateTypeModify:
-	//	err = ms.menuService.UpdateMenuType(menuTypeDao)
-	//	if err != nil {
-	//		res.Code = enum.SqlError
-	//		return
-	//	}
-	//default:
-	//	logger.Warn(menuServerLogTag, "RequestModifyMenuType Unknown OperateType|Type:%v", req.Operate)
-	//	res.Code = enum.SystemError
-	//}
 }
 
 func (ms *MenuServer) RequestGenerateStaffMenu(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
@@ -303,14 +256,16 @@ func (ms *MenuServer) RequestGenerateStaffMenu(ctx *gin.Context, rawReq interfac
 
 	menuDate := time.Unix(req.MenuDate, 0)
 	menu := &model.Menu{MenuDate: menuDate, MenuTypeID: req.MenuType}
-	menuDishMap := make(map[uint32][]uint32)
-	for _, numberConf := range confMap {
+	menuDishMap := make(map[uint8][]uint32)
+	for mealType, numberConf := range confMap {
+		totalDishList := make([]uint32, 0)
 		for dishType, dishNum := range numberConf {
 			dishList := ms.dishService.RandDishIDByType(dishType, int(dishNum))
-			menuDishMap[dishType] = dishList
+			totalDishList = append(totalDishList, dishList...)
 		}
+		menuDishMap[mealType] = totalDishList
 	}
-	menu.FromMenuContent(menuDishMap)
+	menu.FromMenuConfig(menuDishMap)
 	res.Data = GenerateStaffDetailTableData(menu, dishMap, dishTypeMap)
 }
 
@@ -418,6 +373,30 @@ func (ms *MenuServer) RequestStaffMenuDetailData(ctx *gin.Context, rawReq interf
 
 	data := GenerateStaffDetailTableData(menu, dishMap, dishTypeMap)
 	res.Data = data
+}
+
+func (ms *MenuServer) RequestModifyMenuDetail(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.ModifyStaffMenuDetailReq)
+	staffMenuDao := ParseStaffMenuDetailData(req.StaffMenuRows, req.StaffMenuID)
+	logger.Info(menuServerLogTag, "ModifyMenuDetail:%#v", staffMenuDao)
+
+	switch req.Operate {
+	case enum.OperateTypeAdd:
+		err := ms.menuService.AddMenu(staffMenuDao)
+		if err != nil {
+			res.Code = enum.SqlError
+			return
+		}
+	case enum.OperateTypeModify:
+		err := ms.menuService.UpdateMenu(staffMenuDao)
+		if err != nil {
+			res.Code = enum.SqlError
+			return
+		}
+	default:
+		logger.Warn(menuServerLogTag, "RequestModifyMenuDetail Unknown OperateType|Type:%v", req.Operate)
+		res.Code = enum.SystemError
+	}
 }
 
 func (ms *MenuServer) RequestMenuTypeListHead(ctx *gin.Context, rawReq interface{}, res *dto.Response) {

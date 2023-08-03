@@ -24,7 +24,7 @@ type TableColumnInfo struct {
 
 type TableRowColumnInfo struct {
 	ID    uint32 `json:"id"`
-	Value string `json:"value"`
+	Value string `json:"value,omitempty"`
 }
 
 type TableRowInfo struct {

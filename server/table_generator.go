@@ -2,6 +2,8 @@ package server
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/canteen_management/dto"
 	"github.com/canteen_management/enum"
@@ -13,9 +15,21 @@ const (
 	IndexID           = "ID"
 	IndexMenuDate     = "MenuDate"
 	IndexMenuTypeName = "MenuTypeName"
+	IndexDish         = "Dish"
+	IndexDishType     = "DishType"
+
+	IndexDelimiter = "_"
 
 	TableGeneratorLogTag = "TableGenerator"
 )
+
+func GenerateDishIndex(mealType enum.MealType) string {
+	return enum.GetMealKey(mealType) + IndexDelimiter + IndexDish
+}
+
+func GenerateDishTypeIndex(mealType enum.MealType) string {
+	return enum.GetMealKey(mealType) + IndexDelimiter + IndexDishType
+}
 
 func GenerateStaffMenuListTableHead() []*dto.TableColumnInfo {
 	head := make([]*dto.TableColumnInfo, 0)
@@ -33,9 +47,9 @@ func GenerateStaffMenuListTableData(menuList []*model.Menu, dishIDMap map[uint32
 		row := &dto.TableRowInfo{DataMap: make(map[string]*dto.TableRowColumnInfo)}
 		row.DataMap[IndexID] = &dto.TableRowColumnInfo{Value: fmt.Sprintf("%v", menu.ID)}
 		row.DataMap[IndexMenuDate] = &dto.TableRowColumnInfo{Value: menu.MenuDate.Format("2006-02-01")}
-		dishMap, err := convertFromMenuContent(menu.MenuContent)
-		if err != nil {
-			logger.Warn(TableGeneratorLogTag, "convertFromMenuContent Failed|Err:%v", err)
+		dishMap := menu.ToMenuContent()
+		if dishMap == nil {
+			logger.Warn(TableGeneratorLogTag, "StaffMenuList ToMenuContent Failed")
 			continue
 		}
 		for mealType, dishList := range dishMap {
@@ -57,20 +71,19 @@ func GenerateStaffDetailTableHead() []*dto.TableColumnInfo {
 	head := make([]*dto.TableColumnInfo, 0)
 	for i := enum.MealUnknown + 1; i < enum.MealALL; i++ {
 		head = append(head, &dto.TableColumnInfo{DataIndex: enum.GetMealKey(i), Hide: true})
-		head = append(head, &dto.TableColumnInfo{DataIndex: enum.GetMealKey(i) + "DishType", Hide: true})
-		head = append(head, &dto.TableColumnInfo{DataIndex: enum.GetMealKey(i) + "Dish", Hide: true})
+		head = append(head, &dto.TableColumnInfo{DataIndex: GenerateDishTypeIndex(i), Hide: true})
+		head = append(head, &dto.TableColumnInfo{DataIndex: GenerateDishIndex(i), Hide: true})
 	}
 	return head
 }
 
 func GenerateStaffDetailTableData(menu *model.Menu, dishIDMap map[uint32]*model.Dish,
 	dishTypeMap map[uint32]*model.DishType) []*dto.TableRowInfo {
-	dishMap, err := convertFromMenuContent(menu.MenuContent)
-	if err != nil {
-		logger.Warn(TableGeneratorLogTag, "convertFromMenuContent Failed|Err:%v", err)
+	dishMap := menu.ToMenuContent()
+	if dishMap == nil {
+		logger.Warn(TableGeneratorLogTag, "ToStaffMenuContent Failed")
 		return nil
 	}
-	logger.Debug(TableGeneratorLogTag, "StaffDetail|DishMap:%#v", dishMap)
 
 	maxLen := 0
 	mealByType := make(map[uint8]map[uint32][]*model.Dish)
@@ -108,9 +121,9 @@ func GenerateStaffDetailTableData(menu *model.Menu, dishIDMap map[uint32]*model.
 			for _, dish := range dishList {
 				rows[curIndex].DataMap[enum.GetMealKey(mealType)] = &dto.TableRowColumnInfo{
 					Value: fmt.Sprintf("%v(%v)", enum.GetMealName(mealType), mealDishNumber[mealType])}
-				rows[curIndex].DataMap[enum.GetMealKey(mealType)+"DishType"] = &dto.TableRowColumnInfo{
+				rows[curIndex].DataMap[GenerateDishTypeIndex(mealType)] = &dto.TableRowColumnInfo{
 					Value: fmt.Sprintf("%v(%v)", dishTypeMap[dishType].DishTypeName, len(dishList))}
-				rows[curIndex].DataMap[enum.GetMealKey(mealType)+"Dish"] = &dto.TableRowColumnInfo{
+				rows[curIndex].DataMap[GenerateDishIndex(mealType)] = &dto.TableRowColumnInfo{
 					Value: dish.DishName}
 				curIndex++
 				extraTimes := 0
@@ -121,17 +134,42 @@ func GenerateStaffDetailTableData(menu *model.Menu, dishIDMap map[uint32]*model.
 				for i := 1; i < repeatTimes+extraTimes; i++ {
 					rows[curIndex].DataMap[enum.GetMealKey(mealType)] =
 						rows[curIndex-1].DataMap[enum.GetMealKey(mealType)]
-					rows[curIndex].DataMap[enum.GetMealKey(mealType)+"DishType"] =
-						rows[curIndex-1].DataMap[enum.GetMealKey(mealType)+"DishType"]
-					rows[curIndex].DataMap[enum.GetMealKey(mealType)+"Dish"] =
-						rows[curIndex-1].DataMap[enum.GetMealKey(mealType)+"Dish"]
+					rows[curIndex].DataMap[GenerateDishTypeIndex(mealType)] =
+						rows[curIndex-1].DataMap[GenerateDishTypeIndex(mealType)]
+					rows[curIndex].DataMap[GenerateDishIndex(mealType)] =
+						rows[curIndex-1].DataMap[GenerateDishIndex(mealType)]
 					curIndex++
 				}
 			}
 		}
 	}
-
 	return rows
+}
+
+func ParseStaffMenuDetailData(rowList []*dto.TableRowInfo, menuID uint32) *model.Menu {
+	menu := &model.Menu{ID: menuID}
+	menuConf := make(map[uint8][]uint32)
+	for _, row := range rowList {
+		for key, value := range row.DataMap {
+			keys := strings.Split(key, IndexDelimiter)
+			if len(keys) <= 1 {
+				continue
+			}
+			mealType := enum.GetMealType(keys[0])
+			if mealType == enum.MealUnknown {
+				logger.Warn(TableGeneratorLogTag, "StaffMenuDetail Unknown Meal|Key:%v|Value:%#v", key, value)
+				continue
+			}
+			if keys[1] == IndexDish {
+				if _, ok := menuConf[mealType]; ok == false {
+					menuConf[mealType] = make([]uint32, 0)
+				}
+				menuConf[mealType] = append(menuConf[mealType], value.ID)
+			}
+		}
+	}
+	menu.FromMenuConfig(menuConf)
+	return menu
 }
 
 func GenerateMenuTypeListTableHead() []*dto.TableColumnInfo {
@@ -184,7 +222,7 @@ func GenerateMenuTypeDetailTableHead(menuType *model.MenuType, dishTypeMap map[u
 			Hide: false, Children: make([]*dto.TableColumnInfo, 0)}
 		for dishType := range mealContent {
 			dishHead := &dto.TableColumnInfo{Name: dishTypeMap[dishType].DishTypeName,
-				DataIndex: enum.GetMealKey(mealType) + fmt.Sprintf("%v", dishTypeMap[dishType].ID), Hide: false}
+				DataIndex: enum.GetMealKey(mealType) + fmt.Sprintf("_%v", dishTypeMap[dishType].ID), Hide: false}
 			mealHead.Children = append(mealHead.Children, dishHead)
 		}
 		head = append(head, mealHead)
@@ -201,12 +239,38 @@ func GenerateMenuTypeDetailTableData(menuType *model.MenuType, dishTypeMap map[u
 	}
 
 	row := &dto.TableRowInfo{DataMap: make(map[string]*dto.TableRowColumnInfo)}
+	row.DataMap[IndexID] = &dto.TableRowColumnInfo{ID: menuType.ID}
+	row.DataMap[IndexMenuTypeName] = &dto.TableRowColumnInfo{Value: menuType.MenuTypeName}
 	for mealType, mealContent := range menuContentMap {
 		for dishType, dishNumber := range mealContent {
-			row.DataMap[enum.GetMealKey(mealType)+fmt.Sprintf("%v", dishTypeMap[dishType].ID)] =
+			row.DataMap[enum.GetMealKey(mealType)+fmt.Sprintf("_%v", dishTypeMap[dishType].ID)] =
 				&dto.TableRowColumnInfo{Value: fmt.Sprintf("%v", dishNumber)}
 		}
 	}
 	dataList = append(dataList, row)
 	return dataList
+}
+
+func ParseMenuTypeDetailData(row *dto.TableRowInfo, menuTypeID uint32, menuTypeName string) *model.MenuType {
+	menuType := &model.MenuType{ID: menuTypeID, MenuTypeName: menuTypeName}
+	menuConf := make(map[uint8]map[uint32]int32)
+	for key, info := range row.DataMap {
+		keys := strings.Split(key, IndexDelimiter)
+		if len(keys) <= 1 {
+			continue
+		}
+		mealType := enum.GetMealType(keys[0])
+		if mealType == enum.MealUnknown {
+			logger.Warn(TableGeneratorLogTag, "MenuTypeDetail Unknown Meal|Key:%v|Value:%#v", key, info)
+			continue
+		}
+		if _, ok := menuConf[mealType]; ok == false {
+			menuConf[mealType] = make(map[uint32]int32)
+		}
+		dishType, _ := strconv.ParseInt(keys[1], 10, 32)
+		dishNumber, _ := strconv.ParseInt(info.Value, 10, 32)
+		menuConf[mealType][uint32(dishType)] = int32(dishNumber)
+	}
+	menuType.FromMenuConfig(menuConf)
+	return menuType
 }

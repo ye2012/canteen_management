@@ -16,7 +16,7 @@ const (
 	menuLogTag = "Menu"
 )
 
-var menuUpdateTags = []string{"menu_content", ""}
+var menuUpdateTags = []string{"menu_content"}
 
 type Menu struct {
 	ID          uint32    `json:"id"`
@@ -27,19 +27,19 @@ type Menu struct {
 	UpdateAt    time.Time `json:"updated_at"`
 }
 
-func (m *Menu) FromMenuContent(content map[uint32][]uint32) error {
-	contentStr, err := json.Marshal(content)
+func (m *Menu) FromMenuConfig(menuConf map[uint8][]uint32) error {
+	contentStr, err := json.Marshal(menuConf)
 	if err != nil {
-		logger.Warn(menuLogTag, "FromMenuContent Failed|Err:%v", err)
+		logger.Warn(menuLogTag, "FromMenuConfig Failed|Err:%v", err)
 		return err
 	}
 	m.MenuContent = string(contentStr)
 	return nil
 }
 
-func (m *Menu) ToMenuContent(content string) map[uint32][]uint32 {
-	contentMap := make(map[uint32][]uint32, 0)
-	err := json.Unmarshal([]byte(content), &contentMap)
+func (m *Menu) ToMenuContent() map[uint8][]uint32 {
+	contentMap := make(map[uint8][]uint32, 0)
+	err := json.Unmarshal([]byte(m.MenuContent), &contentMap)
 	if err != nil {
 		logger.Warn(menuLogTag, "ToMenuContent Failed|Err:%v", err)
 		return nil

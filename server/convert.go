@@ -55,28 +55,6 @@ func ConvertFromDishInfo(info *dto.DishInfo) *model.Dish {
 		Price: info.Price, Material: info.Material}
 }
 
-func ConvertToMenuInfoList(daoList []*model.Menu, dishList map[uint32]*model.Dish,
-	dishTypeList map[uint32]*model.DishType) []*dto.MenuInfo {
-	retList := make([]*dto.MenuInfo, 0, len(daoList))
-	for _, dao := range daoList {
-		mealList, err := ConvertFromMenuContent(dao.MenuContent, dishList, dishTypeList)
-		if err != nil {
-			continue
-		}
-		retList = append(retList, &dto.MenuInfo{MenuID: dao.ID, MenuType: dao.MenuTypeID, MealList: mealList,
-			MenuDate: dao.MenuDate.Unix()})
-	}
-	return retList
-}
-
-func ConvertFromMenuInfo(menuInfo *dto.MenuInfo) (*model.Menu, error) {
-	content, err := ConvertToMenuContent(menuInfo.MealList)
-	if err != nil {
-		return nil, err
-	}
-	return &model.Menu{ID: menuInfo.MenuID, MenuTypeID: menuInfo.MenuType, MenuContent: content,
-		MenuDate: time.Unix(menuInfo.MenuDate, 0)}, nil
-}
 func ConvertFromWeekMenuInfo(weekMenu *dto.WeekMenuDetailInfo) (*model.WeekMenu, error) {
 	menuContent := make([]map[uint8][]uint32, 0)
 	for _, menu := range weekMenu.MenuList {
@@ -182,16 +160,6 @@ func convertToMenuContent(mealList []*dto.MealInfo) map[uint8][]uint32 {
 	return contentMap
 }
 
-func ConvertToMenuContent(mealList []*dto.MealInfo) (string, error) {
-	contentMap := convertToMenuContent(mealList)
-	content, err := json.Marshal(contentMap)
-	if err != nil {
-		logger.Warn(convertLogTag, "ConvertToMenuContent Failed|Err:%v", err)
-		return "", err
-	}
-	return string(content), nil
-}
-
 func ConvertFromMenuContent2(mealMap map[uint8][]uint32, dishMap map[uint32]*model.Dish,
 	dishTypeMap map[uint32]*model.DishType) ([]*dto.MealInfo, error) {
 	mealList := make([]*dto.MealInfo, 0)
@@ -210,36 +178,44 @@ func ConvertFromMenuContent2(mealMap map[uint8][]uint32, dishMap map[uint32]*mod
 	return mealList, nil
 }
 
-func ConvertFromMenuContent(content string, dishMap map[uint32]*model.Dish,
-	dishTypeMap map[uint32]*model.DishType) ([]*dto.MealInfo, error) {
-	contentMap, err := convertFromMenuContent(content)
-	if err != nil {
-		return nil, err
-	}
-
-	mealList := make([]*dto.MealInfo, 0)
-	for mealType, dishContent := range contentMap {
-		mealInfo := &dto.MealInfo{
-			MealName: enum.GetMealName(mealType),
-			MealType: mealType,
-			DishList: make([]*dto.DishInfo, 0),
-		}
-		for _, dishID := range dishContent {
-			dishInfo := ConvertToDishInfo(dishMap[dishID], dishTypeMap)
-			mealInfo.DishList = append(mealInfo.DishList, dishInfo)
-		}
-		mealList = append(mealList, mealInfo)
-	}
-	return mealList, nil
+func ConvertFromStoreTypeInfo(info *dto.StoreTypeInfo) *model.StorehouseType {
+	return &model.StorehouseType{ID: info.StoreTypeID, StoreTypeName: info.StoreTypeName}
 }
 
-func convertFromMenuContent(content string) (map[uint8][]uint32, error) {
-	contentMap := make(map[uint8][]uint32, 0)
-	err := json.Unmarshal([]byte(content), &contentMap)
-	if err != nil {
-		logger.Warn(convertLogTag, "convertFromMenuContent Failed|Err:%v", err)
-		return nil, err
+func ConvertToStoreTypeInfoList(daoList []*model.StorehouseType) []*dto.StoreTypeInfo {
+	retList := make([]*dto.StoreTypeInfo, 0, len(daoList))
+	for _, dao := range daoList {
+		retList = append(retList, &dto.StoreTypeInfo{StoreTypeID: dao.ID, StoreTypeName: dao.StoreTypeName})
 	}
+	return retList
+}
 
-	return contentMap, nil
+func ConvertFromGoodsTypeInfo(info *dto.GoodsTypeInfo) *model.GoodsType {
+	return &model.GoodsType{ID: info.GoodsTypeID, GoodsTypeName: info.GoodsTypeName, Discount: info.Discount}
+}
+
+func ConvertToGoodsTypeInfoList(daoList []*model.GoodsType) []*dto.GoodsTypeInfo {
+	retList := make([]*dto.GoodsTypeInfo, 0, len(daoList))
+	for _, dao := range daoList {
+		retList = append(retList, &dto.GoodsTypeInfo{GoodsTypeID: dao.ID, GoodsTypeName: dao.GoodsTypeName, Discount: dao.Discount})
+	}
+	return retList
+}
+
+func ConvertFromGoodsInfo(info *dto.GoodsInfo, picture string) *model.Goods {
+	if picture == "" {
+		picture = info.Picture
+	}
+	return &model.Goods{ID: info.GoodsID, GoodsTypeID: info.GoodsType, StoreTypeID: info.StoreType, Picture: picture,
+		BatchSize: info.BatchSize, BatchUnit: info.BatchUnit, Price: info.Price, Quantity: info.Quantity}
+}
+
+func ConvertToGoodsInfoList(daoList []*model.Goods) []*dto.GoodsInfo {
+	retList := make([]*dto.GoodsInfo, 0, len(daoList))
+	for _, dao := range daoList {
+		retList = append(retList, &dto.GoodsInfo{GoodsID: dao.ID, GoodsType: dao.GoodsTypeID,
+			StoreType: dao.StoreTypeID, Picture: dao.Picture, BatchSize: dao.BatchSize, BatchUnit: dao.BatchUnit,
+			Price: dao.Price, Quantity: dao.Quantity})
+	}
+	return retList
 }

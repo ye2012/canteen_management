@@ -2,12 +2,6 @@ package dto
 
 import "github.com/canteen_management/enum"
 
-type MenuListReq struct {
-	MenuType  uint32 `json:"menu_type"`
-	TimeStart int64  `json:"time_start"`
-	TimeEnd   int64  `json:"time_end"`
-}
-
 type MealInfo struct {
 	MealName string      `json:"meal_name"`
 	MealType uint8       `json:"meal_type"`
@@ -21,16 +15,11 @@ type MenuInfo struct {
 	MealList []*MealInfo `json:"meal_list"`
 }
 
-type MenuListRes struct {
-	MenuList []*MenuInfo `json:"menu_list"`
+type WeekMenuListReq struct {
+	MenuType  uint32 `json:"menu_type"`
+	TimeStart int64  `json:"time_start"`
+	TimeEnd   int64  `json:"time_end"`
 }
-
-type ModifyMenuReq struct {
-	Operate enum.OperateType `json:"operate"`
-	Menu    MenuInfo         `json:"menu"`
-}
-
-type WeekMenuListReq MenuListReq
 
 type WeekMenuInfo struct {
 	WeekMenuID    uint32   `json:"week_menu_id"`
@@ -68,8 +57,6 @@ type GenerateStaffMenuReq struct {
 	MenuDate int64  `json:"menu_date"`
 }
 
-type GenerateStaffMenuRes = MenuInfo
-
 type GenerateWeekMenuReq struct {
 	MenuType  uint32 `json:"menu_type"`
 	TimeStart int64  `json:"time_start"`
@@ -101,12 +88,14 @@ type StaffMenuDetailDataReq struct {
 type StaffMenuDetailDataRes []*TableRowInfo
 
 type ModifyStaffMenuDetailReq struct {
-	Operate    enum.OperateType `json:"operate"`
-	MenuDetail []*TableRowInfo  `json:"menu_detail"`
+	Operate       enum.OperateType `json:"operate"`
+	StaffMenuID   uint32           `json:"staff_menu_id"`
+	StaffMenuRows []*TableRowInfo  `json:"staff_menu_rows"`
 }
 
 type MenuTypeListHeadReq struct {
 }
+
 type MenuTypeListHeadRes []*TableColumnInfo
 
 type MenuTypeListDataReq struct {
@@ -127,6 +116,8 @@ type MenuTypeDetailDataReq struct {
 type MenuTypeDetailDataRes []*TableRowInfo
 
 type ModifyMenuTypeReq struct {
-	Operate  enum.OperateType `json:"operate"`
-	MenuType []*TableRowInfo  `json:"menu_type"`
+	Operate      enum.OperateType `json:"operate"`
+	MenuTypeID   uint32           `json:"menu_type_id"`
+	MenuTypeName string           `json:"menu_type_name"`
+	MenuTypeRows []*TableRowInfo  `json:"menu_type_rows"`
 }
