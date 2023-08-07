@@ -14,7 +14,7 @@ const (
 )
 
 var (
-	dishUpdateTags = []string{"dish_name", "price", "material"}
+	dishUpdateTags = []string{"dish_name", "dish_type", "price", "material"}
 )
 
 type Dish struct {

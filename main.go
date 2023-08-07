@@ -2,10 +2,10 @@ package main
 
 import (
 	"flag"
-	"github.com/canteen_management/config"
 	"net/http"
 	"reflect"
 
+	"github.com/canteen_management/config"
 	"github.com/canteen_management/dto"
 	"github.com/canteen_management/enum"
 	"github.com/canteen_management/logger"
@@ -83,7 +83,7 @@ func HandlePurchaseApi(router *gin.Engine) {
 }
 
 func HandleStorehouseApi(router *gin.Engine) error {
-	storeRouter := router.Group("/store")
+	storeRouter := router.Group("/api/store")
 	storeServer, err := server.NewStorehouseServer(config.Config.MysqlConfig)
 	if err != nil {
 		logger.Warn(serverLogTag, "NewStorehouseServer Failed|Err:%v", err)
@@ -98,10 +98,10 @@ func HandleStorehouseApi(router *gin.Engine) error {
 	storeRouter.POST("/goodsTypeList", NewHandler(storeServer.RequestGoodsTypeList,
 		func() interface{} { return new(dto.GoodsTypeListReq) }))
 	storeRouter.POST("/modifyGoodsType", NewHandler(storeServer.RequestModifyGoodsType,
-		func() interface{} { return new(dto.ModifyGoodsInfoReq) }))
+		func() interface{} { return new(dto.ModifyGoodsTypeReq) }))
 
 	storeRouter.POST("/goodsList", NewHandler(storeServer.RequestGoodsList,
-		func() interface{} { return new(dto.GoodsTypeListReq) }))
+		func() interface{} { return new(dto.GoodsListReq) }))
 	storeRouter.POST("/modifyGoods", NewHandler(storeServer.RequestModifyGoods,
 		func() interface{} { return new(dto.ModifyGoodsInfoReq) }))
 

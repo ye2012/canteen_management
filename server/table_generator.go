@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/canteen_management/dto"
 	"github.com/canteen_management/enum"
@@ -21,6 +22,12 @@ const (
 	IndexDelimiter = "_"
 
 	TableGeneratorLogTag = "TableGenerator"
+
+	DayRowFixed = 4
+)
+
+var (
+	weekDays = []string{"星期一", "星期二", "星期三", "星期四", "星期五", "星期六", "星期日"}
 )
 
 func GenerateDishIndex(mealType enum.MealType) string {
@@ -29,6 +36,10 @@ func GenerateDishIndex(mealType enum.MealType) string {
 
 func GenerateDishTypeIndex(mealType enum.MealType) string {
 	return enum.GetMealKey(mealType) + IndexDelimiter + IndexDishType
+}
+
+func GenerateDayMealIndex(mealType enum.MealType, dayName string) string {
+	return enum.GetMealKey(mealType) + IndexDelimiter + dayName
 }
 
 func GenerateStaffMenuListTableHead() []*dto.TableColumnInfo {
@@ -45,8 +56,8 @@ func GenerateStaffMenuListTableData(menuList []*model.Menu, dishIDMap map[uint32
 	dataList := make([]*dto.TableRowInfo, 0)
 	for _, menu := range menuList {
 		row := &dto.TableRowInfo{DataMap: make(map[string]*dto.TableRowColumnInfo)}
-		row.DataMap[IndexID] = &dto.TableRowColumnInfo{Value: fmt.Sprintf("%v", menu.ID)}
-		row.DataMap[IndexMenuDate] = &dto.TableRowColumnInfo{Value: menu.MenuDate.Format("2006-02-01")}
+		row.DataMap[IndexID] = &dto.TableRowColumnInfo{ID: menu.ID, Value: fmt.Sprintf("%v", menu.ID)}
+		row.DataMap[IndexMenuDate] = &dto.TableRowColumnInfo{Value: menu.MenuDate.Format("2006-01-02")}
 		dishMap := menu.ToMenuContent()
 		if dishMap == nil {
 			logger.Warn(TableGeneratorLogTag, "StaffMenuList ToMenuContent Failed")
@@ -124,7 +135,7 @@ func GenerateStaffDetailTableData(menu *model.Menu, dishIDMap map[uint32]*model.
 				rows[curIndex].DataMap[GenerateDishTypeIndex(mealType)] = &dto.TableRowColumnInfo{
 					Value: fmt.Sprintf("%v(%v)", dishTypeMap[dishType].DishTypeName, len(dishList))}
 				rows[curIndex].DataMap[GenerateDishIndex(mealType)] = &dto.TableRowColumnInfo{
-					Value: dish.DishName}
+					ID: dish.ID, Value: dish.DishName}
 				curIndex++
 				extraTimes := 0
 				if extraRow > 0 {
@@ -160,7 +171,7 @@ func ParseStaffMenuDetailData(rowList []*dto.TableRowInfo, menuID uint32) *model
 				logger.Warn(TableGeneratorLogTag, "StaffMenuDetail Unknown Meal|Key:%v|Value:%#v", key, value)
 				continue
 			}
-			if keys[1] == IndexDish {
+			if keys[1] == IndexDish && value.ID > 0 {
 				if _, ok := menuConf[mealType]; ok == false {
 					menuConf[mealType] = make([]uint32, 0)
 				}
@@ -187,7 +198,7 @@ func GenerateMenuTypeListTableData(menuTypeList []*model.MenuType, dishTypeMap m
 	dataList := make([]*dto.TableRowInfo, 0)
 	for _, menuType := range menuTypeList {
 		row := &dto.TableRowInfo{DataMap: make(map[string]*dto.TableRowColumnInfo)}
-		row.DataMap[IndexID] = &dto.TableRowColumnInfo{Value: fmt.Sprintf("%v", menuType.ID)}
+		row.DataMap[IndexID] = &dto.TableRowColumnInfo{ID: menuType.ID, Value: fmt.Sprintf("%v", menuType.ID)}
 		row.DataMap[IndexMenuTypeName] = &dto.TableRowColumnInfo{Value: menuType.MenuTypeName}
 		dataList = append(dataList, row)
 
@@ -217,7 +228,11 @@ func GenerateMenuTypeDetailTableHead(menuType *model.MenuType, dishTypeMap map[u
 		return nil
 	}
 
-	for mealType, mealContent := range menuContentMap {
+	for mealType := enum.MealUnknown + 1; mealType < enum.MealALL; mealType++ {
+		mealContent, ok := menuContentMap[mealType]
+		if ok == false {
+			continue
+		}
 		mealHead := &dto.TableColumnInfo{Name: enum.GetMealName(mealType), DataIndex: enum.GetMealKey(mealType),
 			Hide: false, Children: make([]*dto.TableColumnInfo, 0)}
 		for dishType := range mealContent {
@@ -239,7 +254,7 @@ func GenerateMenuTypeDetailTableData(menuType *model.MenuType, dishTypeMap map[u
 	}
 
 	row := &dto.TableRowInfo{DataMap: make(map[string]*dto.TableRowColumnInfo)}
-	row.DataMap[IndexID] = &dto.TableRowColumnInfo{ID: menuType.ID}
+	row.DataMap[IndexID] = &dto.TableRowColumnInfo{ID: menuType.ID, Value: fmt.Sprintf("%v", menuType.ID)}
 	row.DataMap[IndexMenuTypeName] = &dto.TableRowColumnInfo{Value: menuType.MenuTypeName}
 	for mealType, mealContent := range menuContentMap {
 		for dishType, dishNumber := range mealContent {
@@ -273,4 +288,64 @@ func ParseMenuTypeDetailData(row *dto.TableRowInfo, menuTypeID uint32, menuTypeN
 	}
 	menuType.FromMenuConfig(menuConf)
 	return menuType
+}
+
+func GenerateWeekMenuListTableHead() []*dto.TableColumnInfo {
+	head := make([]*dto.TableColumnInfo, 0)
+	head = append(head, &dto.TableColumnInfo{Name: "菜单ID", DataIndex: IndexID, Hide: false})
+	head = append(head, &dto.TableColumnInfo{Name: "菜单日期", DataIndex: IndexMenuDate, Hide: false})
+	for _, dayName := range weekDays {
+		for i := enum.MealUnknown + 1; i < enum.MealALL; i++ {
+			head = append(head, &dto.TableColumnInfo{Name: enum.GetMealName(i) + dayName,
+				DataIndex: GenerateDayMealIndex(i, dayName), Hide: false})
+		}
+	}
+
+	return head
+}
+
+func GenerateWeekMenuListTableData(menuList []*model.WeekMenu, dishIDMap map[uint32]*model.Dish) []*dto.TableRowInfo {
+	dataList := make([]*dto.TableRowInfo, 0)
+	for _, menu := range menuList {
+		row := &dto.TableRowInfo{DataMap: make(map[string]*dto.TableRowColumnInfo)}
+		row.DataMap[IndexID] = &dto.TableRowColumnInfo{ID: menu.ID, Value: fmt.Sprintf("%v", menu.ID)}
+		startDate := menu.MenuStartDate.Format("01-02")
+		endDate := menu.MenuStartDate.Add(time.Hour * 24 * 7).Format("01-02")
+		row.DataMap[IndexMenuDate] = &dto.TableRowColumnInfo{Value: fmt.Sprintf("%v~%v", startDate, endDate)}
+		dataList = append(dataList, row)
+
+		menuConf := menu.ToWeekMenuConfig()
+		if menuConf == nil {
+			continue
+		}
+		for dayIndex, dayConf := range menuConf {
+			for mealType, dishList := range dayConf {
+				mealStr := ""
+				for _, dishID := range dishList {
+					mealStr += dishIDMap[dishID].DishName + ","
+				}
+				if len(dishList) == 0 {
+					mealStr = ","
+				}
+				row.DataMap[GenerateDayMealIndex(mealType, weekDays[dayIndex%len(weekDays)])] =
+					&dto.TableRowColumnInfo{Value: mealStr[:len(mealStr)-1]}
+			}
+		}
+	}
+	return dataList
+}
+
+func GenerateWeekMenuDetailTableHead(menu *model.WeekMenu, dishIDMap map[uint32]*model.Dish,
+	dishTypeMap map[uint32]*model.DishType) ([]*dto.TableColumnInfo, []*dto.TableRowInfo) {
+	head := make([]*dto.TableColumnInfo, 0)
+	dataList := make([]*dto.TableRowInfo, 0)
+	head = append(head, &dto.TableColumnInfo{Name: "日期", DataIndex: IndexMenuDate, Hide: false})
+	for _, dayName := range weekDays {
+		for i := enum.MealUnknown + 1; i < enum.MealALL; i++ {
+			head = append(head, &dto.TableColumnInfo{Name: enum.GetMealName(i) + dayName,
+				DataIndex: GenerateDayMealIndex(i, dayName), Hide: false})
+		}
+	}
+
+	return head, dataList
 }

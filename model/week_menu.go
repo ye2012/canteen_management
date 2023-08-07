@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"encoding/json"
 	"time"
 
 	"github.com/canteen_management/logger"
@@ -23,6 +24,26 @@ type WeekMenu struct {
 	MenuStartDate time.Time `json:"menu_start_date"`
 	CreateAt      time.Time `json:"created_at"`
 	UpdateAt      time.Time `json:"updated_at"`
+}
+
+func (wm *WeekMenu) FromWeekMenuConfig(menuConf []map[uint8][]uint32) error {
+	contentStr, err := json.Marshal(menuConf)
+	if err != nil {
+		logger.Warn(menuLogTag, "FromWeekMenuConfig Failed|Err:%v", err)
+		return err
+	}
+	wm.MenuContent = string(contentStr)
+	return nil
+}
+
+func (wm *WeekMenu) ToWeekMenuConfig() []map[uint8][]uint32 {
+	configMap := make([]map[uint8][]uint32, 0)
+	err := json.Unmarshal([]byte(wm.MenuContent), &configMap)
+	if err != nil {
+		logger.Warn(weekMenuLogTag, "ToWeekMenuConfig Failed|Err:%v", err)
+		return nil
+	}
+	return configMap
 }
 
 type WeekMenuModel struct {

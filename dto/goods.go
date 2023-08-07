@@ -27,6 +27,7 @@ type GoodsListReq struct {
 
 type GoodsInfo struct {
 	GoodsID   uint32  `json:"goods_id"`
+	GoodsName string  `json:"goods_name"`
 	GoodsType uint32  `json:"goods_type"`
 	StoreType uint32  `json:"store_type"`
 	Picture   string  `json:"picture"`

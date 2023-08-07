@@ -17,7 +17,8 @@ const (
 func ConvertToDishTypeInfoList(daoList []*model.DishType) []*dto.DishTypeInfo {
 	retList := make([]*dto.DishTypeInfo, 0, len(daoList))
 	for _, dao := range daoList {
-		retList = append(retList, &dto.DishTypeInfo{DishTypeID: dao.ID, DishTypeName: dao.DishTypeName})
+		retList = append(retList, &dto.DishTypeInfo{DishTypeID: dao.ID, DishTypeName: dao.DishTypeName,
+			MasterTypeID: dao.MasterType})
 	}
 	return retList
 }
@@ -206,14 +207,14 @@ func ConvertFromGoodsInfo(info *dto.GoodsInfo, picture string) *model.Goods {
 	if picture == "" {
 		picture = info.Picture
 	}
-	return &model.Goods{ID: info.GoodsID, GoodsTypeID: info.GoodsType, StoreTypeID: info.StoreType, Picture: picture,
-		BatchSize: info.BatchSize, BatchUnit: info.BatchUnit, Price: info.Price, Quantity: info.Quantity}
+	return &model.Goods{ID: info.GoodsID, Name: info.GoodsName, GoodsTypeID: info.GoodsType, StoreTypeID: info.StoreType,
+		Picture: picture, BatchSize: info.BatchSize, BatchUnit: info.BatchUnit, Price: info.Price, Quantity: info.Quantity}
 }
 
 func ConvertToGoodsInfoList(daoList []*model.Goods) []*dto.GoodsInfo {
 	retList := make([]*dto.GoodsInfo, 0, len(daoList))
 	for _, dao := range daoList {
-		retList = append(retList, &dto.GoodsInfo{GoodsID: dao.ID, GoodsType: dao.GoodsTypeID,
+		retList = append(retList, &dto.GoodsInfo{GoodsID: dao.ID, GoodsName: dao.Name, GoodsType: dao.GoodsTypeID,
 			StoreType: dao.StoreTypeID, Picture: dao.Picture, BatchSize: dao.BatchSize, BatchUnit: dao.BatchUnit,
 			Price: dao.Price, Quantity: dao.Quantity})
 	}
