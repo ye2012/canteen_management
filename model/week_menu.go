@@ -3,6 +3,7 @@ package model
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/canteen_management/logger"
@@ -99,7 +100,7 @@ func (wmm *WeekMenuModel) GetWeekMenus(menuID, menuType uint32, startTime, endTi
 
 	retList, err := utils.SqlQuery(wmm.sqlCli, weekMenuTable, &WeekMenu{}, condition, params...)
 	if err != nil {
-		logger.Warn(weekMenuLogTag, "GetMenus Failed|Err:%v", err)
+		logger.Warn(weekMenuLogTag, "GetWeekMenus Failed|Err:%v", err)
 		return nil, err
 	}
 
@@ -109,8 +110,25 @@ func (wmm *WeekMenuModel) GetWeekMenus(menuID, menuType uint32, startTime, endTi
 func (wmm *WeekMenuModel) UpdateWeekMenu(dao *WeekMenu) error {
 	err := utils.SqlUpdateWithUpdateTags(wmm.sqlCli, weekMenuTable, dao, "id", weekMenuUpdateTags...)
 	if err != nil {
-		logger.Warn(weekMenuLogTag, "UpdateMenu Failed|Err:%v", err)
+		logger.Warn(weekMenuLogTag, "UpdateWeekMenu Failed|Err:%v", err)
 		return err
 	}
 	return nil
+}
+
+func (wmm *WeekMenuModel) GetWeekMenuByDate(menuDate int64, menuType uint32) (*WeekMenu, error) {
+	condition := " WHERE `menu_start_date` = ? AND `menu_type_id` = ? "
+	retList, err := utils.SqlQuery(wmm.sqlCli, weekMenuTable, &WeekMenu{}, condition, time.Unix(menuDate, 0), menuType)
+	if err != nil {
+		logger.Warn(weekMenuLogTag, "GetWeekMenuByDate Failed|Err:%v", err)
+		return nil, err
+	}
+
+	menuList := retList.([]*WeekMenu)
+	if len(menuList) == 0 {
+		logger.Warn(weekMenuLogTag, "WeekMenu Not Found|Date:%v|Type:%v", time.Unix(menuDate, 0), menuType)
+		return nil, fmt.Errorf("week menu not found")
+	}
+
+	return menuList[0], nil
 }

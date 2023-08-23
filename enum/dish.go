@@ -35,9 +35,9 @@ var mealKeyMap = map[MealType]string{
 }
 
 var mealTypeMap = map[string]MealType{
-	MealBreakfastName: MealBreakfast,
-	MealLunchName:     MealLunch,
-	MealDinnerName:    MealDinner,
+	MealBreakfastKey: MealBreakfast,
+	MealLunchKey:     MealLunch,
+	MealDinnerKey:    MealDinner,
 }
 
 func GetMealName(timeType MealType) string {

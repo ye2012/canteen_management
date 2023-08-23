@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/canteen_management/logger"
@@ -53,7 +54,7 @@ func (gm *GoodsModel) Insert(dao *Goods) error {
 	return nil
 }
 
-func (gm *GoodsModel) GetGoods(goodsType, storeType uint32) ([]*Goods, error) {
+func (gm *GoodsModel) GetGoods(goodsType, storeType uint32, page, pageSize int32) ([]*Goods, error) {
 	condition := " WHERE 1=1 "
 	var params []interface{}
 	if goodsType > 0 {
@@ -64,6 +65,8 @@ func (gm *GoodsModel) GetGoods(goodsType, storeType uint32) ([]*Goods, error) {
 		condition += " AND `store_type_id` = ? "
 		params = append(params, storeType)
 	}
+	condition += " ORDER BY `id` DESC LIMIT ?,? "
+	params = append(params, (page-1)*pageSize, pageSize)
 	retList, err := utils.SqlQuery(gm.sqlCli, goodsTable, &Goods{}, condition, params...)
 	if err != nil {
 		logger.Warn(goodsLogTag, "GetGoods Failed|Err:%v", err)
@@ -71,6 +74,27 @@ func (gm *GoodsModel) GetGoods(goodsType, storeType uint32) ([]*Goods, error) {
 	}
 
 	return retList.([]*Goods), nil
+}
+
+func (gm *GoodsModel) GetGoodsCount(goodsType, storeType uint32) (int32, error) {
+	condition := " WHERE 1=1 "
+	var params []interface{}
+	if goodsType > 0 {
+		condition += " AND `goods_type_id` = ? "
+		params = append(params, goodsType)
+	}
+	if storeType > 0 {
+		condition += " AND `store_type_id` = ? "
+		params = append(params, storeType)
+	}
+	sqlStr := fmt.Sprintf("SELECT COUNT(*) FROM %v %v", goodsTable, condition)
+	row := gm.sqlCli.QueryRow(sqlStr, params...)
+	var count int32
+	err := row.Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 func (gm *GoodsModel) UpdateGoodsInfo(dao *Goods) error {

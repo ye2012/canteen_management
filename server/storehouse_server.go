@@ -6,8 +6,11 @@ import (
 	"github.com/canteen_management/logger"
 	"github.com/canteen_management/service"
 	"github.com/canteen_management/utils"
-
 	"github.com/gin-gonic/gin"
+)
+
+const (
+	storeServerLogTag = "StoreServer"
 )
 
 type StorehouseServer struct {
@@ -17,7 +20,7 @@ type StorehouseServer struct {
 func NewStorehouseServer(dbConf utils.Config) (*StorehouseServer, error) {
 	sqlCli, err := utils.NewMysqlClient(dbConf)
 	if err != nil {
-		logger.Warn(menuServerLogTag, "NewMenuServer Failed|Err:%v", err)
+		logger.Warn(storeServerLogTag, "NewStorehouseServer Failed|Err:%v", err)
 		return nil, err
 	}
 	storeService := service.NewStoreService(sqlCli)
@@ -54,41 +57,71 @@ func (ss *StorehouseServer) RequestModifyGoodsType(ctx *gin.Context, rawReq inte
 			return
 		}
 	default:
-		logger.Warn(menuServerLogTag, "RequestModifyGoodsType Unknown OperateType|Type:%v", req.Operate)
+		logger.Warn(storeServerLogTag, "RequestModifyGoodsType Unknown OperateType|Type:%v", req.Operate)
 		res.Code = enum.SystemError
 	}
 }
 
 func (ss *StorehouseServer) RequestGoodsList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.GoodsListReq)
-	goodsList, err := ss.storeService.GoodsList(req.GoodsTypeID, req.StoreTypeID)
+	goodsList, goodsCount, err := ss.storeService.GoodsList(req.GoodsTypeID, req.StoreTypeID, req.Page, req.PageSize)
 	if err != nil {
 		res.Code = enum.SqlError
 		return
 	}
 
+	extraPage := int32(1)
+	if goodsCount%req.PageSize == 0 {
+		extraPage = 0
+	}
 	res.Data = &dto.GoodsListRes{
-		GoodsList: ConvertToGoodsInfoList(goodsList),
+		GoodsList:   ConvertToGoodsInfoList(goodsList),
+		TotalPage:   goodsCount/req.PageSize + extraPage,
+		TotalNumber: goodsCount,
+		PageSize:    req.PageSize,
+		Page:        req.Page,
 	}
 }
 
 func (ss *StorehouseServer) RequestModifyGoods(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.ModifyGoodsInfoReq)
+	//ctx.Request.ParseMultipartForm(1024)
+	//imgFile, _, err := ctx.Request.FormFile("img")
+	//if err != nil {
+	//	logger.Warn(storeServerLogTag, "ReadFrom File Failed|Err:%v", err)
+	//	return
+	//}
+	//defer imgFile.Close()
+	//
+	//imgFilePath := config.Config.FileStorePath + "/Goods/" + req.Goods.GoodsName + ".jpg"
+	//image, err := os.Create(imgFilePath)
+	//if err != nil {
+	//	logger.Warn(storeServerLogTag, "ReadFrom File Failed|Err:%v", err)
+	//	return
+	//}
+	//defer image.Close()
+	//
+	//_, err = io.Copy(image, imgFile)
+	//if err != nil {
+	//	logger.Warn(storeServerLogTag, "Copy File Failed|Err:%v", err)
+	//	return
+	//}
+
 	switch req.Operate {
 	case enum.OperateTypeAdd:
-		err := ss.storeService.AddGoods(ConvertFromGoodsInfo(req.Goods, ""))
+		err := ss.storeService.AddGoods(ConvertFromGoodsInfo(req.Goods))
 		if err != nil {
 			res.Code = enum.SqlError
 			return
 		}
 	case enum.OperateTypeModify:
-		err := ss.storeService.UpdateGoods(ConvertFromGoodsInfo(req.Goods, ""))
+		err := ss.storeService.UpdateGoods(ConvertFromGoodsInfo(req.Goods))
 		if err != nil {
 			res.Code = enum.SqlError
 			return
 		}
 	default:
-		logger.Warn(menuServerLogTag, "RequestModifyStoreType Unknown OperateType|Type:%v", req.Operate)
+		logger.Warn(storeServerLogTag, "RequestModifyStoreType Unknown OperateType|Type:%v", req.Operate)
 		res.Code = enum.SystemError
 	}
 }
@@ -121,7 +154,7 @@ func (ss *StorehouseServer) RequestModifyStoreType(ctx *gin.Context, rawReq inte
 			return
 		}
 	default:
-		logger.Warn(menuServerLogTag, "RequestModifyStoreType Unknown OperateType|Type:%v", req.Operate)
+		logger.Warn(storeServerLogTag, "RequestModifyStoreType Unknown OperateType|Type:%v", req.Operate)
 		res.Code = enum.SystemError
 	}
 }

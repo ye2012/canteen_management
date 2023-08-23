@@ -145,6 +145,56 @@ func (ms *MenuServer) RequestWeekMenuList(ctx *gin.Context, rawReq interface{}, 
 	}
 }
 
+func (ms *MenuServer) RequestWeekMenuListHead(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	head := GenerateWeekMenuListTableHead()
+	res.Data = head
+}
+
+func (ms *MenuServer) RequestWeekMenuListData(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.WeekMenuListHeadReq)
+	dishMap, err := ms.dishService.GetDishIDMap()
+	if err != nil {
+		logger.Warn(menuServerLogTag, "RequestWeekMenuListData GetDishIDMap Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		return
+	}
+
+	menuList, err := ms.menuService.GetWeekMenuList(req.MenuType, req.TimeStart, req.TimeStart)
+	if err != nil {
+		logger.Warn(menuServerLogTag, "RequestStaffMenuListData GetMenuList Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		return
+	}
+	res.Data = GenerateWeekMenuListTableData(menuList, dishMap)
+}
+
+func (ms *MenuServer) RequestWeekMenuDetailTable(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.WeekMenuDetailTableReq)
+	dishMap, err := ms.dishService.GetDishIDMap()
+	if err != nil {
+		logger.Warn(menuServerLogTag, "RequestWeekMenuDetailTable GetDishIDMap Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		return
+	}
+	dishTypeMap, err := ms.dishService.GetDishTypeMap()
+	if err != nil {
+		logger.Warn(menuServerLogTag, "RequestWeekMenuDetailTable GetDishIDMap Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		return
+	}
+
+	menu, err := ms.menuService.GetWeekMenu(req.WeekMenuID)
+	if err != nil {
+		logger.Warn(menuServerLogTag, "RequestStaffMenuListData GetMenuList Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		return
+	}
+
+	retData := &dto.WeekMenuDetailTableRes{}
+	retData.Head, retData.Data = GenerateWeekMenuDetailTable(menu, dishMap, dishTypeMap)
+	res.Data = retData
+}
+
 func (ms *MenuServer) RequestWeekMenuDetail(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.WeekMenuDetailReq)
 	dishIDMap, err := ms.dishService.GetDishIDMap()
@@ -173,27 +223,23 @@ func (ms *MenuServer) RequestWeekMenuDetail(ctx *gin.Context, rawReq interface{}
 }
 
 func (ms *MenuServer) RequestModifyWeekMenu(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
-	req := rawReq.(*dto.ModifyWeekMenuReq)
-	weekMenuDao, err := ConvertFromWeekMenuInfo(&req.WeekMenu)
-	if err != nil {
-		res.Code = enum.ParamsError
-		return
-	}
+	req := rawReq.(*dto.ModifyWeekMenuDetailReq)
+	weekMenuDao := ParseWeekMenuDetail(req.WeekMenuRows, req.WeekMenuID, req.MenuTypeID, req.MenuDate)
 	switch req.Operate {
 	case enum.OperateTypeAdd:
-		err = ms.menuService.AddWeekMenu(weekMenuDao)
+		err := ms.menuService.AddWeekMenu(weekMenuDao)
 		if err != nil {
 			res.Code = enum.SqlError
 			return
 		}
 	case enum.OperateTypeModify:
-		err = ms.menuService.UpdateWeekMenu(weekMenuDao)
+		err := ms.menuService.UpdateWeekMenu(weekMenuDao)
 		if err != nil {
 			res.Code = enum.SqlError
 			return
 		}
 	default:
-		logger.Warn(menuServerLogTag, "RequestModifyMenu Unknown OperateType|Type:%v", req.Operate)
+		logger.Warn(menuServerLogTag, "RequestModifyWeekMenu Unknown OperateType|Type:%v", req.Operate)
 		res.Code = enum.SystemError
 	}
 }
@@ -254,8 +300,7 @@ func (ms *MenuServer) RequestGenerateStaffMenu(ctx *gin.Context, rawReq interfac
 		return
 	}
 
-	menuDate := time.Unix(req.MenuDate, 0)
-	menu := &model.Menu{MenuDate: menuDate, MenuTypeID: req.MenuType}
+	menu := &model.Menu{MenuDate: time.Now(), MenuTypeID: req.MenuType}
 	menuDishMap := make(map[uint8][]uint32)
 	for mealType, numberConf := range confMap {
 		totalDishList := make([]uint32, 0)
@@ -266,12 +311,22 @@ func (ms *MenuServer) RequestGenerateStaffMenu(ctx *gin.Context, rawReq interfac
 		menuDishMap[mealType] = totalDishList
 	}
 	menu.FromMenuConfig(menuDishMap)
-	res.Data = GenerateStaffDetailTableData(menu, dishMap, dishTypeMap)
+
+	resData := &dto.GenerateStaffMenuRes{
+		Head: GenerateStaffDetailTableHead(),
+		Data: GenerateStaffDetailTableData(menu, dishMap, dishTypeMap),
+	}
+	res.Data = resData
 }
 
 func (ms *MenuServer) RequestGenerateWeekMenu(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.GenerateWeekMenuReq)
-
+	dishMap, err := ms.dishService.GetDishIDMap()
+	if err != nil {
+		logger.Warn(menuServerLogTag, "RequestGenerateWeekMenu GetDishIDMap Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		return
+	}
 	dishTypeMap, err := ms.dishService.GetDishTypeMap()
 	if err != nil {
 		logger.Warn(menuServerLogTag, "GenerateWeekMenu GetDishTypeMap Failed|Err:%v", err)
@@ -295,36 +350,36 @@ func (ms *MenuServer) RequestGenerateWeekMenu(ctx *gin.Context, rawReq interface
 	start := time.Date(startTime.Year(), startTime.Month(), startTime.Day(), 0, 0, 0, 0,
 		startTime.Location()).Unix()
 	end := start + 3600*24*7
-	menuList := make([]*dto.MenuInfo, 0)
+	menuList := make([]map[uint8][]uint32, 0, 7)
 	for ; start < end; start += 3600 * 24 {
-		mealList := make([]*dto.MealInfo, 0)
+		mealMap := make(map[uint8][]uint32)
 		for mealType, numberConf := range confMap {
 			totalDishList := make([]*model.Dish, 0)
 			for dishType, dishNum := range numberConf {
 				dishList := ms.dishService.RandDishByType(dishType, int(dishNum))
 				totalDishList = append(totalDishList, dishList...)
 			}
-			dishList := ConvertToDishInfoList(totalDishList, dishTypeMap)
-			for _, dishInfo := range dishList {
-				dishInfo.Material = ""
+			dishIDList := make([]uint32, 0, len(totalDishList))
+			for _, dish := range totalDishList {
+				dishIDList = append(dishIDList, dish.ID)
 			}
-			mealInfo := &dto.MealInfo{
-				MealName: enum.GetMealName(mealType),
-				MealType: mealType,
-				DishList: dishList,
-			}
-			mealList = append(mealList, mealInfo)
+			mealMap[mealType] = dishIDList
 		}
-		menuList = append(menuList, &dto.MenuInfo{MenuType: req.MenuType, MenuDate: start, MealList: mealList})
+		menuList = append(menuList, mealMap)
 	}
 
-	res.Data = &dto.GenerateWeekMenuRes{MenuList: menuList}
+	menu := &model.WeekMenu{MenuStartDate: startTime}
+	menu.FromWeekMenuConfig(menuList)
+
+	retData := &dto.GenerateWeekMenuRes{}
+	retData.Head, retData.Data = GenerateWeekMenuDetailTable(menu, dishMap, dishTypeMap)
 }
 
 func (ms *MenuServer) RequestStaffMenuListHead(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	head := GenerateStaffMenuListTableHead()
 	res.Data = head
 }
+
 func (ms *MenuServer) RequestStaffMenuListData(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.StaffMenuListDataReq)
 	dishMap, err := ms.dishService.GetDishIDMap()
@@ -375,9 +430,9 @@ func (ms *MenuServer) RequestStaffMenuDetailData(ctx *gin.Context, rawReq interf
 	res.Data = data
 }
 
-func (ms *MenuServer) RequestModifyMenuDetail(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+func (ms *MenuServer) RequestModifyStaffMenuDetail(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.ModifyStaffMenuDetailReq)
-	staffMenuDao := ParseStaffMenuDetailData(req.StaffMenuRows, req.StaffMenuID)
+	staffMenuDao := ParseStaffMenuDetailData(req.StaffMenuRows, req.StaffMenuID, req.MenuTypeID, req.MenuDate)
 	logger.Info(menuServerLogTag, "ModifyMenuDetail:%#v", staffMenuDao)
 
 	switch req.Operate {

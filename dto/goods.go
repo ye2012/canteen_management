@@ -23,6 +23,8 @@ type ModifyGoodsTypeReq struct {
 type GoodsListReq struct {
 	GoodsTypeID uint32 `json:"goods_type_id"`
 	StoreTypeID uint32 `json:"store_type_id"`
+	PageSize    int32  `json:"page_size"`
+	Page        int32  `json:"page"`
 }
 
 type GoodsInfo struct {
@@ -38,7 +40,11 @@ type GoodsInfo struct {
 }
 
 type GoodsListRes struct {
-	GoodsList []*GoodsInfo `json:"goods_list"`
+	GoodsList   []*GoodsInfo `json:"goods_list"`
+	TotalNumber int32        `json:"total_number"`
+	TotalPage   int32        `json:"total_page"`
+	PageSize    int32        `json:"page_size"`
+	Page        int32        `json:"page"`
 }
 
 type ModifyGoodsInfoReq struct {

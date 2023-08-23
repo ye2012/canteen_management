@@ -86,13 +86,20 @@ func (ss *StoreService) UpdateGoodsType(goodsType *model.GoodsType) error {
 	return nil
 }
 
-func (ss *StoreService) GoodsList(goodsType, storeType uint32) ([]*model.Goods, error) {
-	goodsList, err := ss.goodsModel.GetGoods(goodsType, storeType)
+func (ss *StoreService) GoodsList(goodsType, storeType uint32, page, pageSize int32) ([]*model.Goods, int32, error) {
+	goodsList, err := ss.goodsModel.GetGoods(goodsType, storeType, page, pageSize)
 	if err != nil {
 		logger.Warn(storeServiceLogTag, "GetGoods Failed|Err:%v", err)
-		return nil, err
+		return nil, 0, err
 	}
-	return goodsList, nil
+
+	goodsCount, err := ss.goodsModel.GetGoodsCount(goodsType, storeType)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "GetGoodsCount Failed|Err:%v", err)
+		return nil, 0, err
+	}
+
+	return goodsList, goodsCount, nil
 }
 
 func (ss *StoreService) AddGoods(goods *model.Goods) error {

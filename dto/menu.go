@@ -47,6 +47,22 @@ type WeekMenuDetailInfo struct {
 
 type WeekMenuDetailRes WeekMenuDetailInfo
 
+type WeekMenuListHeadReq = WeekMenuListReq
+
+type WeekMenuDetailTableReq = WeekMenuDetailReq
+type WeekMenuDetailTableRes struct {
+	Head []*TableColumnInfo `json:"head"`
+	Data []TableRowInfo     `json:"data"`
+}
+
+type ModifyWeekMenuDetailReq struct {
+	Operate      enum.OperateType     `json:"operate"`
+	WeekMenuID   uint32               `json:"week_menu_id"`
+	MenuTypeID   uint32               `json:"menu_type_id"`
+	MenuDate     int64                `json:"menu_date"`
+	WeekMenuRows []ModifyTableRowInfo `json:"week_menu_rows"`
+}
+
 type ModifyWeekMenuReq struct {
 	Operate  enum.OperateType   `json:"operate"`
 	WeekMenu WeekMenuDetailInfo `json:"week_menu"`
@@ -54,7 +70,11 @@ type ModifyWeekMenuReq struct {
 
 type GenerateStaffMenuReq struct {
 	MenuType uint32 `json:"menu_type"`
-	MenuDate int64  `json:"menu_date"`
+}
+
+type GenerateStaffMenuRes struct {
+	Head []*TableColumnInfo `json:"head"`
+	Data []TableRowInfo     `json:"data"`
 }
 
 type GenerateWeekMenuReq struct {
@@ -62,7 +82,7 @@ type GenerateWeekMenuReq struct {
 	TimeStart int64  `json:"time_start"`
 }
 
-type GenerateWeekMenuRes = WeekMenuDetailInfo
+type GenerateWeekMenuRes = GenerateStaffMenuRes
 
 type StaffMenuListHeadReq struct {
 }
@@ -88,9 +108,11 @@ type StaffMenuDetailDataReq struct {
 type StaffMenuDetailDataRes []*TableRowInfo
 
 type ModifyStaffMenuDetailReq struct {
-	Operate       enum.OperateType `json:"operate"`
-	StaffMenuID   uint32           `json:"staff_menu_id"`
-	StaffMenuRows []*TableRowInfo  `json:"staff_menu_rows"`
+	Operate       enum.OperateType     `json:"operate"`
+	StaffMenuID   uint32               `json:"staff_menu_id"`
+	MenuTypeID    uint32               `json:"menu_type_id"`
+	MenuDate      int64                `json:"menu_date"`
+	StaffMenuRows []ModifyTableRowInfo `json:"staff_menu_rows"`
 }
 
 type MenuTypeListHeadReq struct {
@@ -116,8 +138,8 @@ type MenuTypeDetailDataReq struct {
 type MenuTypeDetailDataRes []*TableRowInfo
 
 type ModifyMenuTypeReq struct {
-	Operate      enum.OperateType `json:"operate"`
-	MenuTypeID   uint32           `json:"menu_type_id"`
-	MenuTypeName string           `json:"menu_type_name"`
-	MenuTypeRows []*TableRowInfo  `json:"menu_type_rows"`
+	Operate      enum.OperateType     `json:"operate"`
+	MenuTypeID   uint32               `json:"menu_type_id"`
+	MenuTypeName string               `json:"menu_type_name"`
+	MenuTypeRows []ModifyTableRowInfo `json:"menu_type_rows"`
 }

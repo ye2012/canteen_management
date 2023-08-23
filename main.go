@@ -11,6 +11,7 @@ import (
 	"github.com/canteen_management/logger"
 	"github.com/canteen_management/server"
 	"github.com/gin-gonic/gin"
+	"gopkg.in/gotsunami/coquelicot.v1"
 )
 
 const (
@@ -43,18 +44,26 @@ func StartServer() {
 		return
 	}
 	HandleStatisticApi(router)
+	HandleOrderApi(router)
+	HandleUploadApi(router)
 
 	router.Run(":8081")
 }
 
 func HandleUserApi(router *gin.Engine) {
 	//userRouter := router.Group("/user")
-	//
 	//userRouter.POST("/login", NewHandler(storeServer.,
 	//	&dto.{}))
 	//userRouter.POST("/userList", NewHandler(storeServer.,
 	//	&dto.{}))
 	//userRouter.POST("/modifyUser", NewHandler(storeServer.,
+	//	&dto.{}))
+
+	//userRouter.POST("/modifyOrdererInfo", NewHandler(storeServer.,
+	//	&dto.{}))
+	//userRouter.POST("/orderDiscountList", NewHandler(storeServer.,
+	//	&dto.{}))
+	//userRouter.POST("/modifyOrderDiscount", NewHandler(storeServer.,
 	//	&dto.{}))
 }
 
@@ -68,7 +77,7 @@ func HandlePurchaseApi(router *gin.Engine) {
 	//	&dto.{}))
 	//purchaseRouter.POST("/reviewPurchase", NewHandler(storeServer.,
 	//	&dto.{}))
-	//purchaseRouter.POST("/confirmPurchase", NewHandler(storeServer.,
+	//purchaseRouter.POST("/acceptPurchase", NewHandler(storeServer.,
 	//	&dto.{}))
 	//purchaseRouter.POST("/finishPurchase", NewHandler(storeServer.,
 	//	&dto.{}))
@@ -133,8 +142,14 @@ func HandleMenuApi(router *gin.Engine) error {
 		func() interface{} { return new(dto.WeekMenuListReq) }))
 	menuRouter.POST("/weekMenuDetail", NewHandler(menuServer.RequestWeekMenuDetail,
 		func() interface{} { return new(dto.WeekMenuDetailReq) }))
+	menuRouter.POST("/weekMenuListHead", NewHandler(menuServer.RequestWeekMenuListHead,
+		func() interface{} { return new(dto.WeekMenuListReq) }))
+	menuRouter.POST("/weekMenuListData", NewHandler(menuServer.RequestWeekMenuListData,
+		func() interface{} { return new(dto.WeekMenuListReq) }))
+	menuRouter.POST("/weekMenuDetailTable", NewHandler(menuServer.RequestWeekMenuDetailTable,
+		func() interface{} { return new(dto.WeekMenuDetailReq) }))
 	menuRouter.POST("/modifyWeekMenu", NewHandler(menuServer.RequestModifyWeekMenu,
-		func() interface{} { return new(dto.ModifyWeekMenuReq) }))
+		func() interface{} { return new(dto.ModifyWeekMenuDetailReq) }))
 
 	menuRouter.POST("/generateStaffMenu", NewHandler(menuServer.RequestGenerateStaffMenu,
 		func() interface{} { return new(dto.GenerateStaffMenuReq) }))
@@ -149,7 +164,7 @@ func HandleMenuApi(router *gin.Engine) error {
 		func() interface{} { return new(dto.StaffMenuDetailHeadReq) }))
 	menuRouter.POST("/staffMenuData", NewHandler(menuServer.RequestStaffMenuDetailData,
 		func() interface{} { return new(dto.StaffMenuDetailDataReq) }))
-	menuRouter.POST("/modifyStaffMenu", NewHandler(menuServer.RequestModifyMenuDetail,
+	menuRouter.POST("/modifyStaffMenu", NewHandler(menuServer.RequestModifyStaffMenuDetail,
 		func() interface{} { return new(dto.ModifyStaffMenuDetailReq) }))
 
 	menuRouter.POST("/menuTypeListHead", NewHandler(menuServer.RequestMenuTypeListHead,
@@ -171,27 +186,56 @@ func HandleStatisticApi(router *gin.Engine) {
 	//statisticRouter.POST("enterDinerNumber", NewHandler(statisticServer))
 }
 
+func HandleOrderApi(router *gin.Engine) error {
+	orderRouter := router.Group("/api/order")
+	orderServer, err := server.NewOrderServer(config.Config.MysqlConfig)
+	if err != nil {
+		logger.Warn(serverLogTag, "NewOrderServer Failed|Err:%v", err)
+		return err
+	}
+	orderRouter.POST("/orderMenuList", NewHandler(orderServer.RequestOrderMenu,
+		func() interface{} { return new(dto.OrderMenuReq) }))
+	orderRouter.POST("/applyOrder", NewHandler(orderServer.RequestApplyOrder,
+		func() interface{} { return new(dto.ApplyOrderReq) }))
+	orderRouter.POST("/orderList", NewHandler(orderServer.RequestOrderList,
+		func() interface{} { return new(dto.OrderListReq) }))
+	return nil
+}
+
+func HandleUploadApi(router *gin.Engine) {
+	orderRouter := router.Group("/api/")
+	store := coquelicot.NewStorage("/home/work/private/canteen/files/")
+	orderRouter.POST("/upload", NewUploadHandler(store.UploadHandler))
+}
+
 type RequestDealFunc func(*gin.Context, interface{}, *dto.Response)
 type ReqGenerateFunc func() interface{}
+
+func NewUploadHandler(uploadHandler func(w http.ResponseWriter, r *http.Request)) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		uploadHandler(ctx.Writer, ctx.Request)
+	}
+}
 
 func NewHandler(dealFunc RequestDealFunc, reqGen ReqGenerateFunc) gin.HandlerFunc {
 	handleFunc := func(ctx *gin.Context) {
 		req := reqGen()
 		logger.Debug(serverLogTag, "%v", reflect.TypeOf(req))
 		res := dto.GetInitResponse()
-		defer func() {
-			logger.Debug(serverLogTag, "Path:%v|Res:%+v", ctx.FullPath(), res)
-			ctx.JSON(http.StatusOK, res)
-		}()
 		err := ctx.ShouldBind(req)
 		if err != nil {
 			logger.Warn(serverLogTag, "parse req failed|Err:%v", err)
 			res.Code = enum.ParseRequestFailed
+			ctx.JSON(http.StatusBadRequest, res)
 			return
 		}
 		logger.Debug(serverLogTag, "Req:%#v", req)
+		defer func() {
+			logger.Debug(serverLogTag, "Path:%v|Res:%+v", ctx.FullPath(), res)
+			ctx.JSON(http.StatusOK, res)
+		}()
 		dealFunc(ctx, req, res)
-		if res.Code != 0 {
+		if res.Code != enum.Success {
 			res.Success = false
 		}
 	}

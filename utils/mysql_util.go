@@ -35,7 +35,7 @@ func SqlQueryRowWithLock(mysql SqlHandle, tableName string, resultDAO interface{
 	allField := GetFieldsTagByKey(resultDAO, "json")
 	allAddr := GetFieldsAddr(resultDAO)
 
-	sqlStr := fmt.Sprintf("SELECT `%v` FROM %v %v FOR UPDATE", strings.Join(allField, "`,`"), tableName, condition)
+	sqlStr := fmt.Sprintf("SELECT `%v` FROM `%v` %v FOR UPDATE", strings.Join(allField, "`,`"), tableName, condition)
 
 	row := mysql.QueryRow(sqlStr, condValues...)
 	return row.Scan(allAddr...)
@@ -45,7 +45,7 @@ func SqlQueryRow(mysql SqlHandle, tableName string, resultDAO interface{}, condi
 	allField := GetFieldsTagByKey(resultDAO, "json")
 	allAddr := GetFieldsAddr(resultDAO)
 
-	sqlStr := fmt.Sprintf("SELECT `%v` FROM %v %v", strings.Join(allField, "`,`"), tableName, condition)
+	sqlStr := fmt.Sprintf("SELECT `%v` FROM `%v` %v", strings.Join(allField, "`,`"), tableName, condition)
 
 	row := mysql.QueryRow(sqlStr, condValues...)
 	return row.Scan(allAddr...)
@@ -54,7 +54,7 @@ func SqlQueryRow(mysql SqlHandle, tableName string, resultDAO interface{}, condi
 func SqlQuery(mysql SqlHandle, tableName string, dao interface{}, condition string, condValues ...interface{}) (resultSlice interface{}, err error) {
 	allField := GetFieldsTagByKey(dao, "json")
 
-	sqlStr := fmt.Sprintf("SELECT `%v` FROM %v %v", strings.Join(allField, "`,`"), tableName, condition)
+	sqlStr := fmt.Sprintf("SELECT `%v` FROM `%v` %v", strings.Join(allField, "`,`"), tableName, condition)
 
 	rows, err := mysql.Query(sqlStr, condValues...)
 	if err != nil {
@@ -79,8 +79,8 @@ func SqlInsert(mysql SqlHandle, tableName string, dao interface{}, skipTags ...s
 	allField := GetFieldsTagByKey(dao, "json", skipTags...)
 	allValue := GetFieldsValue(dao, skipTags...)
 
-	sqlStr := fmt.Sprintf("INSERT INTO %v(`%v`) VALUES(%v)", tableName,
-		strings.Join(allField, "`,`"), GetSqlPlaceholder(len(allField)))
+	sqlStr := fmt.Sprintf("INSERT INTO `%v` SET `%v`=? ", tableName,
+		strings.Join(allField, "`=?,`"))
 
 	result, err := mysql.Exec(sqlStr, allValue...)
 	if err != nil {
@@ -97,7 +97,7 @@ func SqlUpsert(mysql SqlHandle, tableName string, dao interface{}, skipTags ...s
 	allField := GetFieldsTagByKey(dao, "json", skipTags...)
 	allValue := GetFieldsValue(dao, skipTags...)
 
-	sqlStr := fmt.Sprintf("INSERT INTO %v(`%v`) VALUES(%v) ON DUPLICATE KEY UPDATE", tableName,
+	sqlStr := fmt.Sprintf("INSERT INTO `%v`(`%v`) VALUES(%v) ON DUPLICATE KEY UPDATE", tableName,
 		strings.Join(allField, "`,`"), GetSqlPlaceholder(len(allField)))
 
 	result, err := mysql.Exec(sqlStr, allValue...)
@@ -118,7 +118,7 @@ func SqlUpdateWithUpdateTags(mysql SqlHandle, tableName string, dao interface{},
 
 	//sqlStr := fmt.Sprintf("INSERT INTO %v(`%v`) VALUES(%v)", tableName,
 	//	strings.Join(allField, "`,`"), GetSqlPlaceholder(len(allField)))
-	sqlStr := fmt.Sprintf("UPDATE  %v SET `%v`=?  WHERE %v=?", tableName,
+	sqlStr := fmt.Sprintf("UPDATE `%v` SET `%v`=?  WHERE `%v`=?", tableName,
 		strings.Join(allField, "`=?,`"), conditionTag)
 
 	result, err := mysql.Exec(sqlStr, allValue...)
@@ -138,7 +138,7 @@ func SqlUpdate(mysql SqlHandle, tableName string, dao interface{}, skipTags ...s
 
 	//sqlStr := fmt.Sprintf("INSERT INTO %v(`%v`) VALUES(%v)", tableName,
 	//	strings.Join(allField, "`,`"), GetSqlPlaceholder(len(allField)))
-	sqlStr := fmt.Sprintf("UPDATE  %v(`%v`) SET VALUES(%v)", tableName,
+	sqlStr := fmt.Sprintf("UPDATE  `%v`(`%v`) SET VALUES(%v)", tableName,
 		strings.Join(allField, "`,`"), GetSqlPlaceholder(len(allField)))
 
 	result, err := mysql.Exec(sqlStr, allValue...)
@@ -204,7 +204,7 @@ func SqlInsertBatch(mysql SqlHandle, tableName string, daoSlice interface{}, ski
 		// 更新ID
 		if idFieldIndex >= 0 {
 			for i := left; i < right; i++ {
-				refType.Index(i).Elem().Field(idFieldIndex).SetInt(lastID)
+				refType.Index(i).Elem().Field(idFieldIndex).SetUint(uint64(lastID))
 				lastID++
 			}
 		}

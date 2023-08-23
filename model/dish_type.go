@@ -24,6 +24,20 @@ type DishType struct {
 	UpdateAt     time.Time `json:"updated_at"`
 }
 
+type DishTypeList []*DishType
+
+func (dtl DishTypeList) Len() int {
+	return dtl.Len()
+}
+
+func (dtl DishTypeList) Less(i, j int) bool {
+	return dtl[i].ID > dtl[j].ID
+}
+
+func (dtl DishTypeList) Swap(i, j int) {
+	dtl[i], dtl[j] = dtl[j], dtl[i]
+}
+
 type DishTypeModel struct {
 	sqlCli *sql.DB
 }

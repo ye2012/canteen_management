@@ -3,9 +3,11 @@ package service
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/canteen_management/logger"
 	"github.com/canteen_management/model"
+	"github.com/canteen_management/utils"
 )
 
 const (
@@ -176,4 +178,22 @@ func (ms *MenuService) UpdateWeekMenu(weekMenu *model.WeekMenu) error {
 		return err
 	}
 	return nil
+}
+
+func (ms *MenuService) GetWeekMenuByTime(menuDate int64, menuType uint32) (map[uint8][]uint32, error) {
+	start := utils.GetFirstDateOfWeek(menuDate)
+	weekMenu, err := ms.weekMenuModel.GetWeekMenuByDate(start, menuType)
+	if err != nil {
+		logger.Warn(menuServiceLogTag, "GetWeekMenuByDate Failed|Err:%v", err)
+		return nil, err
+	}
+
+	index := int(time.Unix(menuDate, 0).Weekday()+6) % 7
+	menuConf := weekMenu.ToWeekMenuConfig()
+	if len(menuConf) <= index {
+		logger.Warn(menuServiceLogTag, "GetWeekMenuByTime Extend Config Length|Date:%v|Index:%v", menuDate, index)
+		return nil, err
+	}
+
+	return menuConf[index], nil
 }

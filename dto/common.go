@@ -19,6 +19,7 @@ type TableColumnInfo struct {
 	Name      string             `json:"name"`
 	DataIndex string             `json:"data_index"`
 	Hide      bool               `json:"hide"`
+	MergeRow  bool               `json:"merge_row"`
 	Children  []*TableColumnInfo `json:"children,omitempty"`
 }
 
@@ -27,6 +28,15 @@ type TableRowColumnInfo struct {
 	Value string `json:"value,omitempty"`
 }
 
-type TableRowInfo struct {
-	DataMap map[string]*TableRowColumnInfo `json:"data_map"`
+type TableRowInfo = map[string]*TableRowColumnInfo
+
+type ModifyTableRowInfo = map[string]interface{}
+
+type OrderNode struct {
+	ID       string       `json:"id"`
+	Name     string       `json:"name"`
+	Children []*OrderNode `json:"children,omitempty"`
+	OrderNodeMap
 }
+
+type OrderNodeMap = map[string]interface{}

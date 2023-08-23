@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/canteen_management/logger"
@@ -76,4 +77,16 @@ func (sm *SupplierModel) UpdateSupplier(dao *Supplier) error {
 		return err
 	}
 	return nil
+}
+
+func (sm *SupplierModel) GetLastValidityTime() (int64, error) {
+	sqlStr := fmt.Sprintf("SELECT MAX(`validity_deadline`) FROM %v ", supplierTable)
+	row := sm.sqlCli.QueryRow(sqlStr)
+	lastTime := time.Time{}
+	err := row.Scan(&lastTime)
+	if err != nil {
+		logger.Warn(supplierLogTag, "Scan LastValidityTime Failed|Err:%v", err)
+		return 0, err
+	}
+	return lastTime.Unix(), nil
 }

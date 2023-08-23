@@ -6,7 +6,12 @@ import (
 )
 
 var Config = &struct {
-	MysqlConfig utils.Config `json:"mysql"`
+	MysqlConfig      utils.Config `json:"mysql"`
+	FileStorePath    string       `json:"file_store_path"`
+	MchID            string       `json:"mch_id"`
+	MchCertSerialNum string       `json:"mch_cert_serial_num"`
+	MchApiV3Key      string       `json:"mch_api_v3_key"`
+	PrivateKeyPath   string       `json:"private_key_path"`
 }{}
 
 func LoadConfig(configPath string) error {
