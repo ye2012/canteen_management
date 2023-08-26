@@ -241,3 +241,144 @@ func ConvertToOrderInfoList(orderList []*model.OrderDao, detailMap map[uint32][]
 	}
 	return retList
 }
+
+func (os *OrderServer) RequestDiscountList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	discountList, err := os.orderService.GetOrderDiscountList()
+	if err != nil {
+		logger.Warn(orderServerLogTag, "GetOrderDiscountList Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		return
+	}
+
+	discountInfoList := make([]*dto.OrderDiscountInfo, 0, len(discountList))
+	for _, discount := range discountList {
+		err = discount.ConvertDiscount()
+		if err != nil {
+			logger.Warn(orderServerLogTag, "ConvertDiscount Failed|Err:%v", err)
+			continue
+		}
+
+		discountInfo := &dto.OrderDiscountInfo{
+			ID:                discount.ID,
+			DiscountTypeName:  discount.DiscountTypeName,
+			BreakfastDiscount: discount.GetMealDiscount(enum.MealBreakfast),
+			LunchDiscount:     discount.GetMealDiscount(enum.MealLunch),
+			DinnerDiscount:    discount.GetMealDiscount(enum.MealDinner),
+		}
+		discountInfoList = append(discountInfoList, discountInfo)
+	}
+	retData := &dto.OrderDiscountListRes{
+		DiscountList: discountInfoList,
+	}
+	res.Data = retData
+}
+
+func (os *OrderServer) RequestModifyDiscount(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.ModifyOrderDiscountReq)
+
+	discountMap := make(map[uint8]float64)
+	discountMap[enum.MealBreakfast] = req.DiscountInfo.BreakfastDiscount
+	discountMap[enum.MealLunch] = req.DiscountInfo.LunchDiscount
+	discountMap[enum.MealDinner] = req.DiscountInfo.DinnerDiscount
+	discount := &model.OrderDiscount{
+		ID:               req.DiscountInfo.ID,
+		DiscountTypeName: req.DiscountInfo.DiscountTypeName,
+	}
+	err := discount.FromDiscountMap(discountMap)
+	if err != nil {
+		logger.Warn(orderServerLogTag, "FromDiscountMap Failed|Err:%v", err)
+		res.Code = enum.ParamsError
+		return
+	}
+
+	switch req.Operate {
+	case enum.OperateTypeAdd:
+		err = os.orderService.AddOrderDiscount(discount)
+		if err != nil {
+			res.Code = enum.SqlError
+			return
+		}
+	case enum.OperateTypeModify:
+		err = os.orderService.UpdateOrderDiscount(discount)
+		if err != nil {
+			res.Code = enum.SqlError
+			return
+		}
+	default:
+		logger.Warn(orderServerLogTag, "RequestModifyDiscount Unknown OperateType|Type:%v", req.Operate)
+		res.Code = enum.SystemError
+	}
+}
+
+func (os *OrderServer) RequestOrderUserList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.OrderUserListReq)
+	if req.Page <= 0 {
+		req.Page = 1
+	}
+	if req.PageSize > 1000 {
+		req.PageSize = 100
+	}
+	userList, userNumber, err := os.orderService.GetOrderUserList(req.PhoneNumber, req.DiscountLevel, req.Page, req.PageSize)
+	if err != nil {
+		logger.Warn(orderServerLogTag, "GetOrderUserList Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		return
+	}
+
+	userInfoList := make([]*dto.OrderUserInfo, 0, len(userList))
+	for _, user := range userList {
+		userInfo := &dto.OrderUserInfo{
+			ID:            user.ID,
+			PhoneNumber:   user.PhoneNumber,
+			DiscountLevel: user.DiscountLevel,
+		}
+		userInfoList = append(userInfoList, userInfo)
+	}
+
+	extraPage := uint32(1)
+	if userNumber%req.PageSize == 0 {
+		extraPage = 0
+	}
+	retData := &dto.OrderUserListRes{
+		UserList:  userInfoList,
+		TotalPage: userNumber/req.PageSize + extraPage,
+		PageSize:  req.PageSize,
+		Page:      req.Page,
+	}
+	res.Data = retData
+}
+
+func (os *OrderServer) RequestModifyOrderUser(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.ModifyOrderUserReq)
+	if len(req.UserList) == 0 {
+		res.Code = enum.ParamsError
+		return
+	}
+
+	userList := make([]*model.OrderUser, 0, len(req.UserList))
+	for _, userInfo := range req.UserList {
+		user := &model.OrderUser{
+			ID:            userInfo.ID,
+			PhoneNumber:   userInfo.PhoneNumber,
+			DiscountLevel: userInfo.DiscountLevel,
+		}
+		userList = append(userList, user)
+	}
+	switch req.Operate {
+	case enum.OperateTypeAdd:
+		err := os.orderService.AddOrderUser(userList)
+		if err != nil {
+			res.Code = enum.SqlError
+			return
+		}
+	case enum.OperateTypeModify:
+		err := os.orderService.UpdateOrderUser(userList[0])
+		if err != nil {
+			res.Code = enum.SqlError
+			return
+		}
+	default:
+		logger.Warn(orderServerLogTag, "RequestModifyOrderUser Unknown OperateType|Type:%v", req.Operate)
+		res.Code = enum.SystemError
+	}
+}

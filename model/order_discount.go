@@ -50,6 +50,16 @@ func (or *OrderDiscount) GetMealDiscount(mealType uint8) float64 {
 	return 0
 }
 
+func (or *OrderDiscount) FromDiscountMap(discountMap map[uint8]float64) error {
+	conf, err := json.Marshal(discountMap)
+	if err != nil {
+		logger.Warn(orderDiscountLogTag, "FromDiscountMap Json Marshal Failed|Err:%v", err)
+		return err
+	}
+	or.DiscountConf = string(conf)
+	return nil
+}
+
 type OrderDiscountModel struct {
 	sqlCli *sql.DB
 }

@@ -1,5 +1,7 @@
 package dto
 
+import "github.com/canteen_management/enum"
+
 type OrderMenuReq struct {
 }
 
@@ -37,8 +39,55 @@ type OrderListReq struct {
 	OrderStatus int8   `json:"order_status"`
 	Uid         uint32 `json:"uid"`
 	OrderID     uint32 `json:"order_id"`
+	StartTime   int64  `json:"start_time"`
+	EndTime     int64  `json:"end_time"`
 	Page        uint32 `json:"page"`
 	PageSize    uint32 `json:"page_size"`
 }
 
 type OrderListRes = []*OrderInfo
+
+type OrderUserListReq struct {
+	PhoneNumber   string `json:"phone_number"`
+	DiscountLevel int32  `json:"discount_level"`
+	Page          uint32 `json:"page"`
+	PageSize      uint32 `json:"page_size"`
+}
+
+type OrderUserInfo struct {
+	ID            uint32 `json:"id"`
+	PhoneNumber   string `json:"phone_number"`
+	DiscountLevel int32  `json:"discount_level"`
+}
+
+type OrderUserListRes struct {
+	UserList  []*OrderUserInfo `json:"user_list"`
+	TotalPage uint32           `json:"total_page"`
+	Page      uint32           `json:"page"`
+	PageSize  uint32           `json:"page_size"`
+}
+
+type ModifyOrderUserReq struct {
+	Operate  enum.OperateType `json:"operate"`
+	UserList []*OrderUserInfo `json:"user_list"`
+}
+
+type OrderDiscountListReq struct {
+}
+
+type OrderDiscountInfo struct {
+	ID                uint32  `json:"id"`
+	DiscountTypeName  string  `json:"discount_type_name"`
+	BreakfastDiscount float64 `json:"breakfast_discount"`
+	LunchDiscount     float64 `json:"lunch_discount"`
+	DinnerDiscount    float64 `json:"dinner_discount"`
+}
+
+type OrderDiscountListRes struct {
+	DiscountList []*OrderDiscountInfo `json:"discount_list"`
+}
+
+type ModifyOrderDiscountReq struct {
+	Operate      enum.OperateType   `json:"operate"`
+	DiscountInfo *OrderDiscountInfo `json:"discount_info"`
+}

@@ -199,6 +199,16 @@ func HandleOrderApi(router *gin.Engine) error {
 		func() interface{} { return new(dto.ApplyOrderReq) }))
 	orderRouter.POST("/orderList", NewHandler(orderServer.RequestOrderList,
 		func() interface{} { return new(dto.OrderListReq) }))
+
+	orderRouter.POST("/orderDiscountList", NewHandler(orderServer.RequestDiscountList,
+		func() interface{} { return new(dto.OrderDiscountListReq) }))
+	orderRouter.POST("/modifyOrderDiscount", NewHandler(orderServer.RequestModifyDiscount,
+		func() interface{} { return new(dto.ModifyOrderDiscountReq) }))
+
+	orderRouter.POST("/orderUserList", NewHandler(orderServer.RequestOrderUserList,
+		func() interface{} { return new(dto.OrderUserListReq) }))
+	orderRouter.POST("/modifyOrderUser", NewHandler(orderServer.RequestModifyOrderUser,
+		func() interface{} { return new(dto.ModifyOrderUserReq) }))
 	return nil
 }
 

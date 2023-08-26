@@ -39,6 +39,10 @@ func (ps *PurchaseService) GetSupplierList(name, phoneNumber string) ([]*model.S
 	return supplierList, nil
 }
 
+func (ps *PurchaseService) AddSupplier() {
+
+}
+
 func (ps *PurchaseService) GetPurchaseOrder() {
 
 }

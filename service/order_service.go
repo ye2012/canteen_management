@@ -157,22 +157,22 @@ func (os *OrderService) GetOrderDetail(orderID uint32) ([]*model.OrderDetail, er
 	return detail, nil
 }
 
-func (os *OrderService) GetOrderUserList(phoneNumber string, page, pageSize uint32) ([]*model.OrderUserInfo, error) {
-	if page <= 0 {
-		page = 1
-	}
-	if pageSize > 1000 {
-		pageSize = 100
-	}
-	userList, err := os.orderUserModel.GetOrderUser(phoneNumber, page, pageSize)
+func (os *OrderService) GetOrderUserList(phoneNumber string, discountLevel int32, page, pageSize uint32) ([]*model.OrderUser, uint32, error) {
+	userList, err := os.orderUserModel.GetOrderUser(phoneNumber, discountLevel, page, pageSize)
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "GetOrderUser Failed|Err:%v", err)
-		return nil, err
+		return nil, 0, err
 	}
-	return userList, nil
+
+	userNumber, err := os.orderUserModel.GetOrderUserCount(phoneNumber, discountLevel)
+	if err != nil {
+		logger.Warn(orderServiceLogTag, "GetOrderUserCount Failed|Err:%v", err)
+		return nil, 0, err
+	}
+	return userList, uint32(userNumber), nil
 }
 
-func (os *OrderService) AddOrderUser(userList []*model.OrderUserInfo) error {
+func (os *OrderService) AddOrderUser(userList []*model.OrderUser) error {
 	err := os.orderUserModel.BatchInsert(userList)
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "AddOrderUser Failed|Err:%v", err)
@@ -181,7 +181,7 @@ func (os *OrderService) AddOrderUser(userList []*model.OrderUserInfo) error {
 	return nil
 }
 
-func (os *OrderService) ModifyOrderUser(userInfo *model.OrderUserInfo) error {
+func (os *OrderService) UpdateOrderUser(userInfo *model.OrderUser) error {
 	err := os.orderUserModel.UpdateOrderUser(userInfo)
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "ModifyOrderUser Failed|Err:%v", err)
@@ -203,7 +203,7 @@ func (os *OrderService) AddOrderDiscount(discountInfo *model.OrderDiscount) erro
 	return os.orderDiscountModel.Insert(discountInfo)
 }
 
-func (os *OrderService) ModifyOrderDiscount(discountInfo *model.OrderDiscount) error {
+func (os *OrderService) UpdateOrderDiscount(discountInfo *model.OrderDiscount) error {
 	return os.orderDiscountModel.UpdateDiscountType(discountInfo)
 }
 
