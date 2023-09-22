@@ -16,6 +16,7 @@ type MenuInfo struct {
 }
 
 type WeekMenuListReq struct {
+	PaginationReq
 	MenuType  uint32 `json:"menu_type"`
 	TimeStart int64  `json:"time_start"`
 	TimeEnd   int64  `json:"time_end"`
@@ -30,6 +31,7 @@ type WeekMenuInfo struct {
 }
 
 type WeekMenuListRes struct {
+	PaginationRes
 	MenuList []*WeekMenuInfo `json:"menu_list"`
 }
 
@@ -56,11 +58,11 @@ type WeekMenuDetailTableRes struct {
 }
 
 type ModifyWeekMenuDetailReq struct {
-	Operate      enum.OperateType     `json:"operate"`
-	WeekMenuID   uint32               `json:"week_menu_id"`
-	MenuTypeID   uint32               `json:"menu_type_id"`
-	MenuDate     int64                `json:"menu_date"`
-	WeekMenuRows []ModifyTableRowInfo `json:"week_menu_rows"`
+	Operate      enum.OperateType `json:"operate"`
+	WeekMenuID   uint32           `json:"week_menu_id"`
+	MenuTypeID   uint32           `json:"menu_type_id"`
+	MenuDate     int64            `json:"menu_date"`
+	WeekMenuRows []*TableRowInfo  `json:"week_menu_rows"`
 }
 
 type ModifyWeekMenuReq struct {
@@ -90,11 +92,15 @@ type StaffMenuListHeadReq struct {
 type StaffMenuListHeadRes []*TableColumnInfo
 
 type StaffMenuListDataReq struct {
+	PaginationReq
 	TimeStart int64 `json:"time_start"`
 	TimeEnd   int64 `json:"time_end"`
 }
 
-type StaffMenuListDataRes []*TableRowInfo
+type StaffMenuListDataRes struct {
+	PaginationRes
+	TableRowList []*TableRowInfo `json:"table_row_list"`
+}
 
 type StaffMenuDetailHeadReq struct {
 }
@@ -108,11 +114,11 @@ type StaffMenuDetailDataReq struct {
 type StaffMenuDetailDataRes []*TableRowInfo
 
 type ModifyStaffMenuDetailReq struct {
-	Operate       enum.OperateType     `json:"operate"`
-	StaffMenuID   uint32               `json:"staff_menu_id"`
-	MenuTypeID    uint32               `json:"menu_type_id"`
-	MenuDate      int64                `json:"menu_date"`
-	StaffMenuRows []ModifyTableRowInfo `json:"staff_menu_rows"`
+	Operate       enum.OperateType `json:"operate"`
+	StaffMenuID   uint32           `json:"staff_menu_id"`
+	MenuTypeID    uint32           `json:"menu_type_id"`
+	MenuDate      int64            `json:"menu_date"`
+	StaffMenuRows []*TableRowInfo  `json:"staff_menu_rows"`
 }
 
 type MenuTypeListHeadReq struct {
@@ -138,8 +144,8 @@ type MenuTypeDetailDataReq struct {
 type MenuTypeDetailDataRes []*TableRowInfo
 
 type ModifyMenuTypeReq struct {
-	Operate      enum.OperateType     `json:"operate"`
-	MenuTypeID   uint32               `json:"menu_type_id"`
-	MenuTypeName string               `json:"menu_type_name"`
-	MenuTypeRows []ModifyTableRowInfo `json:"menu_type_rows"`
+	Operate      enum.OperateType `json:"operate"`
+	MenuTypeID   uint32           `json:"menu_type_id"`
+	MenuTypeName string           `json:"menu_type_name"`
+	MenuTypeRows []*TableRowInfo  `json:"menu_type_rows"`
 }

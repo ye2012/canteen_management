@@ -217,3 +217,12 @@ func ConvertToGoodsInfoList(daoList []*model.Goods) []*dto.GoodsInfo {
 	}
 	return retList
 }
+
+func ConvertToGoodsPriceList(daoList []*model.Goods) []*dto.GoodsPriceInfo {
+	retList := make([]*dto.GoodsPriceInfo, 0, len(daoList))
+	for _, dao := range daoList {
+		retList = append(retList, &dto.GoodsPriceInfo{GoodsID: dao.ID, GoodsName: dao.Name,
+			PriceList: dao.ToGoodsPrice(), AveragePrice: dao.Price})
+	}
+	return retList
+}

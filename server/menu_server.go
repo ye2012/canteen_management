@@ -47,7 +47,7 @@ func NewMenuServer(dbConf utils.Config) (*MenuServer, error) {
 func (ms *MenuServer) RequestDishTypeList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.DishTypeListReq)
 
-	list, err := ms.dishService.GetDishTypeList(req.MasterTypeID, req.IncludeMaserType)
+	list, count, err := ms.dishService.GetDishTypeList(req.MasterTypeID, req.IncludeMaserType, req.Page, req.PageSize)
 	if err != nil {
 		res.Code = enum.SqlError
 		return
@@ -55,6 +55,11 @@ func (ms *MenuServer) RequestDishTypeList(ctx *gin.Context, rawReq interface{}, 
 
 	res.Data = &dto.DishTypeListRes{
 		List: ConvertToDishTypeInfoList(list),
+		PaginationRes: dto.PaginationRes{
+			Page:        req.Page,
+			PageSize:    req.PageSize,
+			TotalNumber: count,
+		},
 	}
 }
 
@@ -83,21 +88,25 @@ func (ms *MenuServer) RequestModifyDishType(ctx *gin.Context, rawReq interface{}
 
 func (ms *MenuServer) RequestDishList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.DishListReq)
-
-	dishList, err := ms.dishService.GetDishList(req.DishType)
-	if err != nil {
-		res.Code = enum.SqlError
-		return
-	}
-
 	typeMap, err := ms.dishService.GetDishTypeMap()
 	if err != nil {
 		res.Code = enum.SystemError
 		return
 	}
 
+	dishList, dishCount, err := ms.dishService.GetDishList(req.DishType, req.Page, req.PageSize)
+	if err != nil {
+		res.Code = enum.SqlError
+		return
+	}
+
 	res.Data = &dto.DishListRes{
 		DishList: ConvertToDishInfoList(dishList, typeMap),
+		PaginationRes: dto.PaginationRes{
+			Page:        req.Page,
+			PageSize:    req.PageSize,
+			TotalNumber: dishCount,
+		},
 	}
 }
 
@@ -373,6 +382,7 @@ func (ms *MenuServer) RequestGenerateWeekMenu(ctx *gin.Context, rawReq interface
 
 	retData := &dto.GenerateWeekMenuRes{}
 	retData.Head, retData.Data = GenerateWeekMenuDetailTable(menu, dishMap, dishTypeMap)
+	res.Data = retData
 }
 
 func (ms *MenuServer) RequestStaffMenuListHead(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
@@ -458,6 +468,7 @@ func (ms *MenuServer) RequestMenuTypeListHead(ctx *gin.Context, rawReq interface
 	head := GenerateMenuTypeListTableHead()
 	res.Data = head
 }
+
 func (ms *MenuServer) RequestMenuTypeListData(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	dishTypeMap, err := ms.dishService.GetDishTypeMap()
 	if err != nil {

@@ -141,24 +141,21 @@ func GenerateStaffDetailTableData(menu *model.Menu, dishIDMap map[uint32]*model.
 			logger.Debug(TableGeneratorLogTag, "StaffDetail|dishType:%v|Len:%v", dishByType, len(dishList))
 			for _, dish := range dishList {
 				rows[curIndex][enum.GetMealKey(mealType)] = &dto.TableRowColumnInfo{
-					Value: fmt.Sprintf("%v(%v)", enum.GetMealName(mealType), mealDishNumber[mealType])}
+					ID: uint32(mealType), Value: fmt.Sprintf("%v(%v)", enum.GetMealName(mealType), mealDishNumber[mealType])}
 				rows[curIndex][GenerateDishTypeIndex(mealType)] = &dto.TableRowColumnInfo{
-					Value: fmt.Sprintf("%v(%v)", dishTypeMap[dishType].DishTypeName, len(dishList))}
+					ID: dishType, Value: fmt.Sprintf("%v(%v)", dishTypeMap[dishType].DishTypeName, len(dishList))}
 				rows[curIndex][GenerateDishIndex(mealType)] = &dto.TableRowColumnInfo{
 					ID: dish.ID, Value: dish.DishName}
-				curIndex++
 				extraTimes := 0
 				if extraRow > 0 {
 					extraTimes = 1
 					extraRow--
 				}
+				curIndex++
 				for i := 1; i < repeatTimes+extraTimes; i++ {
-					rows[curIndex][enum.GetMealKey(mealType)] =
-						rows[curIndex-1][enum.GetMealKey(mealType)]
-					rows[curIndex][GenerateDishTypeIndex(mealType)] =
-						rows[curIndex-1][GenerateDishTypeIndex(mealType)]
-					rows[curIndex][GenerateDishIndex(mealType)] =
-						rows[curIndex-1][GenerateDishIndex(mealType)]
+					rows[curIndex][enum.GetMealKey(mealType)] = rows[curIndex-1][enum.GetMealKey(mealType)]
+					rows[curIndex][GenerateDishTypeIndex(mealType)] = rows[curIndex-1][GenerateDishTypeIndex(mealType)]
+					rows[curIndex][GenerateDishIndex(mealType)] = rows[curIndex-1][GenerateDishIndex(mealType)]
 					curIndex++
 				}
 			}
@@ -167,12 +164,12 @@ func GenerateStaffDetailTableData(menu *model.Menu, dishIDMap map[uint32]*model.
 	return rows
 }
 
-func ParseStaffMenuDetailData(rowList []dto.ModifyTableRowInfo, menuID, menuTypeID uint32, menuDate int64) *model.Menu {
+func ParseStaffMenuDetailData(rowList []*dto.TableRowInfo, menuID, menuTypeID uint32, menuDate int64) *model.Menu {
 	menu := &model.Menu{ID: menuID, MenuTypeID: menuTypeID, MenuDate: time.Unix(menuDate, 0)}
 	menuConf := make(map[uint8][]uint32)
 	mealDishMap := make(map[uint8]map[uint32]bool)
 	for _, row := range rowList {
-		for key, value := range row {
+		for key, value := range *row {
 			keys := strings.Split(key, IndexDelimiter)
 			if len(keys) <= 1 {
 				continue
@@ -189,7 +186,7 @@ func ParseStaffMenuDetailData(rowList []dto.ModifyTableRowInfo, menuID, menuType
 				if _, ok := menuConf[mealType]; ok == false {
 					menuConf[mealType] = make([]uint32, 0)
 				}
-				dishID := uint32(value.(float64))
+				dishID := value.ID
 				if _, ok := mealDishMap[mealType][dishID]; ok {
 					continue
 				}
@@ -285,10 +282,10 @@ func GenerateMenuTypeDetailTableData(menuType *model.MenuType, dishTypeMap map[u
 	return dataList
 }
 
-func ParseMenuTypeDetailData(row dto.ModifyTableRowInfo, menuTypeID uint32, menuTypeName string) *model.MenuType {
+func ParseMenuTypeDetailData(row *dto.TableRowInfo, menuTypeID uint32, menuTypeName string) *model.MenuType {
 	menuType := &model.MenuType{ID: menuTypeID, MenuTypeName: menuTypeName}
 	menuConf := make(map[uint8]map[uint32]int32)
-	for key, dishNumber := range row {
+	for key, dishNumber := range *row {
 		keys := strings.Split(key, IndexDelimiter)
 		if len(keys) <= 1 {
 			continue
@@ -302,7 +299,7 @@ func ParseMenuTypeDetailData(row dto.ModifyTableRowInfo, menuTypeID uint32, menu
 			menuConf[mealType] = make(map[uint32]int32)
 		}
 		dishType, _ := strconv.ParseInt(keys[1], 10, 32)
-		menuConf[mealType][uint32(dishType)] = int32(dishNumber.(float64))
+		menuConf[mealType][uint32(dishType)] = int32(dishNumber.ID)
 	}
 	menuType.FromMenuConfig(menuConf)
 	return menuType
@@ -466,27 +463,36 @@ func GenerateWeekMenuDetailTable(menu *model.WeekMenu, dishIDMap map[uint32]*mod
 	return head, dataList
 }
 
-func ParseWeekMenuDetail(rowList []dto.ModifyTableRowInfo, menuID, menuTypeID uint32, menuDate int64) *model.WeekMenu {
+func ParseWeekMenuDetail(rowList []*dto.TableRowInfo, menuID, menuTypeID uint32, menuDate int64) *model.WeekMenu {
 	weekMenu := &model.WeekMenu{ID: menuID, MenuTypeID: menuTypeID, MenuStartDate: time.Unix(menuDate, 0)}
 	menuConf := make([]map[uint8][]uint32, 7)
 	for rowIndex, row := range rowList {
-		for key, value := range row {
+		for key, value := range *row {
 			keys := strings.Split(key, IndexDelimiter)
 			if len(keys) < 3 {
 				continue
 			}
 			dateIndex := rowIndex / DayRowFixed
-			mealType, _ := strconv.ParseInt(keys[0], 10, 8)
+			if menuConf[dateIndex] == nil {
+				menuConf[dateIndex] = make(map[uint8][]uint32)
+			}
+			mealType := enum.GetMealType(keys[0])
+			if mealType == enum.MealUnknown {
+				logger.Warn(TableGeneratorLogTag, "ParseWeekMenuDetail MealUnknown|Key:%v", key)
+				continue
+			}
 			if dateIndex > len(menuConf) {
-				logger.Warn(TableGeneratorLogTag, "DateIndex Extent MenuConfLen|rowIndex:%v|ConfLen:%v",
+				logger.Warn(TableGeneratorLogTag, "ParseWeekMenuDetail DateIndex Extent Limit|rowIndex:%v|ConfLen:%v",
 					rowIndex, len(menuConf))
 				continue
 			}
-			if _, ok := menuConf[dateIndex][uint8(mealType)]; ok == false {
-				menuConf[dateIndex][uint8(mealType)] = make([]uint32, 0)
+			if _, ok := menuConf[dateIndex][mealType]; ok == false {
+				menuConf[dateIndex][mealType] = make([]uint32, 0)
 			}
-			dishID := uint32(value.(float64))
-			menuConf[dateIndex][uint8(mealType)] = append(menuConf[dateIndex][uint8(mealType)], dishID)
+			dishID := value.ID
+			if dishID > 0 {
+				menuConf[dateIndex][mealType] = append(menuConf[dateIndex][mealType], dishID)
+			}
 		}
 	}
 	weekMenu.FromWeekMenuConfig(menuConf)

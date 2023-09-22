@@ -2,9 +2,6 @@ package main
 
 import (
 	"flag"
-	"net/http"
-	"reflect"
-
 	"github.com/canteen_management/config"
 	"github.com/canteen_management/dto"
 	"github.com/canteen_management/enum"
@@ -12,6 +9,8 @@ import (
 	"github.com/canteen_management/server"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/gotsunami/coquelicot.v1"
+	"net/http"
+	"reflect"
 )
 
 const (
@@ -31,9 +30,13 @@ func main() {
 func StartServer() {
 	router := gin.Default()
 
-	HandleUserApi(router)
+	err := HandleUserApi(router)
+	if err != nil {
+		logger.Warn(serverLogTag, "HandleUserApi Failed|Err:%v", err)
+		return
+	}
 	HandlePurchaseApi(router)
-	err := HandleStorehouseApi(router)
+	err = HandleStorehouseApi(router)
 	if err != nil {
 		logger.Warn(serverLogTag, "HandleStorehouseApi Failed|Err:%v", err)
 		return
@@ -50,21 +53,25 @@ func StartServer() {
 	router.Run(":8081")
 }
 
-func HandleUserApi(router *gin.Engine) {
-	//userRouter := router.Group("/user")
-	//userRouter.POST("/login", NewHandler(storeServer.,
-	//	&dto.{}))
-	//userRouter.POST("/userList", NewHandler(storeServer.,
-	//	&dto.{}))
+func HandleUserApi(router *gin.Engine) error {
+	userRouter := router.Group("/api/user")
+	userServer, err := server.NewUserServer(config.Config.MysqlConfig)
+	if err != nil {
+		logger.Warn(serverLogTag, "NewUserServer Failed|Err:%v", err)
+		return err
+	}
+	userRouter.POST("/canteenLogin", NewHandler(userServer.RequestCanteenLogin,
+		func() interface{} { return new(dto.CanteenLoginReq) }))
+	userRouter.POST("/bindPhoneNumber", NewHandler(userServer.RequestBindPhoneNumber,
+		func() interface{} { return new(dto.BindPhoneNumberReq) }))
+
+	userRouter.POST("/orderUserList", NewHandler(userServer.RequestOrderUserList,
+		func() interface{} { return new(dto.OrderUserListReq) }))
+	userRouter.POST("/modifyOrderUser", NewHandler(userServer.RequestModifyOrderUser,
+		func() interface{} { return new(dto.ModifyOrderUserReq) }))
 	//userRouter.POST("/modifyUser", NewHandler(storeServer.,
 	//	&dto.{}))
-
-	//userRouter.POST("/modifyOrdererInfo", NewHandler(storeServer.,
-	//	&dto.{}))
-	//userRouter.POST("/orderDiscountList", NewHandler(storeServer.,
-	//	&dto.{}))
-	//userRouter.POST("/modifyOrderDiscount", NewHandler(storeServer.,
-	//	&dto.{}))
+	return nil
 }
 
 func HandlePurchaseApi(router *gin.Engine) {
@@ -113,6 +120,11 @@ func HandleStorehouseApi(router *gin.Engine) error {
 		func() interface{} { return new(dto.GoodsListReq) }))
 	storeRouter.POST("/modifyGoods", NewHandler(storeServer.RequestModifyGoods,
 		func() interface{} { return new(dto.ModifyGoodsInfoReq) }))
+
+	storeRouter.POST("/goodsPriceList", NewHandler(storeServer.RequestGoodsPriceList,
+		func() interface{} { return new(dto.GoodsPriceListReq) }))
+	storeRouter.POST("/modifyGoodsPrice", NewHandler(storeServer.RequestModifyGoodsPrice,
+		func() interface{} { return new(dto.ModifyGoodsPriceReq) }))
 
 	//storeRouter.POST("/applyConsumeGoods", NewHandler(storeServer.,
 	//	&dto.{}))
@@ -195,8 +207,10 @@ func HandleOrderApi(router *gin.Engine) error {
 	}
 	orderRouter.POST("/orderMenuList", NewHandler(orderServer.RequestOrderMenu,
 		func() interface{} { return new(dto.OrderMenuReq) }))
-	orderRouter.POST("/applyOrder", NewHandler(orderServer.RequestApplyOrder,
-		func() interface{} { return new(dto.ApplyOrderReq) }))
+	orderRouter.POST("/applyPayOrder", NewHandler(orderServer.RequestApplyOrder,
+		func() interface{} { return new(dto.ApplyPayOrderReq) }))
+	orderRouter.POST("/payOrderList", NewHandler(orderServer.RequestPayOrderList,
+		func() interface{} { return new(dto.PayOrderListReq) }))
 	orderRouter.POST("/orderList", NewHandler(orderServer.RequestOrderList,
 		func() interface{} { return new(dto.OrderListReq) }))
 
@@ -204,11 +218,6 @@ func HandleOrderApi(router *gin.Engine) error {
 		func() interface{} { return new(dto.OrderDiscountListReq) }))
 	orderRouter.POST("/modifyOrderDiscount", NewHandler(orderServer.RequestModifyDiscount,
 		func() interface{} { return new(dto.ModifyOrderDiscountReq) }))
-
-	orderRouter.POST("/orderUserList", NewHandler(orderServer.RequestOrderUserList,
-		func() interface{} { return new(dto.OrderUserListReq) }))
-	orderRouter.POST("/modifyOrderUser", NewHandler(orderServer.RequestModifyOrderUser,
-		func() interface{} { return new(dto.ModifyOrderUserReq) }))
 	return nil
 }
 
@@ -240,14 +249,73 @@ func NewHandler(dealFunc RequestDealFunc, reqGen ReqGenerateFunc) gin.HandlerFun
 			return
 		}
 		logger.Debug(serverLogTag, "Req:%#v", req)
+		if pageReq, ok := req.(*dto.PaginationReq); ok {
+			pageReq.FixPagination()
+		}
+		if checker, ok := req.(dto.RequestChecker); ok {
+			err = checker.CheckParams()
+			if err != nil {
+				res.Code = enum.ParamsError
+				res.Msg = err.Error()
+				ctx.JSON(http.StatusOK, res)
+				return
+			}
+		}
 		defer func() {
 			logger.Debug(serverLogTag, "Path:%v|Res:%+v", ctx.FullPath(), res)
 			ctx.JSON(http.StatusOK, res)
 		}()
 		dealFunc(ctx, req, res)
+		if res.Msg == "" {
+			res.Msg = enum.GetMessage(res.Code)
+		}
 		if res.Code != enum.Success {
 			res.Success = false
+		}
+		if pageRes, ok := res.Data.(*dto.PaginationRes); ok {
+			pageRes.Format()
 		}
 	}
 	return handleFunc
 }
+
+//func CheckTokenImpl(token string) (*model.TokenDAO, enum.ErrorCode) {
+//	if token == "" {
+//		return nil, enum.TokenCheckFailed
+//	}
+//	tokenDAO := tokenModel.Get(token)
+//	if tokenDAO == nil {
+//		return nil, enum.TokenCheckFailed
+//	}
+//	nowTime := time.Now()
+//	if tokenDAO.MTime.Add(tokenTimeOut).Before(nowTime) {
+//		return nil, enum.TokenTimeout
+//	}
+//
+//	if tokenDAO.MTime.Add(updateTokenTimeOut).Before(nowTime) {
+//		tokenDAO.MTime = nowTime
+//		tokenModel.UpdateModifyTime(tokenDAO)
+//	}
+//	return tokenDAO, enum.Success
+//}
+
+//func CheckToken(c *gin.Context) {
+//	custom := dto.GetCustomContextInfo(c)
+//	token, ok := custom.ParamMap[config.TokenKey]
+//	if !ok {
+//		logger.Warn(serverLogTag, "Get Token Failed")
+//		c.AbortWithStatusJSON(http.StatusOK, dto.Response{Code: enum.ParamsError, Msg: "token not found"})
+//		return
+//	}
+//
+//	tokenDao, code := CheckTokenImpl(token)
+//	if code != enum.Success {
+//		logger.Warn(serverLogTag, "Check Token Failed|Token:%v|Code:%v", token, code)
+//		c.AbortWithStatusJSON(http.StatusOK, dto.Response{Code: enum.ParamsError, Msg: "token check failed"})
+//		return
+//	}
+//
+//	custom.Token = tokenDao
+//	c.Set(config.CustomKey, custom)
+//	c.Next()
+//}

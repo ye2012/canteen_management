@@ -2,9 +2,10 @@ package model
 
 import (
 	"database/sql"
+	"time"
+
 	"github.com/canteen_management/logger"
 	"github.com/canteen_management/utils"
-	"time"
 )
 
 const (
@@ -14,7 +15,7 @@ const (
 )
 
 type User struct {
-	ID                int64     `json:"id"`
+	ID                uint32    `json:"id"`
 	UserName          string    `json:"user_name"`
 	Password          string    `json:"password"`
 	UnionID           string    `json:"union_id"`
@@ -41,7 +42,7 @@ func (um *UserModel) Insert(dao *User) error {
 		logger.Warn(userModelLogTag, "Insert Failed|Dao:%+v|Err:%v", dao, err)
 		return err
 	}
-	dao.ID = id
+	dao.ID = uint32(id)
 	return nil
 }
 

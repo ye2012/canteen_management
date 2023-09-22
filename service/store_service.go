@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"math"
 
 	"github.com/canteen_management/logger"
 	"github.com/canteen_management/model"
@@ -115,6 +116,25 @@ func (ss *StoreService) UpdateGoods(goods *model.Goods) error {
 	err := ss.goodsModel.UpdateGoodsInfo(goods)
 	if err != nil {
 		logger.Warn(storeServiceLogTag, "UpdateGoods Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
+func (ss *StoreService) UpdateGoodsPrice(goodsID uint32, priceMap map[uint8]float64) error {
+	averagePrice, count := 0.0, 0
+	for _, price := range priceMap {
+		if math.Abs(price) < 0.0000001 {
+			continue
+		}
+		averagePrice += price
+		count += 1
+	}
+	averagePrice /= float64(count)
+
+	err := ss.goodsModel.UpdateGoodsPriceInfo(goodsID, averagePrice, priceMap)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "UpdateGoodsPrice Failed|Err:%v", err)
 		return err
 	}
 	return nil

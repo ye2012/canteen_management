@@ -1,5 +1,13 @@
 package enum
 
+type PayOrderStatus = int8
+
+const (
+	PayOrderNew = iota
+	PayOrderFinish
+	PayOrderTimeOut
+)
+
 type OrderStatus = int8
 
 const (

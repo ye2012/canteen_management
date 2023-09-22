@@ -12,6 +12,8 @@ var Config = &struct {
 	MchCertSerialNum string       `json:"mch_cert_serial_num"`
 	MchApiV3Key      string       `json:"mch_api_v3_key"`
 	PrivateKeyPath   string       `json:"private_key_path"`
+	AppID            string       `json:"app_id"`
+	AppSecret        string       `json:"app_secret"`
 }{}
 
 func LoadConfig(configPath string) error {

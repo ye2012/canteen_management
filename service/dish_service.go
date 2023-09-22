@@ -31,7 +31,7 @@ func (ds *DishService) Init() error {
 }
 
 func (ds *DishService) GetDishIDMap() (map[uint32]*model.Dish, error) {
-	dishList, err := ds.dishModel.GetDishes(0)
+	dishList, err := ds.dishModel.GetDishes(0, 0, 100000)
 	if err != nil {
 		logger.Warn(dishServiceLogTag, "GetDishIDMap GetDishes Failed|Err:%v", err)
 		return nil, err
@@ -44,7 +44,7 @@ func (ds *DishService) GetDishIDMap() (map[uint32]*model.Dish, error) {
 }
 
 func (ds *DishService) GetDishMap() map[uint32][]*model.Dish {
-	dishList, err := ds.dishModel.GetDishes(0)
+	dishList, err := ds.dishModel.GetDishes(0, 0, 100000)
 	if err != nil {
 		logger.Warn(dishServiceLogTag, "GetDishMap GetDishes Failed|Err:%v", err)
 		return nil
@@ -61,13 +61,19 @@ func (ds *DishService) GetDishMap() map[uint32][]*model.Dish {
 	return typeMap
 }
 
-func (ds *DishService) GetDishList(dishType uint32) ([]*model.Dish, error) {
-	dishList, err := ds.dishModel.GetDishes(dishType)
+func (ds *DishService) GetDishList(dishType uint32, page, pageSize int32) ([]*model.Dish, int32, error) {
+	dishList, err := ds.dishModel.GetDishes(dishType, page, pageSize)
 	if err != nil {
 		logger.Warn(dishServiceLogTag, "GetDishList Failed|Err:%v", err)
-		return nil, err
+		return nil, 0, err
 	}
-	return dishList, nil
+
+	dishCount, err := ds.dishModel.GetDishesCount(dishType)
+	if err != nil {
+		logger.Warn(dishServiceLogTag, "GetDishesCount Failed|Err:%v", err)
+		return nil, 0, err
+	}
+	return dishList, dishCount, nil
 }
 
 func (ds *DishService) AddDish(dish *model.Dish) error {
@@ -102,22 +108,29 @@ func (ds *DishService) GetDishTypeMap() (map[uint32]*model.DishType, error) {
 	return retMap, nil
 }
 
-func (ds *DishService) GetDishTypeList(masterType uint32, includeMaster bool) ([]*model.DishType, error) {
+func (ds *DishService) GetDishTypeList(masterType uint32, includeMaster bool, page, pageSize int32) ([]*model.DishType, int32, error) {
 	if masterType == 0 && includeMaster {
 		dishTypeList, err := ds.dishTypeModel.GetMasterDishTypes()
 		if err != nil {
 			logger.Warn(dishServiceLogTag, "GetMasterDishTypes Failed|Err:%v", err)
-			return nil, err
+			return nil, 0, err
 		}
-		return dishTypeList, err
+		return dishTypeList, int32(len(dishTypeList)), err
 	}
 
-	dishTypeList, err := ds.dishTypeModel.GetDishTypesByMasterType(masterType)
+	dishTypeList, err := ds.dishTypeModel.GetDishTypesByMasterType(masterType, page, pageSize)
 	if err != nil {
 		logger.Warn(dishServiceLogTag, "GetDishTypesByMasterType Failed|Err:%v", err)
-		return nil, err
+		return nil, 0, err
 	}
-	return dishTypeList, err
+
+	dishTypeCount, err := ds.dishTypeModel.GetDishTypesCountByMasterType(masterType)
+	if err != nil {
+		logger.Warn(dishServiceLogTag, "GetDishTypesCountByMasterType Failed|Err:%v", err)
+		return nil, 0, err
+	}
+
+	return dishTypeList, dishTypeCount, err
 }
 
 func (ds *DishService) AddDishType(dishType *model.DishType) error {

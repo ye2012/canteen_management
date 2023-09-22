@@ -14,15 +14,23 @@ type ApplyItem struct {
 	Quantity int32   `json:"quantity"`
 }
 
-type ApplyOrderReq = OrderInfo
+type ApplyPayOrderReq = PayOrderInfo
+
+type PayOrderInfo struct {
+	ID            uint32       `json:"id"`
+	OrderList     []*OrderInfo `json:"order_list"`
+	Address       string       `json:"address"`
+	TotalAmount   float64      `json:"total_amount"`
+	PaymentAmount float64      `json:"payment_amount"`
+}
 
 type OrderInfo struct {
 	ID            string       `json:"id"`
-	UnionID       string       `json:"union_id"`
+	PayOrderID    uint32       `json:"pay_order_id"`
+	UserPhone     string       `json:"user_phone"`
 	OrderID       string       `json:"order_id"`
 	OrderNo       string       `json:"order_no"`
 	Address       string       `json:"address"`
-	PickUpMethod  uint8        `json:"pick_up_method"`
 	TotalAmount   float64      `json:"total_amount"`
 	PaymentAmount float64      `json:"payment_amount"`
 	OrderItems    []*ApplyItem `json:"order_items"`
@@ -31,40 +39,55 @@ type OrderInfo struct {
 }
 
 type ApplyOrderRes struct {
-	Order     *OrderInfo `json:"order"`
-	PrepareID string     `json:"prepare_id"`
+	PayOrderInfo *PayOrderInfo `json:"pay_order_info"`
+	PrepareID    string        `json:"prepare_id"`
+}
+
+type PaySuccessReq struct {
+	PayOrderID uint32 `json:"pay_order_id"`
+}
+
+type PayOrderListReq struct {
+	PaginationReq
+	OrderStatus int8   `json:"order_status"`
+	Uid         uint32 `json:"uid"`
+}
+
+type PayOrderListRes struct {
+	PaginationRes
+	OrderList []*PayOrderInfo `json:"order_list"`
 }
 
 type OrderListReq struct {
+	PaginationReq
 	OrderStatus int8   `json:"order_status"`
 	Uid         uint32 `json:"uid"`
 	OrderID     uint32 `json:"order_id"`
 	StartTime   int64  `json:"start_time"`
 	EndTime     int64  `json:"end_time"`
-	Page        uint32 `json:"page"`
-	PageSize    uint32 `json:"page_size"`
 }
 
-type OrderListRes = []*OrderInfo
+type OrderListRes struct {
+	PaginationRes
+	OrderList []*OrderInfo `json:"order_list"`
+}
 
 type OrderUserListReq struct {
+	PaginationReq
 	PhoneNumber   string `json:"phone_number"`
 	DiscountLevel int32  `json:"discount_level"`
-	Page          uint32 `json:"page"`
-	PageSize      uint32 `json:"page_size"`
 }
 
 type OrderUserInfo struct {
 	ID            uint32 `json:"id"`
+	UnionID       string `json:"union_id"`
 	PhoneNumber   string `json:"phone_number"`
-	DiscountLevel int32  `json:"discount_level"`
+	DiscountLevel uint8  `json:"discount_level"`
 }
 
 type OrderUserListRes struct {
-	UserList  []*OrderUserInfo `json:"user_list"`
-	TotalPage uint32           `json:"total_page"`
-	Page      uint32           `json:"page"`
-	PageSize  uint32           `json:"page_size"`
+	PaginationRes
+	UserList []*OrderUserInfo `json:"user_list"`
 }
 
 type ModifyOrderUserReq struct {

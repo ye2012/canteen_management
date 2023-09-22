@@ -3,6 +3,7 @@ package dto
 import "github.com/canteen_management/enum"
 
 type GoodsTypeListReq struct {
+	PaginationReq
 }
 
 type GoodsTypeInfo struct {
@@ -12,6 +13,7 @@ type GoodsTypeInfo struct {
 }
 
 type GoodsTypeListRes struct {
+	PaginationRes
 	GoodsTypeList []*GoodsTypeInfo `json:"goods_type_list"`
 }
 
@@ -21,10 +23,9 @@ type ModifyGoodsTypeReq struct {
 }
 
 type GoodsListReq struct {
+	PaginationReq
 	GoodsTypeID uint32 `json:"goods_type_id"`
 	StoreTypeID uint32 `json:"store_type_id"`
-	PageSize    int32  `json:"page_size"`
-	Page        int32  `json:"page"`
 }
 
 type GoodsInfo struct {
@@ -40,11 +41,8 @@ type GoodsInfo struct {
 }
 
 type GoodsListRes struct {
-	GoodsList   []*GoodsInfo `json:"goods_list"`
-	TotalNumber int32        `json:"total_number"`
-	TotalPage   int32        `json:"total_page"`
-	PageSize    int32        `json:"page_size"`
-	Page        int32        `json:"page"`
+	PaginationRes
+	GoodsList []*GoodsInfo `json:"goods_list"`
 }
 
 type ModifyGoodsInfoReq struct {
@@ -55,4 +53,27 @@ type ModifyGoodsInfoReq struct {
 type ModifyGoodsQuantityReq struct {
 	Operate enum.OperateType `json:"operate"`
 	Goods   *GoodsInfo       `json:"goods"`
+}
+
+type GoodsPriceListReq struct {
+	PaginationReq
+	GoodsTypeID uint32 `json:"goods_type_id"`
+	StoreTypeID uint32 `json:"store_type_id"`
+}
+
+type GoodsPriceInfo struct {
+	GoodsID      uint32            `json:"goods_id"`
+	GoodsName    string            `json:"goods_name"`
+	PriceList    map[uint8]float64 `json:"price_list"`
+	AveragePrice float64           `json:"average_price"`
+}
+
+type GoodsPriceListRes struct {
+	PaginationRes
+	GoodsPriceList []*GoodsPriceInfo `json:"goods_price_list"`
+}
+
+type ModifyGoodsPriceReq struct {
+	GoodsID  uint32            `json:"goods_id"`
+	PriceMap map[uint8]float64 `json:"price_map"`
 }

@@ -1,6 +1,8 @@
 package utils
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"reflect"
 )
 
@@ -143,4 +145,10 @@ func GetMapValue(paramsMap map[string]string, key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func GetMD5Hex(data string) string {
+	hash := md5.New()
+	hash.Write([]byte(data))
+	return hex.EncodeToString(hash.Sum(nil))
 }

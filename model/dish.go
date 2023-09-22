@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/canteen_management/logger"
 	"github.com/canteen_management/utils"
 	"time"
@@ -68,6 +69,17 @@ func (dm *DishesModel) GetDishByCondition(condition string, params ...interface{
 	return retList.([]*Dish), nil
 }
 
+func (dm *DishesModel) GetDishCountByCondition(condition string, params ...interface{}) (int32, error) {
+	sqlStr := fmt.Sprintf("SELECT COUNT(*) FROM %v %v", dishTable, condition)
+	row := dm.sqlCli.QueryRow(sqlStr, params...)
+	var count int32
+	err := row.Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 func (dm *DishesModel) GetDishByName(dishName string) (*Dish, error) {
 	condition := " WHERE `dish_name` = ? "
 	dishList, err := dm.GetDishByCondition(condition, dishName)
@@ -81,7 +93,7 @@ func (dm *DishesModel) GetDishByName(dishName string) (*Dish, error) {
 	return nil, nil
 }
 
-func (dm *DishesModel) GetDishes(dishType uint32) ([]*Dish, error) {
+func (dm *DishesModel) GetDishes(dishType uint32, page, pageSize int32) ([]*Dish, error) {
 	var params []interface{}
 	condition := " WHERE 1=1 "
 	if dishType > 0 {
@@ -89,7 +101,22 @@ func (dm *DishesModel) GetDishes(dishType uint32) ([]*Dish, error) {
 		params = append(params, dishType)
 	}
 
+	if page >= 1 {
+		condition += " ORDER BY `id` ASC LIMIT ?,? "
+		params = append(params, (page-1)*pageSize, pageSize)
+	}
+
 	return dm.GetDishByCondition(condition, params...)
+}
+
+func (dm *DishesModel) GetDishesCount(dishType uint32) (int32, error) {
+	var params []interface{}
+	condition := " WHERE 1=1 "
+	if dishType > 0 {
+		condition += " AND `dish_type` = ? "
+		params = append(params, dishType)
+	}
+	return dm.GetDishCountByCondition(condition, params...)
 }
 
 func (dm *DishesModel) UpdateDish(dao *Dish) error {

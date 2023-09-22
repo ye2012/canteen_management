@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/canteen_management/logger"
@@ -78,7 +79,7 @@ func (dtm *DishTypeModel) GetMasterDishTypes() ([]*DishType, error) {
 	return retList, nil
 }
 
-func (dtm *DishTypeModel) GetDishTypesByMasterType(masterTypeID uint32) ([]*DishType, error) {
+func (dtm *DishTypeModel) GetDishTypesByMasterType(masterTypeID uint32, page, pageSize int32) ([]*DishType, error) {
 	var params []interface{}
 	condition := " WHERE 1=1 "
 	if masterTypeID > 0 {
@@ -87,12 +88,35 @@ func (dtm *DishTypeModel) GetDishTypesByMasterType(masterTypeID uint32) ([]*Dish
 	} else {
 		condition += " AND `master_type` > 0 "
 	}
+	if page >= 1 {
+		condition += " ORDER BY `id` ASC LIMIT ?,? "
+		params = append(params, (page-1)*pageSize, pageSize)
+	}
+
 	retList, err := dtm.GetDishTypesByCondition(condition, params...)
 	if err != nil {
 		logger.Warn(dishTypeLogTag, "GetDishTypesByMasterType Failed|Err:%v", err)
 		return nil, err
 	}
 	return retList, nil
+}
+
+func (dtm *DishTypeModel) GetDishTypesCountByMasterType(masterTypeID uint32) (int32, error) {
+	var params []interface{}
+	condition := " WHERE 1=1 "
+	if masterTypeID > 0 {
+		condition += " AND `master_type` = ? "
+		params = append(params, masterTypeID)
+	} else {
+		condition += " AND `master_type` > 0 "
+	}
+
+	count, err := dtm.GetDishTypesCountByCondition(condition, params...)
+	if err != nil {
+		logger.Warn(dishTypeLogTag, "GetDishTypesCountByCondition Failed|Err:%v", err)
+		return 0, err
+	}
+	return count, nil
 }
 
 func (dtm *DishTypeModel) GetDishTypesByCondition(condition string, params ...interface{}) ([]*DishType, error) {
@@ -103,6 +127,17 @@ func (dtm *DishTypeModel) GetDishTypesByCondition(condition string, params ...in
 	}
 
 	return retList.([]*DishType), nil
+}
+
+func (dtm *DishTypeModel) GetDishTypesCountByCondition(condition string, params ...interface{}) (int32, error) {
+	sqlStr := fmt.Sprintf("SELECT COUNT(*) FROM %v %v", dishTypeTable, condition)
+	row := dtm.sqlCli.QueryRow(sqlStr, params...)
+	var count int32
+	err := row.Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 func (dtm *DishTypeModel) UpdateDishType(dao *DishType) error {

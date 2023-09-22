@@ -16,12 +16,14 @@ const (
 
 type OrderUser struct {
 	ID            uint32 `json:"id"`
+	UnionID       string `json:"union_id"`
+	Uid           uint32 `json:"uid"`
 	PhoneNumber   string `json:"phone_number"`
-	DiscountLevel int32  `json:"discount_level"`
+	DiscountLevel uint8  `json:"discount_level"`
 }
 
 var (
-	orderUserUpdateTag = []string{"phone_number", "discount_level"}
+	orderUserUpdateTag = []string{"union_id", "phone_number", "discount_level"}
 )
 
 type OrderUserModel struct {
@@ -54,7 +56,7 @@ func (oum *OrderUserModel) GetOrderUserByCondition(condition string, params ...i
 	return retList.([]*OrderUser), nil
 }
 
-func (oum *OrderUserModel) GetOrderUser(phoneNumber string, discountLevel int32, page, pageSize uint32) ([]*OrderUser, error) {
+func (oum *OrderUserModel) GetOrderUser(phoneNumber string, discountLevel, page, pageSize int32) ([]*OrderUser, error) {
 	condition := " WHERE 1=1 "
 	params := make([]interface{}, 0)
 	if phoneNumber != "" {
@@ -98,10 +100,22 @@ func (oum *OrderUserModel) GetOrderUserCount(phoneNumber string, discountLevel i
 }
 
 func (oum *OrderUserModel) UpdateOrderUser(userInfo *OrderUser) error {
-	err := utils.SqlUpdateWithUpdateTags(oum.sqlCli, orderUserTable, userInfo, "id", orderUserUpdateTag...)
-	if err != nil {
-		logger.Warn(goodsLogTag, "UpdateOrderUser Failed|Err:%v", err)
-		return err
+	return oum.UpdateOrderUserWithTx(nil, userInfo, "id", orderUserUpdateTag...)
+}
+
+func (oum *OrderUserModel) UpdateOrderUserWithTx(tx *sql.Tx, userInfo *OrderUser, conditionTag string, params ...string) error {
+	if tx == nil {
+		err := utils.SqlUpdateWithUpdateTags(oum.sqlCli, orderUserTable, userInfo, conditionTag, params...)
+		if err != nil {
+			logger.Warn(orderUserLogTag, "SqlUpdateWithUpdateTags Failed|Err:%v", err)
+			return err
+		}
+	} else {
+		err := utils.SqlUpdateWithUpdateTags(tx, orderUserTable, userInfo, conditionTag, params...)
+		if err != nil {
+			logger.Warn(orderUserLogTag, "SqlUpdateWithUpdateTags Failed|Err:%v", err)
+			return err
+		}
 	}
 	return nil
 }

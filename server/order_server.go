@@ -112,8 +112,8 @@ func ConvertMenuToOrderNode(menuDate int64, dayMenu map[uint8][]uint32, dishMap 
 			retListByType := &dto.OrderNode{ID: fmt.Sprintf("%v", dishType), Name: typeMap[dishType].DishTypeName}
 			retListByType.Children = make([]*dto.OrderNode, 0, len(dishList))
 			for index, dish := range dishList {
-				retDish := &dto.OrderNode{ID: fmt.Sprintf("%v", index), Name: dish.DishName, OrderNodeMap: make(map[string]interface{})}
-				retDish.OrderNodeMap[KeyPrice] = dish.Price
+				retDish := &dto.OrderNode{ID: fmt.Sprintf("%v_%v_%v", retMeal.ID, dish.ID, index),
+					DishID: dish.ID, Name: dish.DishName, Price: dish.Price}
 				retListByType.Children = append(retListByType.Children, retDish)
 			}
 			retMeal.Children = append(retMeal.Children, retListByType)
@@ -125,13 +125,7 @@ func ConvertMenuToOrderNode(menuDate int64, dayMenu map[uint8][]uint32, dishMap 
 }
 
 func (os *OrderServer) RequestApplyOrder(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
-	req := rawReq.(*dto.ApplyOrderReq)
-	orderDao := ConvertToOrderDao(0, req.ID, req.Address, req.PickUpMethod)
-	if orderDao == nil {
-		logger.Warn(orderServerLogTag, "Convert OrderDao Failed|Req:%#v", *req)
-		res.Code = enum.ParamsError
-		return
-	}
+	req := rawReq.(*dto.ApplyPayOrderReq)
 	dishMap, err := os.dishService.GetDishIDMap()
 	if err != nil {
 		logger.Warn(orderServerLogTag, "GetDishIDMap Failed|Err:%v", err)
@@ -139,26 +133,54 @@ func (os *OrderServer) RequestApplyOrder(ctx *gin.Context, rawReq interface{}, r
 		return
 	}
 
-	orderItems := ConvertToOrderDetailDao(req.OrderItems)
+	payOrder := &model.PayOrderDao{
+		PrepareID:    "",
+		Uid:          0,
+		UnionID:      "UnionID",
+		Address:      req.Address,
+		DiscountType: 0,
+		Status:       0,
+	}
 
-	prepareID, err := os.orderService.ApplyOrder(orderDao, orderItems, dishMap, 1)
+	applyPay := &service.ApplyPayOrderInfo{PayOrder: payOrder, OrderList: make([]*service.ApplyOrderInfo, 0)}
+	for _, orderInfo := range req.OrderList {
+		applyInfo := &service.ApplyOrderInfo{}
+		orderDao := ConvertToOrderDao(0, orderInfo.ID, req.Address)
+		if orderDao == nil {
+			logger.Warn(orderServerLogTag, "Convert OrderDao Failed|Req:%#v", *req)
+			continue
+		}
+		orderItems := ConvertToOrderDetailDao(orderInfo.OrderItems)
+
+		applyInfo.Order = orderDao
+		applyInfo.Items = orderItems
+		applyPay.OrderList = append(applyPay.OrderList, applyInfo)
+	}
+
+	if len(applyPay.OrderList) == 0 {
+		logger.Warn(orderServerLogTag, "ApplyList Length Zero")
+		res.Code = enum.ParamsError
+		return
+	}
+
+	prepareID, totalAmount, payAmount, err := os.orderService.ApplyPayOrder(applyPay, dishMap, 1)
 	if err != nil {
-		logger.Warn(orderServerLogTag, "ApplyOrder Failed|Err:%v", err)
+		logger.Warn(orderServerLogTag, "ApplyPayOrder Failed|Err:%v", err)
 		res.Code = enum.SqlError
 		return
 	}
 
-	req.TotalAmount = orderDao.TotalAmount
-	req.PaymentAmount = orderDao.PayAmount
+	req.TotalAmount = totalAmount
+	req.PaymentAmount = payAmount
 
 	resData := &dto.ApplyOrderRes{
-		Order:     req,
-		PrepareID: prepareID,
+		PayOrderInfo: req,
+		PrepareID:    prepareID,
 	}
 	res.Data = resData
 }
 
-func ConvertToOrderDao(uid uint32, ID, addr string, pickUpMethod uint8) *model.OrderDao {
+func ConvertToOrderDao(uid uint32, ID, addr string) *model.OrderDao {
 	ids := strings.Split(ID, "_")
 	if len(ids) != 2 {
 		logger.Warn(orderServerLogTag, "ID illegal|ID:%v", ID)
@@ -168,11 +190,10 @@ func ConvertToOrderDao(uid uint32, ID, addr string, pickUpMethod uint8) *model.O
 	mealType, _ := strconv.ParseInt(ids[1], 10, 32)
 
 	return &model.OrderDao{
-		OrderDate:    time.Unix(mealTime, 0),
-		MealType:     uint8(mealType),
-		Uid:          uid,
-		PickUpMethod: pickUpMethod,
-		Address:      addr,
+		OrderDate: time.Unix(mealTime, 0),
+		MealType:  uint8(mealType),
+		Uid:       uid,
+		Address:   addr,
 	}
 }
 
@@ -188,6 +209,61 @@ func ConvertToOrderDetailDao(items []*dto.ApplyItem) []*model.OrderDetail {
 	return retList
 }
 
+func (os *OrderServer) RequestPayOrderList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.PayOrderListReq)
+	dishMap, err := os.dishService.GetDishIDMap()
+	if err != nil {
+		logger.Warn(orderServerLogTag, "GetDishIDMap Failed|Err:%v", err)
+		res.Code = enum.SystemError
+		return
+	}
+
+	payOrderList, payOrderNumber, err := os.orderService.GetPayOrderList([]uint32{}, req.Uid, req.Page, req.PageSize, req.OrderStatus)
+	if err != nil {
+		logger.Warn(orderServerLogTag, "GetPayOrderList Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		return
+	}
+
+	payOrderIDList, payOrderIDMap := make([]uint32, 0), make(map[uint32]int)
+	payOrderInfoList := make([]*dto.PayOrderInfo, 0)
+	for _, payOrder := range payOrderList {
+		payOrderIDList = append(payOrderIDList, payOrder.ID)
+		payOrderInfo := &dto.PayOrderInfo{
+			ID:            payOrder.ID,
+			OrderList:     make([]*dto.OrderInfo, 0),
+			Address:       payOrder.Address,
+			TotalAmount:   payOrder.TotalAmount,
+			PaymentAmount: payOrder.PayAmount,
+		}
+		payOrderIDMap[payOrder.ID] = len(payOrderInfoList)
+		payOrderInfoList = append(payOrderInfoList, payOrderInfo)
+	}
+
+	orderList, detailMap, err := os.orderService.GetOrderListByPayOrderID(payOrderIDList)
+	if err != nil {
+		logger.Warn(orderServerLogTag, "GetOrderListByPayOrderID Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		return
+	}
+
+	orderInfoList := ConvertToOrderInfoList(orderList, detailMap, dishMap)
+	for _, orderInfo := range orderInfoList {
+		if index, ok := payOrderIDMap[orderInfo.PayOrderID]; ok {
+			payOrderInfoList[index].OrderList = append(payOrderInfoList[index].OrderList, orderInfo)
+		}
+	}
+	resData := &dto.PayOrderListRes{
+		OrderList: payOrderInfoList,
+		PaginationRes: dto.PaginationRes{
+			Page:        req.Page,
+			PageSize:    req.PageSize,
+			TotalNumber: payOrderNumber,
+		},
+	}
+	res.Data = resData
+}
+
 func (os *OrderServer) RequestOrderList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.OrderListReq)
 	dishMap, err := os.dishService.GetDishIDMap()
@@ -196,7 +272,11 @@ func (os *OrderServer) RequestOrderList(ctx *gin.Context, rawReq interface{}, re
 		res.Code = enum.SystemError
 		return
 	}
-	orderList, detailMap, err := os.orderService.GetOrderList(req.OrderID, req.Uid, req.Page, req.PageSize, req.OrderStatus)
+	orderIDList := make([]uint32, 0)
+	if req.OrderID > 0 {
+		orderIDList = append(orderIDList, req.OrderID)
+	}
+	orderList, totalNumber, detailMap, err := os.orderService.GetOrderList(orderIDList, req.Uid, req.Page, req.PageSize, req.OrderStatus)
 	if err != nil {
 		logger.Warn(orderServerLogTag, "GetOrderList Failed|Err:%v", err)
 		res.Code = enum.SqlError
@@ -204,7 +284,14 @@ func (os *OrderServer) RequestOrderList(ctx *gin.Context, rawReq interface{}, re
 	}
 
 	orderInfoList := ConvertToOrderInfoList(orderList, detailMap, dishMap)
-	res.Data = orderInfoList
+	resData := &dto.OrderListRes{OrderList: orderInfoList,
+		PaginationRes: dto.PaginationRes{
+			Page:        req.Page,
+			PageSize:    req.PageSize,
+			TotalNumber: totalNumber,
+		},
+	}
+	res.Data = resData
 }
 
 func ConvertToOrderInfoList(orderList []*model.OrderDao, detailMap map[uint32][]*model.OrderDetail,
@@ -213,11 +300,10 @@ func ConvertToOrderInfoList(orderList []*model.OrderDao, detailMap map[uint32][]
 	for _, order := range orderList {
 		retInfo := &dto.OrderInfo{
 			ID:            fmt.Sprintf("%v_%v", order.OrderDate.Unix(), order.MealType),
-			UnionID:       fmt.Sprintf("%v", order.UnionID),
 			OrderID:       fmt.Sprintf("%v", order.ID),
 			OrderNo:       "",
+			PayOrderID:    order.PayOrderID,
 			Address:       order.Address,
-			PickUpMethod:  order.PickUpMethod,
 			TotalAmount:   order.TotalAmount,
 			PaymentAmount: order.PayAmount,
 			OrderItems:    make([]*dto.ApplyItem, 0),
@@ -306,79 +392,6 @@ func (os *OrderServer) RequestModifyDiscount(ctx *gin.Context, rawReq interface{
 		}
 	default:
 		logger.Warn(orderServerLogTag, "RequestModifyDiscount Unknown OperateType|Type:%v", req.Operate)
-		res.Code = enum.SystemError
-	}
-}
-
-func (os *OrderServer) RequestOrderUserList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
-	req := rawReq.(*dto.OrderUserListReq)
-	if req.Page <= 0 {
-		req.Page = 1
-	}
-	if req.PageSize > 1000 {
-		req.PageSize = 100
-	}
-	userList, userNumber, err := os.orderService.GetOrderUserList(req.PhoneNumber, req.DiscountLevel, req.Page, req.PageSize)
-	if err != nil {
-		logger.Warn(orderServerLogTag, "GetOrderUserList Failed|Err:%v", err)
-		res.Code = enum.SqlError
-		return
-	}
-
-	userInfoList := make([]*dto.OrderUserInfo, 0, len(userList))
-	for _, user := range userList {
-		userInfo := &dto.OrderUserInfo{
-			ID:            user.ID,
-			PhoneNumber:   user.PhoneNumber,
-			DiscountLevel: user.DiscountLevel,
-		}
-		userInfoList = append(userInfoList, userInfo)
-	}
-
-	extraPage := uint32(1)
-	if userNumber%req.PageSize == 0 {
-		extraPage = 0
-	}
-	retData := &dto.OrderUserListRes{
-		UserList:  userInfoList,
-		TotalPage: userNumber/req.PageSize + extraPage,
-		PageSize:  req.PageSize,
-		Page:      req.Page,
-	}
-	res.Data = retData
-}
-
-func (os *OrderServer) RequestModifyOrderUser(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
-	req := rawReq.(*dto.ModifyOrderUserReq)
-	if len(req.UserList) == 0 {
-		res.Code = enum.ParamsError
-		return
-	}
-
-	userList := make([]*model.OrderUser, 0, len(req.UserList))
-	for _, userInfo := range req.UserList {
-		user := &model.OrderUser{
-			ID:            userInfo.ID,
-			PhoneNumber:   userInfo.PhoneNumber,
-			DiscountLevel: userInfo.DiscountLevel,
-		}
-		userList = append(userList, user)
-	}
-	switch req.Operate {
-	case enum.OperateTypeAdd:
-		err := os.orderService.AddOrderUser(userList)
-		if err != nil {
-			res.Code = enum.SqlError
-			return
-		}
-	case enum.OperateTypeModify:
-		err := os.orderService.UpdateOrderUser(userList[0])
-		if err != nil {
-			res.Code = enum.SqlError
-			return
-		}
-	default:
-		logger.Warn(orderServerLogTag, "RequestModifyOrderUser Unknown OperateType|Type:%v", req.Operate)
 		res.Code = enum.SystemError
 	}
 }

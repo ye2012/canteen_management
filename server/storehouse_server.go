@@ -70,16 +70,13 @@ func (ss *StorehouseServer) RequestGoodsList(ctx *gin.Context, rawReq interface{
 		return
 	}
 
-	extraPage := int32(1)
-	if goodsCount%req.PageSize == 0 {
-		extraPage = 0
-	}
 	res.Data = &dto.GoodsListRes{
-		GoodsList:   ConvertToGoodsInfoList(goodsList),
-		TotalPage:   goodsCount/req.PageSize + extraPage,
-		TotalNumber: goodsCount,
-		PageSize:    req.PageSize,
-		Page:        req.Page,
+		GoodsList: ConvertToGoodsInfoList(goodsList),
+		PaginationRes: dto.PaginationRes{
+			Page:        req.Page,
+			PageSize:    req.PageSize,
+			TotalNumber: goodsCount,
+		},
 	}
 }
 
@@ -123,6 +120,35 @@ func (ss *StorehouseServer) RequestModifyGoods(ctx *gin.Context, rawReq interfac
 	default:
 		logger.Warn(storeServerLogTag, "RequestModifyStoreType Unknown OperateType|Type:%v", req.Operate)
 		res.Code = enum.SystemError
+	}
+}
+
+func (ss *StorehouseServer) RequestGoodsPriceList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.GoodsPriceListReq)
+	goodsList, goodsCount, err := ss.storeService.GoodsList(req.GoodsTypeID, req.StoreTypeID, req.Page, req.PageSize)
+	if err != nil {
+		res.Code = enum.SqlError
+		return
+	}
+
+	res.Data = &dto.GoodsPriceListRes{
+		GoodsPriceList: ConvertToGoodsPriceList(goodsList),
+		PaginationRes: dto.PaginationRes{
+			Page:        req.Page,
+			PageSize:    req.PageSize,
+			TotalNumber: goodsCount,
+		},
+	}
+}
+
+func (ss *StorehouseServer) RequestModifyGoodsPrice(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.ModifyGoodsPriceReq)
+
+	err := ss.storeService.UpdateGoodsPrice(req.GoodsID, req.PriceMap)
+	if err != nil {
+		res.Code = enum.SqlError
+		res.Msg = err.Error()
+		return
 	}
 }
 

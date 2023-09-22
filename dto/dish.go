@@ -5,6 +5,7 @@ import (
 )
 
 type DishTypeListReq struct {
+	PaginationReq
 	MasterTypeID     uint32 `json:"master_type_id"`
 	IncludeMaserType bool   `json:"include_maser_type"`
 }
@@ -16,6 +17,7 @@ type DishTypeInfo struct {
 }
 
 type DishTypeListRes struct {
+	PaginationRes
 	List []*DishTypeInfo `json:"list"`
 }
 
@@ -26,6 +28,7 @@ type ModifyDishTypeReq struct {
 
 type DishListReq struct {
 	DishType uint32 `json:"dish_type"`
+	PaginationReq
 }
 
 type DishInfo struct {
@@ -40,6 +43,7 @@ type DishInfo struct {
 
 type DishListRes struct {
 	DishList []*DishInfo `json:"dish_list"`
+	PaginationRes
 }
 
 type ModifyDishReq struct {

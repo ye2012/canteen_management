@@ -4,7 +4,12 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/canteen_management/logger"
 	_ "github.com/go-sql-driver/mysql"
+)
+
+const (
+	utilsLogTag = "Utils"
 )
 
 // Second is an integer type representing duration in second
@@ -34,4 +39,31 @@ func NewMysqlClient(config Config) (*sql.DB, error) {
 	db.SetMaxOpenConns(config.MaxOpen)
 	err = db.Ping()
 	return db, err
+}
+
+func Begin(sqlCli *sql.DB) (*sql.Tx, error) {
+	tx, err := sqlCli.Begin()
+	if err != nil {
+		logger.Warn(utilsLogTag, "Begin Failed|Err:%v", err)
+		return nil, err
+	}
+	return tx, nil
+}
+
+func End(tx *sql.Tx, err error) error {
+	if err != nil {
+		rollErr := tx.Rollback()
+		if rollErr != nil {
+			logger.Warn(utilsLogTag, "Rollback Failed|Err:%v", err)
+			return rollErr
+		}
+	} else {
+		err = tx.Commit()
+		if err != nil {
+			logger.Warn(utilsLogTag, "Commit Failed|Err:%v", err)
+			tx.Rollback()
+			return err
+		}
+	}
+	return nil
 }
