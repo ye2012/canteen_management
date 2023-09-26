@@ -198,7 +198,7 @@ func (os *OrderService) GetOrderList(orderIDList []uint32, uid uint32, page, pag
 		logger.Warn(orderServiceLogTag, "GetOrderList Failed|Err:%v", err)
 		return nil, 0, nil, err
 	}
-	orderCount, err := os.orderModel.GetOrderListCount(orderIDList, uid, page, pageSize, orderStatus)
+	orderCount, err := os.orderModel.GetOrderListCount(orderIDList, uid, orderStatus)
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "GetOrderListCount Failed|Err:%v", err)
 		return nil, 0, nil, err

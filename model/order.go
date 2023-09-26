@@ -88,7 +88,7 @@ func (om *OrderModel) GetOrderListByPayOrder(payOrderList []uint32) ([]*OrderDao
 	return retList.([]*OrderDao), nil
 }
 
-func (om *OrderModel) GenerateCondition(idList []uint32, uid uint32, page, pageSize int32, status int8) (string, []interface{}) {
+func (om *OrderModel) GenerateCondition(idList []uint32, uid uint32, status int8) (string, []interface{}) {
 	condition := " WHERE 1=1 "
 	params := make([]interface{}, 0)
 	if len(idList) > 0 {
@@ -106,13 +106,13 @@ func (om *OrderModel) GenerateCondition(idList []uint32, uid uint32, page, pageS
 		condition += " AND `status` = ? "
 		params = append(params, status)
 	}
-	condition += " ORDER BY `id` ASC LIMIT ?,? "
-	params = append(params, (page-1)*pageSize, pageSize)
 	return condition, params
 }
 
 func (om *OrderModel) GetOrderList(idList []uint32, uid uint32, page, pageSize int32, status int8) ([]*OrderDao, error) {
-	condition, params := om.GenerateCondition(idList, uid, page, pageSize, status)
+	condition, params := om.GenerateCondition(idList, uid, status)
+	condition += " ORDER BY `id` ASC LIMIT ?,? "
+	params = append(params, (page-1)*pageSize, pageSize)
 	retList, err := utils.SqlQuery(om.sqlCli, orderTable, &OrderDao{}, condition, params...)
 	if err != nil {
 		logger.Warn(orderLogTag, "GetOrderList Failed|ID:%v|Uid:%v|Status:%v|Err:%v", idList, uid, status, err)
@@ -122,10 +122,10 @@ func (om *OrderModel) GetOrderList(idList []uint32, uid uint32, page, pageSize i
 	return retList.([]*OrderDao), nil
 }
 
-func (om *OrderModel) GetOrderListCount(idList []uint32, uid uint32, page, pageSize int32, status int8) (int32, error) {
-	condition, params := om.GenerateCondition(idList, uid, page, pageSize, status)
+func (om *OrderModel) GetOrderListCount(idList []uint32, uid uint32, status int8) (int32, error) {
+	condition, params := om.GenerateCondition(idList, uid, status)
 
-	sqlStr := fmt.Sprintf("SELECT COUNT(*) FROM %v %v", orderTable, condition)
+	sqlStr := fmt.Sprintf("SELECT COUNT(*) FROM `%v` %v", orderTable, condition)
 	row := om.sqlCli.QueryRow(sqlStr, params...)
 	var count int32 = 0
 	err := row.Scan(&count)
