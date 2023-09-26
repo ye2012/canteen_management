@@ -235,6 +235,7 @@ func (os *OrderServer) RequestPayOrderList(ctx *gin.Context, rawReq interface{},
 			Address:       payOrder.Address,
 			TotalAmount:   payOrder.TotalAmount,
 			PaymentAmount: payOrder.PayAmount,
+			Status:        payOrder.Status,
 		}
 		payOrderIDMap[payOrder.ID] = len(payOrderInfoList)
 		payOrderInfoList = append(payOrderInfoList, payOrderInfo)
@@ -300,6 +301,7 @@ func ConvertToOrderInfoList(orderList []*model.OrderDao, detailMap map[uint32][]
 	for _, order := range orderList {
 		retInfo := &dto.OrderInfo{
 			ID:            fmt.Sprintf("%v_%v", order.OrderDate.Unix(), order.MealType),
+			Name:          order.OrderDate.Format("01-02") + enum.GetMealName(order.MealType),
 			OrderID:       fmt.Sprintf("%v", order.ID),
 			OrderNo:       "",
 			PayOrderID:    order.PayOrderID,

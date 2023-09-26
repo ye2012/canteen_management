@@ -2,6 +2,9 @@ package main
 
 import (
 	"flag"
+	"net/http"
+	"reflect"
+
 	"github.com/canteen_management/config"
 	"github.com/canteen_management/dto"
 	"github.com/canteen_management/enum"
@@ -9,8 +12,6 @@ import (
 	"github.com/canteen_management/server"
 	"github.com/gin-gonic/gin"
 	"gopkg.in/gotsunami/coquelicot.v1"
-	"net/http"
-	"reflect"
 )
 
 const (

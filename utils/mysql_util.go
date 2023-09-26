@@ -126,7 +126,7 @@ func SqlUpdateWithUpdateTags(mysql SqlHandle, tableName string, dao interface{},
 		return err
 	}
 	rows, err := result.RowsAffected()
-	if err != nil || rows != 1 {
+	if err != nil {
 		return fmt.Errorf("SqlUpdate failed, table:%v affect rows:%v err:%v", tableName, rows, err)
 	}
 	return nil

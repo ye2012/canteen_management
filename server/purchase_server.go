@@ -15,3 +15,7 @@ func NewPurchaseServer() *PurchaseServer {
 func (ps *PurchaseServer) RequestSupplierList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 
 }
+
+func (ps *PurchaseServer) RequestModifySupplier(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+
+}

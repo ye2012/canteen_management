@@ -130,6 +130,9 @@ func (ss *StoreService) UpdateGoodsPrice(goodsID uint32, priceMap map[uint8]floa
 		averagePrice += price
 		count += 1
 	}
+	if count <= 0 {
+		return nil
+	}
 	averagePrice /= float64(count)
 
 	err := ss.goodsModel.UpdateGoodsPriceInfo(goodsID, averagePrice, priceMap)

@@ -22,10 +22,12 @@ type PayOrderInfo struct {
 	Address       string       `json:"address"`
 	TotalAmount   float64      `json:"total_amount"`
 	PaymentAmount float64      `json:"payment_amount"`
+	Status        uint8        `json:"status"`
 }
 
 type OrderInfo struct {
 	ID            string       `json:"id"`
+	Name          string       `json:"name"`
 	PayOrderID    uint32       `json:"pay_order_id"`
 	UserPhone     string       `json:"user_phone"`
 	OrderID       string       `json:"order_id"`
