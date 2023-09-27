@@ -57,7 +57,7 @@ func (us *UserServer) RequestCanteenLogin(ctx *gin.Context, rawReq interface{}, 
 		return
 	}
 
-	user, err := us.userService.GetWxUser(openID)
+	user, err := us.userService.WxUserLogin(openID)
 	if err != nil {
 		res.Code = enum.SqlError
 		res.Msg = err.Error()
@@ -65,8 +65,9 @@ func (us *UserServer) RequestCanteenLogin(ctx *gin.Context, rawReq interface{}, 
 	}
 	resData := &dto.CanteenLoginRes{
 		Uid:         user.ID,
-		UnionID:     user.UnionID,
+		OpenID:      user.OpenID,
 		PhoneNumber: user.PhoneNumber,
+		Role:        us.userService.GetWxUserRole(openID),
 	}
 
 	resData.ExtraPay, resData.Discount, err = us.orderService.LoginUserOrderDiscountInfo(user.ID, user.OrderDiscountType)
@@ -102,7 +103,7 @@ func (us *UserServer) RequestOrderUserList(ctx *gin.Context, rawReq interface{},
 	for _, user := range userList {
 		userInfo := &dto.OrderUserInfo{
 			ID:            user.ID,
-			UnionID:       user.UnionID,
+			OpenID:        user.OpenID,
 			PhoneNumber:   user.PhoneNumber,
 			DiscountLevel: user.DiscountLevel,
 		}

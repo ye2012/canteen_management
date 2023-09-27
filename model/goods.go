@@ -127,6 +127,17 @@ func (gm *GoodsModel) GetGoodsCount(goodsType, storeType uint32) (int32, error) 
 	return count, nil
 }
 
+func (gm *GoodsModel) GetGoodsByID(id uint32) (*Goods, error) {
+	goods := &Goods{}
+	err := utils.SqlQueryRow(gm.sqlCli, goodsTable, goods, " WHERE `id` = ? ", id)
+	if err != nil {
+		logger.Warn(goodsLogTag, "GetGoods Failed|Err:%v", err)
+		return nil, err
+	}
+
+	return goods, nil
+}
+
 func (gm *GoodsModel) UpdateGoodsInfo(dao *Goods) error {
 	err := utils.SqlUpdateWithUpdateTags(gm.sqlCli, goodsTable, dao, "id", goodsUpdateTags...)
 	if err != nil {

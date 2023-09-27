@@ -8,10 +8,11 @@ type CanteenLoginReq struct {
 
 type CanteenLoginRes struct {
 	Uid         uint32  `json:"uid"`
-	UnionID     string  `json:"union_id"`
+	OpenID      string  `json:"open_id"`
 	PhoneNumber string  `json:"phone_number"`
 	Discount    float64 `json:"discount"`
 	ExtraPay    float64 `json:"extra_pay"`
+	Role        uint32  `json:"role"`
 }
 
 type BindPhoneNumberReq struct {

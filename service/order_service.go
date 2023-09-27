@@ -5,6 +5,8 @@ import (
 	"github.com/canteen_management/enum"
 	"github.com/canteen_management/logger"
 	"github.com/canteen_management/model"
+	"github.com/canteen_management/utils"
+	"time"
 )
 
 const (
@@ -47,6 +49,13 @@ func NewOrderService(sqlCli *sql.DB) *OrderService {
 
 func (os *OrderService) ApplyPayOrder(applyInfo *ApplyPayOrderInfo, dishMap map[uint32]*model.Dish,
 	discountType uint8) (prepareID string, totalAmount, payAmount float64, err error) {
+	discountInfo, err := os.orderDiscountModel.GetDiscountByID(discountType)
+	if err != nil {
+		logger.Warn(orderServiceLogTag, "GetDiscountByID Failed|ID:%v|Err:%v", discountType, err)
+		return
+	}
+	discountAmount := discountInfo.GetMealDiscount(enum.MealBreakfast)
+
 	tx, err := os.sqlCli.Begin()
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "ApplyPayOrder Begin Failed|Err:%v", err)
@@ -68,33 +77,47 @@ func (os *OrderService) ApplyPayOrder(applyInfo *ApplyPayOrderInfo, dishMap map[
 		}
 	}()
 
+	timeStart, timeEnd := utils.GetDayTimeRange(applyInfo.OrderList[0].Order.OrderDate.Unix())
+	prePayOrders, err := os.payOrderModel.GetPayOrderListWithLock(tx, []uint32{}, applyInfo.PayOrder.Uid,
+		[]int8{enum.PayOrderNew, enum.PayOrderFinish}, timeStart, timeEnd)
+	if err != nil {
+		logger.Warn(orderServiceLogTag, "GetPayOrderListWithLock Failed|Dao:%v|Err:%v", applyInfo.PayOrder, err)
+		return
+	}
+	extraPay := extraPayAmount
+	for _, prePay := range prePayOrders {
+		extraPay = 0
+		discountAmount -= prePay.DiscountAmount
+	}
+	if discountAmount < 0 {
+		discountAmount = 0
+	}
+
 	err = os.payOrderModel.InsertWithTx(tx, applyInfo.PayOrder)
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "ApplyPayOrder InsertPayOrder Failed|Dao:%v|Err:%v", applyInfo.PayOrder, err)
 		return
 	}
 
-	totalAmount, payAmount = float64(0), float64(0)
-	discount, err := os.orderDiscountModel.GetDiscountByID(discountType)
-	if err != nil {
-		logger.Warn(orderServiceLogTag, "ApplyPayOrder GetDiscountByID|ID:%v|Err:%v", discountType, err)
-	} else {
-		discount = &model.OrderDiscount{}
-	}
-
+	realDiscount := float64(0)
 	for _, applyOrder := range applyInfo.OrderList {
 		applyOrder.Order.PayOrderID = applyInfo.PayOrder.ID
-		err = os.ApplyOrder(tx, applyOrder.Order, applyOrder.Items, dishMap, discount)
+		err = os.ApplyOrder(tx, applyOrder.Order, applyOrder.Items, dishMap, discountAmount, extraPay)
 		if err != nil {
 			logger.Warn(orderServiceLogTag, "ApplyPayOrder Failed|ID:%v|Err:%v", applyOrder.Order.ID, err)
 			return
 		}
 		totalAmount += applyOrder.Order.TotalAmount
 		payAmount += applyOrder.Order.PayAmount
+		realDiscount += applyOrder.Order.DiscountAmount
+		discountAmount -= applyOrder.Order.DiscountAmount
+		extraPay = 0
 	}
 	applyInfo.PayOrder.TotalAmount = totalAmount
 	applyInfo.PayOrder.PayAmount = payAmount
-	err = os.payOrderModel.UpdatePayOrderInfoByID(tx, applyInfo.PayOrder, "total_amount", "pay_amount")
+	applyInfo.PayOrder.DiscountAmount = realDiscount
+	err = os.payOrderModel.UpdatePayOrderInfoByID(tx, applyInfo.PayOrder, "total_amount",
+		"pay_amount", "discount_amount")
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "UpdatePayOrderInfoByID Failed|ID:%v|Err:%v", applyInfo.PayOrder.ID, err)
 		return
@@ -102,8 +125,18 @@ func (os *OrderService) ApplyPayOrder(applyInfo *ApplyPayOrderInfo, dishMap map[
 	return
 }
 
+func (os *OrderService) CancelPayOrder(orderID uint32) (err error) {
+	order := &model.PayOrderDao{ID: orderID, Status: enum.PayOrderCancel}
+	err = os.payOrderModel.UpdatePayOrderInfoByID(nil, order, "status")
+	if err != nil {
+		logger.Warn(orderServiceLogTag, "CancelPayOrder Failed|Dao:%v|Err:%v", order, err)
+		return
+	}
+	return
+}
+
 func (os *OrderService) ApplyOrder(tx *sql.Tx, order *model.OrderDao, items []*model.OrderDetail,
-	dishMap map[uint32]*model.Dish, discount *model.OrderDiscount) error {
+	dishMap map[uint32]*model.Dish, discountAmount, extraPay float64) error {
 	totalAmount := float64(0)
 	for _, item := range items {
 		dish := dishMap[item.DishID]
@@ -112,13 +145,16 @@ func (os *OrderService) ApplyOrder(tx *sql.Tx, order *model.OrderDao, items []*m
 		totalAmount = totalAmount + (item.Price * float64(item.Quantity))
 	}
 	payAmount := totalAmount
-	payAmount = payAmount - discount.GetMealDiscount(order.MealType)
+	payAmount = payAmount - discountAmount
+	realDiscount := discountAmount
 	if payAmount < 0 {
+		realDiscount = payAmount
 		payAmount = 0
 	}
 
 	order.TotalAmount = totalAmount
-	order.PayAmount = payAmount
+	order.PayAmount = payAmount + extraPay
+	order.DiscountAmount = realDiscount
 
 	err := os.orderModel.InsertWithTx(tx, order)
 	if err != nil {
@@ -150,7 +186,7 @@ func (os *OrderService) GetPayOrderList(orderIDList []uint32, uid uint32, page, 
 		return make([]*model.PayOrderDao, 0), 0, nil
 	}
 
-	orderCount, err := os.payOrderModel.GetPayOrderListCount(orderIDList, uid, page, pageSize, orderStatus)
+	orderCount, err := os.payOrderModel.GetPayOrderListCount(orderIDList, uid, orderStatus)
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "GetPayOrderListCount Failed|Err:%v", err)
 		return nil, 0, err
@@ -281,14 +317,19 @@ func (os *OrderService) LoginUserOrderDiscountInfo(uid uint32, discountType uint
 		discountAmount = discountInfo.GetMealDiscount(enum.MealBreakfast)
 	}
 
-	orderList, err := os.orderModel.GetOrderList(make([]uint32, 0), uid, 1, 1, -1)
+	timeStart, timeEnd := utils.GetDayTimeRange(time.Now().Add(time.Hour * 24).Unix())
+	payOrderList, err := os.payOrderModel.GetAllPayOrderList(make([]uint32, 0), uid,
+		[]int8{enum.PayOrderNew, enum.PayOrderFinish}, timeStart, timeEnd)
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "GetOrderList Failed|Err:%v", err)
 		return 0, 0, err
 	}
 	minPay := extraPayAmount
-	if len(orderList) > 0 {
-		minPay = 0
+	for _, payOrder := range payOrderList {
+		discountAmount -= payOrder.DiscountAmount
+		if payOrder.Status == enum.PayOrderFinish {
+			minPay = 0
+		}
 	}
 
 	return minPay, discountAmount, nil

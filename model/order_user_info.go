@@ -16,14 +16,14 @@ const (
 
 type OrderUser struct {
 	ID            uint32 `json:"id"`
-	UnionID       string `json:"union_id"`
+	OpenID        string `json:"open_id"`
 	Uid           uint32 `json:"uid"`
 	PhoneNumber   string `json:"phone_number"`
 	DiscountLevel uint8  `json:"discount_level"`
 }
 
 var (
-	orderUserUpdateTag = []string{"union_id", "phone_number", "discount_level"}
+	orderUserUpdateTag = []string{"open_id", "phone_number", "discount_level"}
 )
 
 type OrderUserModel struct {

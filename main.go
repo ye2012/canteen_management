@@ -75,9 +75,14 @@ func HandleUserApi(router *gin.Engine) error {
 	return nil
 }
 
-func HandlePurchaseApi(router *gin.Engine) {
-	//purchaseRouter := router.Group("/purchase")
-	//
+func HandlePurchaseApi(router *gin.Engine) error {
+	purchaseRouter := router.Group("/api/purchase")
+	purchaseServer, err := server.NewPurchaseServer(config.Config.MysqlConfig)
+	if err != nil {
+		logger.Warn(serverLogTag, "NewPurchaseServer Failed|Err:%v", err)
+		return err
+	}
+
 	//purchaseRouter.POST("/purchaseList", NewHandler(storeServer.,
 	//	&dto.{}))
 	//
@@ -91,12 +96,13 @@ func HandlePurchaseApi(router *gin.Engine) {
 	//	&dto.{}))
 	//
 	//
-	//purchaseRouter.POST("/supplierList", NewHandler(storeServer.,
-	//	&dto.{}))
-	//purchaseRouter.POST("/modifySupplier", NewHandler(storeServer.,
-	//	&dto.{}))
-	//purchaseRouter.POST("/updateDiscount", NewHandler(storeServer.,
-	//	&dto.{}))
+	purchaseRouter.POST("/supplierList", NewHandler(purchaseServer.RequestSupplierList,
+		func() interface{} { return new(dto.SupplierListReq) }))
+	purchaseRouter.POST("/modifySupplier", NewHandler(purchaseServer.RequestModifySupplier,
+		func() interface{} { return new(dto.ModifySupplierReq) }))
+	purchaseRouter.POST("/bindSupplier", NewHandler(purchaseServer.RequestBindSupplier,
+		func() interface{} { return new(dto.BindSupplierReq) }))
+	return nil
 }
 
 func HandleStorehouseApi(router *gin.Engine) error {
@@ -210,6 +216,8 @@ func HandleOrderApi(router *gin.Engine) error {
 		func() interface{} { return new(dto.OrderMenuReq) }))
 	orderRouter.POST("/applyPayOrder", NewHandler(orderServer.RequestApplyOrder,
 		func() interface{} { return new(dto.ApplyPayOrderReq) }))
+	orderRouter.POST("/cancelPayOrder", NewHandler(orderServer.RequestCancelOrder,
+		func() interface{} { return new(dto.CancelPayOrderReq) }))
 	orderRouter.POST("/payOrderList", NewHandler(orderServer.RequestPayOrderList,
 		func() interface{} { return new(dto.PayOrderListReq) }))
 	orderRouter.POST("/orderList", NewHandler(orderServer.RequestOrderList,

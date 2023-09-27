@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/canteen_management/logger"
 	"github.com/canteen_management/model"
@@ -31,7 +32,7 @@ func NewPurchaseService(sqlCli *sql.DB) *PurchaseService {
 }
 
 func (ps *PurchaseService) GetSupplierList(name, phoneNumber string) ([]*model.Supplier, error) {
-	supplierList, err := ps.supplierModel.GetSupplier(name, phoneNumber)
+	supplierList, err := ps.supplierModel.GetSupplier(0, name, phoneNumber)
 	if err != nil {
 		logger.Warn(purchaseServiceLogTag, "GetSupplier Failed|Err:%v", err)
 		return nil, err
@@ -39,8 +40,40 @@ func (ps *PurchaseService) GetSupplierList(name, phoneNumber string) ([]*model.S
 	return supplierList, nil
 }
 
-func (ps *PurchaseService) AddSupplier() {
+func (ps *PurchaseService) AddSupplier(supplier *model.Supplier) error {
+	err := ps.supplierModel.Insert(supplier)
+	if err != nil {
+		logger.Warn(purchaseServiceLogTag, "Insert Supplier Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
 
+func (ps *PurchaseService) UpdateSupplier(supplier *model.Supplier) error {
+	err := ps.supplierModel.UpdateSupplier(supplier)
+	if err != nil {
+		logger.Warn(purchaseServiceLogTag, "UpdateSupplier Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
+func (ps *PurchaseService) BindSupplier(supplierID uint32, openID string) error {
+	suppliers, err := ps.supplierModel.GetSupplier(supplierID, "", "")
+	if err != nil {
+		logger.Warn(purchaseServiceLogTag, "BindSupplier GetSupplier Failed|Err:%v", err)
+		return err
+	}
+	if len(suppliers) == 0 {
+		return fmt.Errorf("供应商未找到|ID:%v", supplierID)
+	}
+
+	err = ps.supplierModel.UpdateOpenID(supplierID, openID)
+	if err != nil {
+		logger.Warn(purchaseServiceLogTag, "UpdateOpenID GetSupplier Failed|Err:%v", err)
+		return err
+	}
+	return nil
 }
 
 func (ps *PurchaseService) GetPurchaseOrder() {

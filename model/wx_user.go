@@ -15,7 +15,7 @@ const (
 
 type WxUser struct {
 	ID                uint32    `json:"id"`
-	UnionID           string    `json:"union_id"`
+	OpenID            string    `json:"open_id"`
 	PhoneNumber       string    `json:"phone_number"`
 	OrderDiscountType uint8     `json:"order_discount_type"`
 	CreateAt          time.Time `json:"created_at"`
@@ -42,9 +42,9 @@ func (wum *WxUserModel) Insert(dao *WxUser) error {
 	return nil
 }
 
-func (wum *WxUserModel) GetWxUserByUnionID(unionID string) (*WxUser, error) {
-	condition := " WHERE `union_id`=? "
-	users, err := wum.GetWxUserByCondition(condition, unionID)
+func (wum *WxUserModel) GetWxUserByOpenID(openID string) (*WxUser, error) {
+	condition := " WHERE `open_id`=? "
+	users, err := wum.GetWxUserByCondition(condition, openID)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,6 @@ func (wum *WxUserModel) UpdateWithTx(tx *sql.Tx, wxUser *WxUser, conditionTag st
 			return err
 		}
 	}
-
 	return nil
 }
 

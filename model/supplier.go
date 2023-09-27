@@ -25,6 +25,7 @@ type Supplier struct {
 	IDNumber         string    `json:"id_number"`
 	Location         string    `json:"location"`
 	ValidityDeadline time.Time `json:"validity_deadline"`
+	OpenID           string    `json:"open_id"`
 	CreateAt         time.Time `json:"created_at"`
 	UpdateAt         time.Time `json:"updated_at"`
 }
@@ -49,9 +50,13 @@ func (sm *SupplierModel) Insert(dao *Supplier) error {
 	return nil
 }
 
-func (sm *SupplierModel) GetSupplier(name, phoneNumber string) ([]*Supplier, error) {
+func (sm *SupplierModel) GetSupplier(id uint32, name, phoneNumber string) ([]*Supplier, error) {
 	var params []interface{}
 	condition := " WHERE 1=1 "
+	if id != 0 {
+		condition += " AND `id` = ? "
+		params = append(params, id)
+	}
 	if name != "" {
 		condition += " AND `name` = ? "
 		params = append(params, name)
@@ -74,6 +79,16 @@ func (sm *SupplierModel) UpdateSupplier(dao *Supplier) error {
 	err := utils.SqlUpdateWithUpdateTags(sm.sqlCli, supplierTable, dao, "id", supplierUpdateTags...)
 	if err != nil {
 		logger.Warn(supplierLogTag, "UpdateSupplier Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
+func (sm *SupplierModel) UpdateOpenID(id uint32, openID string) error {
+	dao := &Supplier{ID: id, OpenID: openID}
+	err := utils.SqlUpdateWithUpdateTags(sm.sqlCli, supplierTable, dao, "id", "open_id")
+	if err != nil {
+		logger.Warn(supplierLogTag, "UpdateOpenID Failed|Err:%v", err)
 		return err
 	}
 	return nil

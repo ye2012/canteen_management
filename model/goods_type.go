@@ -56,6 +56,17 @@ func (gtm *GoodsTypeModel) GetGoodsTypes() ([]*GoodsType, error) {
 	return retList.([]*GoodsType), nil
 }
 
+func (gtm *GoodsTypeModel) GetGoodsTypesByID(id uint32) (*GoodsType, error) {
+	goodsType := &GoodsType{}
+	err := utils.SqlQueryRow(gtm.sqlCli, goodsTypeTable, goodsType, " WHERE `id` = ? ", id)
+	if err != nil {
+		logger.Warn(goodsTypeLogTag, "GetGoodsTypesByID Failed|Err:%v", err)
+		return nil, err
+	}
+
+	return goodsType, nil
+}
+
 func (gtm *GoodsTypeModel) UpdateGoodsType(dao *GoodsType) error {
 	err := utils.SqlUpdateWithUpdateTags(gtm.sqlCli, goodsTypeTable, dao, "id", goodsTypeUpdateTags...)
 	if err != nil {

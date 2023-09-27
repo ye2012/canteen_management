@@ -22,11 +22,16 @@ type SupplierListRes struct {
 
 type ModifySupplierReq struct {
 	Operate  enum.OperateType `json:"operate"`
-	Supplier SupplierInfo     `json:"supplier"`
+	Supplier *SupplierInfo    `json:"supplier"`
 }
 
-type GoodPurchaseInfo struct {
-	Id            int64   `json:"id"`
+type BindSupplierReq struct {
+	SupplierID uint32 `json:"supplier_id"`
+	OpenID     string `json:"open_id"`
+}
+
+type GoodsPurchaseInfo struct {
+	GoodsId       int64   `json:"goods_id"`
 	Name          string  `json:"name"`
 	GoodsTypeID   uint32  `json:"goods_type_id"`
 	ExpectAmount  float64 `json:"expect_amount"`
@@ -36,12 +41,25 @@ type GoodPurchaseInfo struct {
 }
 
 type PurchaseOrderInfo struct {
-	ID          uint32              `json:"id"`
-	Supplier    uint32              `json:"supplier"`
-	SignPicture []string            `json:"sign_picture"`
-	Status      uint8               `json:"status"`
-	GoodsList   []*GoodPurchaseInfo `json:"goods_list"`
+	ID          uint32               `json:"id"`
+	Supplier    uint32               `json:"supplier"`
+	SignPicture []string             `json:"sign_picture"`
+	Status      uint8                `json:"status"`
+	GoodsList   []*GoodsPurchaseInfo `json:"goods_list"`
 }
 
 type PurchaseOrderListReq struct {
+}
+
+type ApplyPurchaseReq struct {
+	GoodsList []*GoodsPurchaseInfo `json:"goods_list"`
+}
+
+type ConfirmPurchaseReq struct {
+	PurchaseID uint32 `json:"purchase_id"`
+}
+
+type ReceivePurchaseReq struct {
+	PurchaseID uint32               `json:"purchase_id"`
+	GoodsList  []*GoodsPurchaseInfo `json:"goods_list"`
 }

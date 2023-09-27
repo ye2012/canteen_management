@@ -51,6 +51,30 @@ func SqlQueryRow(mysql SqlHandle, tableName string, resultDAO interface{}, condi
 	return row.Scan(allAddr...)
 }
 
+func SqlQueryWithLock(mysql SqlHandle, tableName string, dao interface{}, condition string, condValues ...interface{}) (resultSlice interface{}, err error) {
+	allField := GetFieldsTagByKey(dao, "json")
+
+	sqlStr := fmt.Sprintf("SELECT `%v` FROM `%v` %v FOR UPDATE", strings.Join(allField, "`,`"), tableName, condition)
+
+	rows, err := mysql.Query(sqlStr, condValues...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	daoType := reflect.TypeOf(dao)
+	result := reflect.MakeSlice(reflect.SliceOf(daoType), 0, 0)
+	for rows.Next() {
+		t := reflect.New(daoType.Elem())
+		err = rows.Scan(GetFieldsAddr(t.Interface())...)
+		if err != nil {
+			return result, err
+		}
+		result = reflect.Append(result, t)
+	}
+	return result.Interface(), nil
+}
+
 func SqlQuery(mysql SqlHandle, tableName string, dao interface{}, condition string, condValues ...interface{}) (resultSlice interface{}, err error) {
 	allField := GetFieldsTagByKey(dao, "json")
 

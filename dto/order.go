@@ -1,6 +1,9 @@
 package dto
 
-import "github.com/canteen_management/enum"
+import (
+	"fmt"
+	"github.com/canteen_management/enum"
+)
 
 type OrderMenuReq struct {
 }
@@ -16,10 +19,27 @@ type ApplyItem struct {
 
 type ApplyPayOrderReq = PayOrderInfo
 
+func (apo *ApplyPayOrderReq) CheckParams() error {
+	if len(apo.OrderList) == 0 {
+		return fmt.Errorf("请输入订单信息")
+	}
+	name := enum.GetBuildingName(apo.BuildingID)
+	if name == "" {
+		return fmt.Errorf("请输入所在楼号信息")
+	}
+	return nil
+}
+
+type CancelPayOrderReq struct {
+	OrderID uint32 `json:"order_id"`
+}
+
 type PayOrderInfo struct {
 	ID            uint32       `json:"id"`
 	OrderList     []*OrderInfo `json:"order_list"`
-	Address       string       `json:"address"`
+	BuildingID    uint32       `json:"building_id"`
+	Floor         uint32       `json:"floor"`
+	Room          string       `json:"room"`
 	TotalAmount   float64      `json:"total_amount"`
 	PaymentAmount float64      `json:"payment_amount"`
 	Status        uint8        `json:"status"`
@@ -32,7 +52,9 @@ type OrderInfo struct {
 	UserPhone     string       `json:"user_phone"`
 	OrderID       string       `json:"order_id"`
 	OrderNo       string       `json:"order_no"`
-	Address       string       `json:"address"`
+	BuildingID    uint32       `json:"building_id"`
+	Floor         uint32       `json:"floor"`
+	Room          string       `json:"room"`
 	TotalAmount   float64      `json:"total_amount"`
 	PaymentAmount float64      `json:"payment_amount"`
 	OrderItems    []*ApplyItem `json:"order_items"`
@@ -82,7 +104,7 @@ type OrderUserListReq struct {
 
 type OrderUserInfo struct {
 	ID            uint32 `json:"id"`
-	UnionID       string `json:"union_id"`
+	OpenID        string `json:"open_id"`
 	PhoneNumber   string `json:"phone_number"`
 	DiscountLevel uint8  `json:"discount_level"`
 }

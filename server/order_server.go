@@ -25,6 +25,7 @@ type OrderServer struct {
 	dishService  *service.DishService
 	menuService  *service.MenuService
 	orderService *service.OrderService
+	userService  *service.UserService
 }
 
 func NewOrderServer(dbConf utils.Config) (*OrderServer, error) {
@@ -44,11 +45,13 @@ func NewOrderServer(dbConf utils.Config) (*OrderServer, error) {
 		return nil, err
 	}
 	orderService := service.NewOrderService(sqlCli)
+	userService := service.NewUserService(sqlCli)
 
 	return &OrderServer{
 		dishService:  dishService,
 		menuService:  menuService,
 		orderService: orderService,
+		userService:  userService,
 	}, nil
 }
 
@@ -75,19 +78,6 @@ func (os *OrderServer) RequestOrderMenu(ctx *gin.Context, rawReq interface{}, re
 	tomorrowData := ConvertMenuToOrderNode(orderDate, dayMenu, dishMap, typeMap)
 
 	resData := dto.OrderMenuRes{}
-	if nowTime < utils.GetMidDayTime(nowTime) {
-		dayMenu, err = os.menuService.GetWeekMenuByTime(nowTime, 1)
-		if err != nil {
-			logger.Warn(orderServerLogTag, "RequestOrderMenu GetWeekMenuByTime Failed|Err:%v", err)
-			res.Code = enum.SystemError
-			return
-		}
-
-		delete(dayMenu, enum.MealBreakfast)
-		delete(dayMenu, enum.MealLunch)
-
-		resData = ConvertMenuToOrderNode(nowTime, dayMenu, dishMap, typeMap)
-	}
 	resData = append(resData, tomorrowData...)
 	res.Data = resData
 }
@@ -132,20 +122,23 @@ func (os *OrderServer) RequestApplyOrder(ctx *gin.Context, rawReq interface{}, r
 		res.Code = enum.SystemError
 		return
 	}
+	uid := uint32(0)
 
 	payOrder := &model.PayOrderDao{
-		PrepareID:    "",
-		Uid:          0,
-		UnionID:      "UnionID",
-		Address:      req.Address,
-		DiscountType: 0,
-		Status:       0,
+		PrepareID:      "",
+		Uid:            uid,
+		OpenID:         "OpenID",
+		BuildingID:     req.BuildingID,
+		Floor:          req.Floor,
+		Room:           req.Room,
+		DiscountAmount: 0,
+		Status:         enum.PayOrderNew,
 	}
 
 	applyPay := &service.ApplyPayOrderInfo{PayOrder: payOrder, OrderList: make([]*service.ApplyOrderInfo, 0)}
 	for _, orderInfo := range req.OrderList {
 		applyInfo := &service.ApplyOrderInfo{}
-		orderDao := ConvertToOrderDao(0, orderInfo.ID, req.Address)
+		orderDao := ConvertToOrderDao(0, orderInfo.ID, req.BuildingID, req.Floor, req.Room)
 		if orderDao == nil {
 			logger.Warn(orderServerLogTag, "Convert OrderDao Failed|Req:%#v", *req)
 			continue
@@ -160,10 +153,20 @@ func (os *OrderServer) RequestApplyOrder(ctx *gin.Context, rawReq interface{}, r
 	if len(applyPay.OrderList) == 0 {
 		logger.Warn(orderServerLogTag, "ApplyList Length Zero")
 		res.Code = enum.ParamsError
+		res.Msg = "ID不合法"
 		return
 	}
 
-	prepareID, totalAmount, payAmount, err := os.orderService.ApplyPayOrder(applyPay, dishMap, 1)
+	wxUser, err := os.userService.GetWxUser(uid)
+	if err != nil || wxUser == nil {
+		logger.Warn(orderServerLogTag, "GetWxUser Failed|Err:%v", err)
+		res.Code = enum.SystemError
+		res.Msg = "用户不存在"
+		return
+	}
+
+	applyPay.PayOrder.MealTime = applyPay.OrderList[0].Order.OrderDate
+	prepareID, totalAmount, payAmount, err := os.orderService.ApplyPayOrder(applyPay, dishMap, wxUser.OrderDiscountType)
 	if err != nil {
 		logger.Warn(orderServerLogTag, "ApplyPayOrder Failed|Err:%v", err)
 		res.Code = enum.SqlError
@@ -180,7 +183,17 @@ func (os *OrderServer) RequestApplyOrder(ctx *gin.Context, rawReq interface{}, r
 	res.Data = resData
 }
 
-func ConvertToOrderDao(uid uint32, ID, addr string) *model.OrderDao {
+func (os *OrderServer) RequestCancelOrder(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.CancelPayOrderReq)
+	err := os.orderService.CancelPayOrder(req.OrderID)
+	if err != nil {
+		logger.Warn(orderServerLogTag, "CancelPayOrder Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		return
+	}
+}
+
+func ConvertToOrderDao(uid uint32, ID string, buildingID, floor uint32, room string) *model.OrderDao {
 	ids := strings.Split(ID, "_")
 	if len(ids) != 2 {
 		logger.Warn(orderServerLogTag, "ID illegal|ID:%v", ID)
@@ -190,10 +203,12 @@ func ConvertToOrderDao(uid uint32, ID, addr string) *model.OrderDao {
 	mealType, _ := strconv.ParseInt(ids[1], 10, 32)
 
 	return &model.OrderDao{
-		OrderDate: time.Unix(mealTime, 0),
-		MealType:  uint8(mealType),
-		Uid:       uid,
-		Address:   addr,
+		OrderDate:  time.Unix(mealTime, 0),
+		MealType:   uint8(mealType),
+		Uid:        uid,
+		BuildingID: buildingID,
+		Floor:      floor,
+		Room:       room,
 	}
 }
 
@@ -232,7 +247,8 @@ func (os *OrderServer) RequestPayOrderList(ctx *gin.Context, rawReq interface{},
 		payOrderInfo := &dto.PayOrderInfo{
 			ID:            payOrder.ID,
 			OrderList:     make([]*dto.OrderInfo, 0),
-			Address:       payOrder.Address,
+			Floor:         payOrder.Floor,
+			Room:          payOrder.Room,
 			TotalAmount:   payOrder.TotalAmount,
 			PaymentAmount: payOrder.PayAmount,
 			Status:        payOrder.Status,
@@ -305,7 +321,9 @@ func ConvertToOrderInfoList(orderList []*model.OrderDao, detailMap map[uint32][]
 			OrderID:       fmt.Sprintf("%v", order.ID),
 			OrderNo:       "",
 			PayOrderID:    order.PayOrderID,
-			Address:       order.Address,
+			BuildingID:    order.BuildingID,
+			Floor:         order.Floor,
+			Room:          order.Room,
 			TotalAmount:   order.TotalAmount,
 			PaymentAmount: order.PayAmount,
 			OrderItems:    make([]*dto.ApplyItem, 0),

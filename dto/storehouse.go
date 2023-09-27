@@ -33,3 +33,17 @@ type StoreListRes struct {
 type ResetStoreGoodsQuantity struct {
 	Goods *GoodsTypeInfo `json:"goods"`
 }
+
+type GoodsOutboundInfo struct {
+	GoodsId       int64   `json:"goods_id"`
+	Name          string  `json:"name"`
+	GoodsTypeID   uint32  `json:"goods_type_id"`
+	ExpectAmount  float64 `json:"expect_amount"`
+	ReceiveAmount float64 `json:"receive_amount"`
+	Discount      float64 `json:"discount"`
+	DealPrice     float64 `json:"deal_price"`
+}
+
+type ApplyOutboundReq struct {
+	GoodsList []*GoodsOutboundInfo `json:"goods_list"`
+}

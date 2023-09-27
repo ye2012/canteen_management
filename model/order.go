@@ -18,17 +18,19 @@ const (
 type OrderDao struct {
 	ID uint32 `json:"id"`
 	//OrderID      string          `json:"order_id"`
-	PayOrderID   uint32    `json:"pay_order_id"`
-	MealType     uint8     `json:"meal_type"`
-	OrderDate    time.Time `json:"order_date"`
-	Uid          uint32    `json:"uid"`
-	Address      string    `json:"address"`
-	TotalAmount  float64   `json:"total_amount"`
-	PayAmount    float64   `json:"pay_amount"`
-	DiscountType uint8     `json:"discount_type"`
-	Status       uint8     `json:"status"`
-	CreateAt     time.Time `json:"created_at"`
-	UpdateAt     time.Time `json:"updated_at"`
+	PayOrderID     uint32    `json:"pay_order_id"`
+	MealType       uint8     `json:"meal_type"`
+	OrderDate      time.Time `json:"order_date"`
+	Uid            uint32    `json:"uid"`
+	BuildingID     uint32    `json:"building_id"`
+	Floor          uint32    `json:"floor"`
+	Room           string    `json:"room"`
+	TotalAmount    float64   `json:"total_amount"`
+	PayAmount      float64   `json:"pay_amount"`
+	DiscountAmount float64   `json:"discount_amount"`
+	Status         uint8     `json:"status"`
+	CreateAt       time.Time `json:"created_at"`
+	UpdateAt       time.Time `json:"updated_at"`
 }
 
 type OrderModel struct {

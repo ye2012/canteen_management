@@ -135,7 +135,20 @@ func (ss *StoreService) UpdateGoodsPrice(goodsID uint32, priceMap map[uint8]floa
 	}
 	averagePrice /= float64(count)
 
-	err := ss.goodsModel.UpdateGoodsPriceInfo(goodsID, averagePrice, priceMap)
+	goods, err := ss.goodsModel.GetGoodsByID(goodsID)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "GetGoodsByID Failed|Err:%v", err)
+		return err
+	}
+
+	goodsType, err := ss.goodsTypeModel.GetGoodsTypesByID(goods.GoodsTypeID)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "GetGoodsTypesByID Failed|Err:%v", err)
+		return err
+	}
+
+	averagePrice = averagePrice * goodsType.Discount
+	err = ss.goodsModel.UpdateGoodsPriceInfo(goodsID, averagePrice, priceMap)
 	if err != nil {
 		logger.Warn(storeServiceLogTag, "UpdateGoodsPrice Failed|Err:%v", err)
 		return err
