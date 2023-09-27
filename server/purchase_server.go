@@ -89,6 +89,7 @@ func ConvertToSupplier(suppliers []*model.Supplier) []*dto.SupplierInfo {
 			IDNumber:         supplier.IDNumber,
 			Location:         supplier.Location,
 			ValidityDeadline: supplier.ValidityDeadline.Unix(),
+			OpenID:           supplier.OpenID,
 		}
 		retList = append(retList, retInfo)
 	}

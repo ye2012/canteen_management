@@ -4,14 +4,16 @@ import (
 	"flag"
 	"net/http"
 	"reflect"
+	"time"
 
 	"github.com/canteen_management/config"
 	"github.com/canteen_management/dto"
 	"github.com/canteen_management/enum"
 	"github.com/canteen_management/logger"
+	"github.com/canteen_management/model"
 	"github.com/canteen_management/server"
+	"github.com/canteen_management/utils"
 	"github.com/gin-gonic/gin"
-	"gopkg.in/gotsunami/coquelicot.v1"
 )
 
 const (
@@ -30,8 +32,14 @@ func main() {
 
 func StartServer() {
 	router := gin.Default()
+	err := initTokenService()
+	if err != nil {
+		logger.Warn(serverLogTag, "InitTokenService Failed|Err:%v", err)
+		return
+	}
+	//router.Use(CheckToken)
 
-	err := HandleUserApi(router)
+	err = HandleUserApi(router)
 	if err != nil {
 		logger.Warn(serverLogTag, "HandleUserApi Failed|Err:%v", err)
 		return
@@ -231,9 +239,8 @@ func HandleOrderApi(router *gin.Engine) error {
 }
 
 func HandleUploadApi(router *gin.Engine) {
-	orderRouter := router.Group("/api/")
-	store := coquelicot.NewStorage("/home/work/private/canteen/files/")
-	orderRouter.POST("/upload", NewUploadHandler(store.UploadHandler))
+	_ = router.Group("/api/")
+
 }
 
 type RequestDealFunc func(*gin.Context, interface{}, *dto.Response)
@@ -288,43 +295,59 @@ func NewHandler(dealFunc RequestDealFunc, reqGen ReqGenerateFunc) gin.HandlerFun
 	return handleFunc
 }
 
-//func CheckTokenImpl(token string) (*model.TokenDAO, enum.ErrorCode) {
-//	if token == "" {
-//		return nil, enum.TokenCheckFailed
-//	}
-//	tokenDAO := tokenModel.Get(token)
-//	if tokenDAO == nil {
-//		return nil, enum.TokenCheckFailed
-//	}
-//	nowTime := time.Now()
-//	if tokenDAO.MTime.Add(tokenTimeOut).Before(nowTime) {
-//		return nil, enum.TokenTimeout
-//	}
-//
-//	if tokenDAO.MTime.Add(updateTokenTimeOut).Before(nowTime) {
-//		tokenDAO.MTime = nowTime
-//		tokenModel.UpdateModifyTime(tokenDAO)
-//	}
-//	return tokenDAO, enum.Success
-//}
+var tokenModel *model.TokenModel
+var tokenTimeOut = time.Minute * 30
+var updateTokenTimeOut = time.Minute * 5
 
-//func CheckToken(c *gin.Context) {
-//	custom := dto.GetCustomContextInfo(c)
-//	token, ok := custom.ParamMap[config.TokenKey]
-//	if !ok {
-//		logger.Warn(serverLogTag, "Get Token Failed")
-//		c.AbortWithStatusJSON(http.StatusOK, dto.Response{Code: enum.ParamsError, Msg: "token not found"})
-//		return
-//	}
-//
-//	tokenDao, code := CheckTokenImpl(token)
-//	if code != enum.Success {
-//		logger.Warn(serverLogTag, "Check Token Failed|Token:%v|Code:%v", token, code)
-//		c.AbortWithStatusJSON(http.StatusOK, dto.Response{Code: enum.ParamsError, Msg: "token check failed"})
-//		return
-//	}
-//
-//	custom.Token = tokenDao
-//	c.Set(config.CustomKey, custom)
-//	c.Next()
-//}
+func initTokenService() error {
+	sqlCli, err := utils.NewMysqlClient(config.Config.MysqlConfig)
+	if err != nil {
+		logger.Warn(serverLogTag, "NewMysqlClient Failed|Err:%v", err)
+		return err
+	}
+	tokenModel = model.NewTokenModelWithDB(sqlCli)
+
+	logger.Info(serverLogTag, "tokenTimeOut:%v|updateTokenTimeOut:%v", tokenTimeOut, updateTokenTimeOut)
+	return nil
+}
+
+func CheckTokenImpl(token string) (*model.TokenDAO, enum.ErrorCode) {
+	if token == "" {
+		return nil, enum.TokenCheckFailed
+	}
+	tokenDAO := tokenModel.Get(token)
+	if tokenDAO == nil {
+		return nil, enum.TokenCheckFailed
+	}
+	nowTime := time.Now()
+	if tokenDAO.MTime.Add(tokenTimeOut).Before(nowTime) {
+		return nil, enum.TokenTimeout
+	}
+
+	if tokenDAO.MTime.Add(updateTokenTimeOut).Before(nowTime) {
+		tokenDAO.MTime = nowTime
+		tokenModel.UpdateModifyTime(tokenDAO)
+	}
+	return tokenDAO, enum.Success
+}
+
+func CheckToken(c *gin.Context) {
+	custom := dto.GetCustomContextInfo(c)
+	token, ok := custom.ParamMap[config.TokenKey]
+	if !ok {
+		logger.Warn(serverLogTag, "Get Token Failed")
+		c.AbortWithStatusJSON(http.StatusOK, dto.Response{Code: enum.ParamsError, Msg: "token not found"})
+		return
+	}
+
+	tokenDao, code := CheckTokenImpl(token)
+	if code != enum.Success {
+		logger.Warn(serverLogTag, "Check Token Failed|Token:%v|Code:%v", token, code)
+		c.AbortWithStatusJSON(http.StatusOK, dto.Response{Code: enum.ParamsError, Msg: "token check failed"})
+		return
+	}
+
+	custom.Token = tokenDao
+	c.Set(config.CustomKey, custom)
+	c.Next()
+}

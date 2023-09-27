@@ -35,14 +35,15 @@ type CancelPayOrderReq struct {
 }
 
 type PayOrderInfo struct {
-	ID            uint32       `json:"id"`
-	OrderList     []*OrderInfo `json:"order_list"`
-	BuildingID    uint32       `json:"building_id"`
-	Floor         uint32       `json:"floor"`
-	Room          string       `json:"room"`
-	TotalAmount   float64      `json:"total_amount"`
-	PaymentAmount float64      `json:"payment_amount"`
-	Status        uint8        `json:"status"`
+	ID             uint32       `json:"id"`
+	OrderList      []*OrderInfo `json:"order_list"`
+	BuildingID     uint32       `json:"building_id"`
+	Floor          uint32       `json:"floor"`
+	Room           string       `json:"room"`
+	TotalAmount    float64      `json:"total_amount"`
+	PaymentAmount  float64      `json:"payment_amount"`
+	DiscountAmount float64      `json:"discount_amount"`
+	Status         uint8        `json:"status"`
 }
 
 type OrderInfo struct {

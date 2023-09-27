@@ -245,13 +245,14 @@ func (os *OrderServer) RequestPayOrderList(ctx *gin.Context, rawReq interface{},
 	for _, payOrder := range payOrderList {
 		payOrderIDList = append(payOrderIDList, payOrder.ID)
 		payOrderInfo := &dto.PayOrderInfo{
-			ID:            payOrder.ID,
-			OrderList:     make([]*dto.OrderInfo, 0),
-			Floor:         payOrder.Floor,
-			Room:          payOrder.Room,
-			TotalAmount:   payOrder.TotalAmount,
-			PaymentAmount: payOrder.PayAmount,
-			Status:        payOrder.Status,
+			ID:             payOrder.ID,
+			OrderList:      make([]*dto.OrderInfo, 0),
+			Floor:          payOrder.Floor,
+			Room:           payOrder.Room,
+			TotalAmount:    payOrder.TotalAmount,
+			PaymentAmount:  payOrder.PayAmount,
+			DiscountAmount: payOrder.DiscountAmount,
+			Status:         payOrder.Status,
 		}
 		payOrderIDMap[payOrder.ID] = len(payOrderInfoList)
 		payOrderInfoList = append(payOrderInfoList, payOrderInfo)

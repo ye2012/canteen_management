@@ -24,3 +24,6 @@ func LoadConfig(configPath string) error {
 	logger.Info("config", "Config:%#v", Config)
 	return nil
 }
+
+const CustomKey = "Custom"
+const TokenKey = "Token"

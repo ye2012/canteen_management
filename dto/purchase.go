@@ -14,6 +14,7 @@ type SupplierInfo struct {
 	IDNumber         string `json:"id_number"`
 	Location         string `json:"location"`
 	ValidityDeadline int64  `json:"validity_deadline"`
+	OpenID           string `json:"open_id"`
 }
 
 type SupplierListRes struct {

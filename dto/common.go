@@ -1,6 +1,12 @@
 package dto
 
-import "github.com/canteen_management/enum"
+import (
+	"github.com/canteen_management/config"
+	"github.com/canteen_management/enum"
+	"github.com/canteen_management/model"
+	"github.com/gin-gonic/gin"
+	"github.com/gorilla/sessions"
+)
 
 type Response struct {
 	Code    enum.ErrorCode `json:"code"` // status code
@@ -69,4 +75,18 @@ type OrderNode struct {
 
 type RequestChecker interface {
 	CheckParams() error
+}
+
+type CustomContextInfo struct {
+	Token    *model.TokenDAO
+	ParamMap map[string]string
+	Session  *sessions.Session
+}
+
+func GetCustomContextInfo(c *gin.Context) *CustomContextInfo {
+	customInfo, ok := c.Get(config.CustomKey)
+	if !ok {
+		return &CustomContextInfo{}
+	}
+	return customInfo.(*CustomContextInfo)
 }
