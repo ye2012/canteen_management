@@ -135,6 +135,33 @@ func SqlUpsert(mysql SqlHandle, tableName string, dao interface{}, skipTags ...s
 	return result.LastInsertId()
 }
 
+func SqlBatchUpdateTag(mysql SqlHandle, tableName string, daoList []interface{}, conditionTag, updateTag string) error {
+	if len(daoList) == 0 {
+		return nil
+	}
+	condition := fmt.Sprintf(" Case `%v` ", conditionTag)
+	params, keys := make([]interface{}, 0), make([]interface{}, 0)
+	for _, dao := range daoList {
+		conditionVal, allValue := GetSpecifiedFieldsValueWithSpecialField(dao, conditionTag, updateTag)
+		condition += fmt.Sprintf(" WHEN ? THEN ? ")
+		params = append(params, conditionVal, allValue[0])
+		keys = append(keys, conditionVal)
+	}
+	params = append(params, keys...)
+	condition += fmt.Sprintf(" END WHERE `%v` in (%v)", conditionTag, GetSqlPlaceholder(len(daoList)))
+	sqlStr := fmt.Sprintf("UPDATE `%v` SET `%v`= %v ", tableName, updateTag, condition)
+
+	result, err := mysql.Exec(sqlStr, params...)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("SqlUpdate failed, table:%v affect rows:%v err:%v", tableName, rows, err)
+	}
+	return nil
+}
+
 func SqlUpdateWithUpdateTags(mysql SqlHandle, tableName string, dao interface{}, conditionTag string, updateTags ...string) error {
 	allField := GetSpecifiedFieldsTag(dao, "json", updateTags...)
 	conditionVal, allValue := GetSpecifiedFieldsValueWithSpecialField(dao, conditionTag, updateTags...)

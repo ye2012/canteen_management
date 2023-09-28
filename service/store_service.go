@@ -33,6 +33,10 @@ func (ss *StoreService) Init() error {
 	return nil
 }
 
+func (ss *StoreService) ReceivePurchase(details []*model.PurchaseDetail) {
+
+}
+
 func (ss *StoreService) GetStoreTypeList() ([]*model.StorehouseType, error) {
 	typeList, err := ss.storeTypeModel.GetStorehouseTypes()
 	if err != nil {
@@ -85,6 +89,20 @@ func (ss *StoreService) UpdateGoodsType(goodsType *model.GoodsType) error {
 		return err
 	}
 	return nil
+}
+
+func (ss *StoreService) GetGoodsMap() (map[uint32]*model.Goods, error) {
+	goodsList, err := ss.goodsModel.GetAllGoods()
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "GetAllGoods Failed|Err:%v", err)
+		return nil, err
+	}
+
+	goodsMap := make(map[uint32]*model.Goods)
+	for _, goods := range goodsList {
+		goodsMap[goods.ID] = goods
+	}
+	return goodsMap, nil
 }
 
 func (ss *StoreService) GoodsList(goodsType, storeType uint32, page, pageSize int32) ([]*model.Goods, int32, error) {

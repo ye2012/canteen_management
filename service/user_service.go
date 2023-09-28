@@ -57,6 +57,18 @@ func (us *UserService) GetWxUser(userID uint32) (*model.WxUser, error) {
 	return nil, nil
 }
 
+func (us *UserService) GetWxUserDiscount(openID string) uint8 {
+	orderUser, err := us.orderUserModel.GetOrderUserByCondition(" WHERE `open_id`=? ", openID)
+	if err != nil {
+		logger.Warn(userServiceLogTag, "GetOrderUserByCondition Failed|OpenID:%v|Err:%v", openID, err)
+		return 0
+	}
+	if len(orderUser) > 0 {
+		return orderUser[0].DiscountLevel
+	}
+	return 0
+}
+
 func (us *UserService) WxUserLogin(openID string) (*model.WxUser, error) {
 	user, err := us.wxUserModel.GetWxUserByOpenID(openID)
 	if err != nil {
@@ -78,7 +90,7 @@ func (us *UserService) WxUserLogin(openID string) (*model.WxUser, error) {
 }
 
 func (us *UserService) BindPhoneNumber(uid uint32, phoneNumber string) error {
-	condition := " WHERE `id` = ? "
+	condition := " WHERE `id` = ?  "
 	users, err := us.wxUserModel.GetWxUserByCondition(condition, uid)
 	if err != nil {
 		logger.Warn(userServiceLogTag, "GetWxUserByCondition Failed|uid:%v|Err:%v", uid, err)
@@ -99,12 +111,7 @@ func (us *UserService) BindPhoneNumber(uid uint32, phoneNumber string) error {
 		logger.Warn(userServiceLogTag, "GetOrderUser Failed|phone:%v|Err:%v", phoneNumber, err)
 		return err
 	}
-	discountType := uint8(0)
-	if len(orderUser) > 0 {
-		discountType = uint8(orderUser[0].DiscountLevel)
-	}
 
-	wxUser.OrderDiscountType = discountType
 	wxUser.PhoneNumber = phoneNumber
 	tx, err := utils.Begin(us.sqlCli)
 	if err != nil {
@@ -113,7 +120,7 @@ func (us *UserService) BindPhoneNumber(uid uint32, phoneNumber string) error {
 	}
 	defer utils.End(tx, err)
 
-	err = us.wxUserModel.UpdateWithTx(tx, wxUser, "id", "phone_number", "order_discount_type")
+	err = us.wxUserModel.UpdateWithTx(tx, wxUser, "id", "phone_number")
 	if err != nil {
 		logger.Warn(userServiceLogTag, "Update PhoneNumber Failed|Uid:%v|PhoneNumber:%v|Err:%v",
 			uid, phoneNumber, err)
@@ -169,45 +176,19 @@ func (us *UserService) UpdateOrderUser(updateInfo *model.OrderUser) error {
 		return fmt.Errorf("订餐用户不存在")
 	}
 
-	tx, err := utils.Begin(us.sqlCli)
-	if err != nil {
-		logger.Warn(userServiceLogTag, "UpdateOrderUser Begin Failed|Err:%v", err)
-		return err
-	}
-	defer utils.End(tx, err)
-
-	wxUser := &model.WxUser{ID: orderUsers[0].Uid, OrderDiscountType: updateInfo.DiscountLevel}
 	updateTags := make([]string, 0)
-	if orderUsers[0].OpenID != updateInfo.OpenID {
-		wxUser, err = us.wxUserModel.GetWxUserByOpenID(updateInfo.OpenID)
+	if updateInfo.OpenID != "" {
+		wxUser, err := us.wxUserModel.GetWxUserByOpenID(updateInfo.OpenID)
 		if err != nil {
 			logger.Warn(userServiceLogTag, "GetWxUserByOpenID Failed|Err:%v", err)
-			return err
-		}
-		err = us.wxUserModel.UpdateWithTx(tx, wxUser, "id", "order_discount_type")
-		if err != nil {
-			logger.Warn(userServiceLogTag, "Update WxUser Discount Failed|Err:%v", err)
 			return err
 		}
 		updateInfo.Uid = wxUser.ID
 		updateTags = append(updateTags, "open_id", "uid")
 	}
-	if orderUsers[0].DiscountLevel != updateInfo.DiscountLevel {
-		if orderUsers[0].Uid != 0 {
-			err = us.wxUserModel.UpdateWithTx(tx, wxUser, "id", "order_discount_type")
-			if err != nil {
-				logger.Warn(userServiceLogTag, "Update WxUser Discount Failed|Err:%v", err)
-				return err
-			}
-		}
-		updateTags = append(updateTags, "discount_level")
-	}
+	updateTags = append(updateTags, "discount_level")
 
-	if len(updateTags) == 0 {
-		return nil
-	}
-
-	err = us.orderUserModel.UpdateOrderUserWithTx(tx, updateInfo, "id", updateTags...)
+	err = us.orderUserModel.UpdateOrderUserWithTx(nil, updateInfo, "id", updateTags...)
 	if err != nil {
 		logger.Warn(userServiceLogTag, "ModifyOrderUser Failed|Err:%v", err)
 		return err

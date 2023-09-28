@@ -25,7 +25,7 @@ const (
 	PurchaseNew = iota
 	PurchaseReviewed
 	PurchaseAccept
-	PurchaseReach
+	PurchaseReceived
 	PurchaseFinish
 )
 

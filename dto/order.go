@@ -2,6 +2,7 @@ package dto
 
 import (
 	"fmt"
+
 	"github.com/canteen_management/enum"
 )
 
@@ -31,6 +32,10 @@ func (apo *ApplyPayOrderReq) CheckParams() error {
 }
 
 type CancelPayOrderReq struct {
+	OrderID uint32 `json:"order_id"`
+}
+
+type DeliverOrderReq struct {
 	OrderID uint32 `json:"order_id"`
 }
 
@@ -83,11 +88,25 @@ type PayOrderListRes struct {
 	OrderList []*PayOrderInfo `json:"order_list"`
 }
 
+type FloorFilterReq struct {
+	OrderDate   int64  `json:"order_date"`
+	MealType    uint8  `json:"meal_type"`
+	BuildingID  uint32 `json:"building_id"`
+	OrderStatus int8   `json:"order_status"`
+}
+
+type FloorFilterRes struct {
+	Floors []int32 `json:"floors"`
+}
+
 type OrderListReq struct {
 	PaginationReq
 	OrderStatus int8   `json:"order_status"`
 	Uid         uint32 `json:"uid"`
 	OrderID     uint32 `json:"order_id"`
+	BuildingID  uint32 `json:"building_id"`
+	Floor       uint32 `json:"floor"`
+	Room        string `json:"room"`
 	StartTime   int64  `json:"start_time"`
 	EndTime     int64  `json:"end_time"`
 }

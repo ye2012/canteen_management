@@ -20,10 +20,10 @@ type PurchaseDetail struct {
 	Id              int64   `json:"id"`
 	PurchaseOrderID uint32  `json:"purchase_order_id"`
 	GoodsID         uint32  `json:"goods_id"`
+	GoodsType       uint32  `json:"goods_type"`
 	ExpectAmount    float64 `json:"expect_amount"`
 	ReceiveAmount   float64 `json:"receive_amount"`
-	Discount        float64 `json:"discount"`
-	DealPrice       float64 `json:"deal_price"`
+	Price           float64 `json:"price"`
 }
 
 type PurchaseDetailModel struct {
@@ -56,10 +56,14 @@ func (pdm *PurchaseDetailModel) GetDetail(orderID uint32) ([]*PurchaseDetail, er
 	return retList.([]*PurchaseDetail), nil
 }
 
-func (pdm *PurchaseDetailModel) UpdateDetail(goods []*PurchaseDetail) error {
-	err := utils.SqlUpdateWithUpdateTags(pdm.sqlCli, purchaseDetailTable, goods, "id", purchaseDetailUpdateTags...)
+func (pdm *PurchaseDetailModel) BatchUpdateDetail(detailList []*PurchaseDetail) error {
+	daoList := make([]interface{}, 0)
+	for _, detail := range detailList {
+		daoList = append(daoList, detail)
+	}
+	err := utils.SqlBatchUpdateTag(pdm.sqlCli, purchaseDetailTable, daoList, "id", "receive_amount")
 	if err != nil {
-		logger.Warn(purchaseDetailLogTag, "UpdateDetail Failed|Err:%v", err)
+		logger.Warn(purchaseDetailLogTag, "BatchUpdateDetail Failed|Err:%v", err)
 		return err
 	}
 	return nil

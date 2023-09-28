@@ -14,12 +14,11 @@ const (
 )
 
 type WxUser struct {
-	ID                uint32    `json:"id"`
-	OpenID            string    `json:"open_id"`
-	PhoneNumber       string    `json:"phone_number"`
-	OrderDiscountType uint8     `json:"order_discount_type"`
-	CreateAt          time.Time `json:"created_at"`
-	UpdateAt          time.Time `json:"updated_at"`
+	ID          uint32    `json:"id"`
+	OpenID      string    `json:"open_id"`
+	PhoneNumber string    `json:"phone_number"`
+	CreateAt    time.Time `json:"created_at"`
+	UpdateAt    time.Time `json:"updated_at"`
 }
 
 type WxUserModel struct {

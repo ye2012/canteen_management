@@ -50,6 +50,18 @@ func (sm *SupplierModel) Insert(dao *Supplier) error {
 	return nil
 }
 
+func (sm *SupplierModel) GetCurrentSupplier() (*Supplier, error) {
+	condition := " WHERE `validity_deadline` > CURRENT_TIMESTAMP() ORDER BY `validity_deadline` ASC LIMIT 1 "
+	supplier := &Supplier{}
+	err := utils.SqlQueryRow(sm.sqlCli, supplierTable, supplier, condition)
+	if err != nil {
+		logger.Warn(supplierLogTag, "GetCurrentSupplier Failed|Err:%v", err)
+		return nil, err
+	}
+
+	return supplier, nil
+}
+
 func (sm *SupplierModel) GetSupplier(id uint32, name, phoneNumber string) ([]*Supplier, error) {
 	var params []interface{}
 	condition := " WHERE 1=1 "
@@ -89,6 +101,16 @@ func (sm *SupplierModel) UpdateOpenID(id uint32, openID string) error {
 	err := utils.SqlUpdateWithUpdateTags(sm.sqlCli, supplierTable, dao, "id", "open_id")
 	if err != nil {
 		logger.Warn(supplierLogTag, "UpdateOpenID Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
+func (sm *SupplierModel) UpdateValidityTime(id uint32, endTime int64) error {
+	dao := &Supplier{ID: id, ValidityDeadline: time.Unix(endTime, 0)}
+	err := utils.SqlUpdateWithUpdateTags(sm.sqlCli, supplierTable, dao, "id", "validity_deadline")
+	if err != nil {
+		logger.Warn(supplierLogTag, "UpdateValidityTime Failed|Err:%v", err)
 		return err
 	}
 	return nil

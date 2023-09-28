@@ -110,6 +110,8 @@ func HandlePurchaseApi(router *gin.Engine) error {
 		func() interface{} { return new(dto.ModifySupplierReq) }))
 	purchaseRouter.POST("/bindSupplier", NewHandler(purchaseServer.RequestBindSupplier,
 		func() interface{} { return new(dto.BindSupplierReq) }))
+	purchaseRouter.POST("/renewSupplier", NewHandler(purchaseServer.RequestRenewSupplier,
+		func() interface{} { return new(dto.RenewSupplierReq) }))
 	return nil
 }
 
@@ -224,12 +226,16 @@ func HandleOrderApi(router *gin.Engine) error {
 		func() interface{} { return new(dto.OrderMenuReq) }))
 	orderRouter.POST("/applyPayOrder", NewHandler(orderServer.RequestApplyOrder,
 		func() interface{} { return new(dto.ApplyPayOrderReq) }))
-	orderRouter.POST("/cancelPayOrder", NewHandler(orderServer.RequestCancelOrder,
+	orderRouter.POST("/cancelPayOrder", NewHandler(orderServer.RequestCancelPayOrder,
 		func() interface{} { return new(dto.CancelPayOrderReq) }))
 	orderRouter.POST("/payOrderList", NewHandler(orderServer.RequestPayOrderList,
 		func() interface{} { return new(dto.PayOrderListReq) }))
 	orderRouter.POST("/orderList", NewHandler(orderServer.RequestOrderList,
 		func() interface{} { return new(dto.OrderListReq) }))
+	orderRouter.POST("/floorFilter", NewHandler(orderServer.RequestFloorFilter,
+		func() interface{} { return new(dto.FloorFilterReq) }))
+	orderRouter.POST("/deliverOrder", NewHandler(orderServer.RequestDeliverOrder,
+		func() interface{} { return new(dto.DeliverOrderReq) }))
 
 	orderRouter.POST("/orderDiscountList", NewHandler(orderServer.RequestDiscountList,
 		func() interface{} { return new(dto.OrderDiscountListReq) }))

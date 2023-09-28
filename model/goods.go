@@ -84,6 +84,16 @@ func (gm *GoodsModel) Insert(dao *Goods) error {
 	return nil
 }
 
+func (gm *GoodsModel) GetAllGoods() ([]*Goods, error) {
+	retList, err := utils.SqlQuery(gm.sqlCli, goodsTable, &Goods{}, "")
+	if err != nil {
+		logger.Warn(goodsLogTag, "GetGoods Failed|Err:%v", err)
+		return nil, err
+	}
+
+	return retList.([]*Goods), nil
+}
+
 func (gm *GoodsModel) GetGoods(goodsType, storeType uint32, page, pageSize int32) ([]*Goods, error) {
 	condition := " WHERE 1=1 "
 	var params []interface{}

@@ -67,10 +67,12 @@ func (us *UserServer) RequestCanteenLogin(ctx *gin.Context, rawReq interface{}, 
 		Uid:         user.ID,
 		OpenID:      user.OpenID,
 		PhoneNumber: user.PhoneNumber,
-		Role:        us.userService.GetWxUserRole(openID),
+		Role:        1,
 	}
 
-	resData.ExtraPay, resData.Discount, err = us.orderService.LoginUserOrderDiscountInfo(user.ID, user.OrderDiscountType)
+	discountType := us.userService.GetWxUserDiscount(user.OpenID)
+
+	resData.ExtraPay, resData.Discount, err = us.orderService.LoginUserOrderDiscountInfo(user.ID, discountType)
 	if err != nil {
 		res.Code = enum.SqlError
 		res.Msg = err.Error()

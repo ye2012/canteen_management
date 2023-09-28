@@ -3,6 +3,7 @@ package model
 import (
 	"database/sql"
 	"fmt"
+	"github.com/canteen_management/enum"
 	"time"
 
 	"github.com/canteen_management/logger"
@@ -22,12 +23,15 @@ type OrderDao struct {
 	MealType       uint8     `json:"meal_type"`
 	OrderDate      time.Time `json:"order_date"`
 	Uid            uint32    `json:"uid"`
+	PhoneNumber    string    `json:"phone_number"`
 	BuildingID     uint32    `json:"building_id"`
 	Floor          uint32    `json:"floor"`
 	Room           string    `json:"room"`
 	TotalAmount    float64   `json:"total_amount"`
 	PayAmount      float64   `json:"pay_amount"`
 	DiscountAmount float64   `json:"discount_amount"`
+	DeliverUid     uint32    `json:"deliver_user_id"`
+	DeliverTime    time.Time `json:"deliver_time"`
 	Status         uint8     `json:"status"`
 	CreateAt       time.Time `json:"created_at"`
 	UpdateAt       time.Time `json:"updated_at"`
@@ -46,9 +50,9 @@ func NewOrderModel(sqlCli *sql.DB) *OrderModel {
 func (om *OrderModel) InsertWithTx(tx *sql.Tx, dao *OrderDao) (err error) {
 	id := int64(0)
 	if tx != nil {
-		id, err = utils.SqlInsert(tx, orderTable, dao, "id", "created_at", "updated_at")
+		id, err = utils.SqlInsert(tx, orderTable, dao, "id", "created_at", "updated_at", "deliver_time")
 	} else {
-		id, err = utils.SqlInsert(om.sqlCli, orderTable, dao, "id", "created_at", "updated_at")
+		id, err = utils.SqlInsert(om.sqlCli, orderTable, dao, "id", "created_at", "updated_at", "deliver_time")
 	}
 
 	if err != nil {
@@ -90,7 +94,8 @@ func (om *OrderModel) GetOrderListByPayOrder(payOrderList []uint32) ([]*OrderDao
 	return retList.([]*OrderDao), nil
 }
 
-func (om *OrderModel) GenerateCondition(idList []uint32, uid uint32, status int8) (string, []interface{}) {
+func (om *OrderModel) GenerateCondition(idList []uint32, uid uint32, status int8, buildingID, floor uint32,
+	room string, startTime, endTime int64, mealType uint8) (string, []interface{}) {
 	condition := " WHERE 1=1 "
 	params := make([]interface{}, 0)
 	if len(idList) > 0 {
@@ -108,11 +113,63 @@ func (om *OrderModel) GenerateCondition(idList []uint32, uid uint32, status int8
 		condition += " AND `status` = ? "
 		params = append(params, status)
 	}
+	if buildingID > 0 {
+		condition += " AND `building_id` = ? "
+		params = append(params, buildingID)
+	}
+	if floor > 0 {
+		condition += " AND `floor` = ? "
+		params = append(params, floor)
+	}
+	if startTime > 0 {
+		condition += " AND `order_date` >= ? "
+		params = append(params, time.Unix(startTime, 0))
+	}
+	if endTime > startTime {
+		condition += " AND `order_date` <= ? "
+		params = append(params, time.Unix(endTime, 0))
+	}
+	if mealType > enum.MealUnknown {
+		condition += " AND `meal_type` = ? "
+		params = append(params, mealType)
+	}
+	if room != "" {
+		condition += " AND `room` = ? "
+		params = append(params, room)
+	}
 	return condition, params
 }
 
-func (om *OrderModel) GetOrderList(idList []uint32, uid uint32, page, pageSize int32, status int8) ([]*OrderDao, error) {
-	condition, params := om.GenerateCondition(idList, uid, status)
+func (om *OrderModel) GetFloors(buildingID uint32, status int8, startTime, endTime int64, mealType uint8) ([]int32, error) {
+	condition, params := om.GenerateCondition(make([]uint32, 0), 0, status, buildingID, 0, "",
+		startTime, endTime, mealType)
+	sqlStr := fmt.Sprintf("SELECT DISTINCT(`floor`) FROM `%v` %v", orderTable, condition)
+	logger.Debug(orderLogTag, "sql:%v", sqlStr)
+	rows, err := om.sqlCli.Query(sqlStr, params...)
+	if err != nil {
+		logger.Warn(orderLogTag, "GetFloors Query Failed|BuildingID:%v|Status:%v|MealType:%v|Err:%v",
+			buildingID, status, mealType, err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	floors := make([]int32, 0)
+	for rows.Next() {
+		floor := int32(0)
+		err = rows.Scan(&floor)
+		if err != nil {
+			logger.Warn(orderLogTag, "GetFloors Scan Failed|Err:%v", err)
+			continue
+		}
+		floors = append(floors, floor)
+	}
+
+	return floors, nil
+}
+
+func (om *OrderModel) GetOrderList(idList []uint32, uid uint32, buildingID, floor uint32, room string,
+	status int8, startTime, endTime int64, page, pageSize int32) ([]*OrderDao, error) {
+	condition, params := om.GenerateCondition(idList, uid, status, buildingID, floor, room, startTime, endTime, enum.MealUnknown)
 	condition += " ORDER BY `id` ASC LIMIT ?,? "
 	params = append(params, (page-1)*pageSize, pageSize)
 	retList, err := utils.SqlQuery(om.sqlCli, orderTable, &OrderDao{}, condition, params...)
@@ -124,8 +181,10 @@ func (om *OrderModel) GetOrderList(idList []uint32, uid uint32, page, pageSize i
 	return retList.([]*OrderDao), nil
 }
 
-func (om *OrderModel) GetOrderListCount(idList []uint32, uid uint32, status int8) (int32, error) {
-	condition, params := om.GenerateCondition(idList, uid, status)
+func (om *OrderModel) GetOrderListCount(idList []uint32, uid uint32, status int8, buildingID, floor uint32,
+	room string, startTime, endTime int64) (int32, error) {
+	condition, params := om.GenerateCondition(idList, uid, status, buildingID, floor, room,
+		startTime, endTime, enum.MealUnknown)
 
 	sqlStr := fmt.Sprintf("SELECT COUNT(*) FROM `%v` %v", orderTable, condition)
 	row := om.sqlCli.QueryRow(sqlStr, params...)

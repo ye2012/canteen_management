@@ -18,7 +18,8 @@ type SupplierInfo struct {
 }
 
 type SupplierListRes struct {
-	SupplierList []*SupplierInfo `json:"supplier_list"`
+	SupplierList     []*SupplierInfo `json:"supplier_list"`
+	LastValidityTime int64           `json:"last_validity_time"`
 }
 
 type ModifySupplierReq struct {
@@ -31,29 +32,33 @@ type BindSupplierReq struct {
 	OpenID     string `json:"open_id"`
 }
 
-type GoodsPurchaseInfo struct {
-	GoodsId       int64   `json:"goods_id"`
+type RenewSupplierReq struct {
+	SupplierID uint32 `json:"supplier_id"`
+	EndTime    int64  `json:"end_time"`
+}
+
+type PurchaseGoodsInfo struct {
+	GoodsID       uint32  `json:"goods_id"`
 	Name          string  `json:"name"`
 	GoodsTypeID   uint32  `json:"goods_type_id"`
 	ExpectAmount  float64 `json:"expect_amount"`
 	ReceiveAmount float64 `json:"receive_amount"`
-	Discount      float64 `json:"discount"`
-	DealPrice     float64 `json:"deal_price"`
+	Price         float64 `json:"price"`
 }
 
 type PurchaseOrderInfo struct {
-	ID          uint32               `json:"id"`
-	Supplier    uint32               `json:"supplier"`
-	SignPicture []string             `json:"sign_picture"`
-	Status      uint8                `json:"status"`
-	GoodsList   []*GoodsPurchaseInfo `json:"goods_list"`
+	ID           uint32               `json:"id"`
+	Supplier     uint32               `json:"supplier"`
+	SupplierName string               `json:"supplier_name"`
+	GoodsList    []*PurchaseGoodsInfo `json:"goods_list"`
+	Status       uint8                `json:"status"`
 }
 
 type PurchaseOrderListReq struct {
 }
 
 type ApplyPurchaseReq struct {
-	GoodsList []*GoodsPurchaseInfo `json:"goods_list"`
+	GoodsList []*PurchaseGoodsInfo `json:"goods_list"`
 }
 
 type ConfirmPurchaseReq struct {
@@ -62,5 +67,5 @@ type ConfirmPurchaseReq struct {
 
 type ReceivePurchaseReq struct {
 	PurchaseID uint32               `json:"purchase_id"`
-	GoodsList  []*GoodsPurchaseInfo `json:"goods_list"`
+	GoodsList  []*PurchaseGoodsInfo `json:"goods_list"`
 }
