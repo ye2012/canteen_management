@@ -70,6 +70,7 @@ type OrderNode struct {
 	Price    float64      `json:"price,omitempty"`
 	Name     string       `json:"name"`
 	DishID   uint32       `json:"dish_id,omitempty"`
+	Quantity float64      `json:"quantity"`
 	Children []*OrderNode `json:"children,omitempty"`
 }
 

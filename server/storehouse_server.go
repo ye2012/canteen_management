@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/canteen_management/conv"
 	"github.com/canteen_management/dto"
 	"github.com/canteen_management/enum"
 	"github.com/canteen_management/logger"
@@ -37,7 +38,7 @@ func (ss *StorehouseServer) RequestGoodsTypeList(ctx *gin.Context, rawReq interf
 	}
 
 	res.Data = &dto.GoodsTypeListRes{
-		GoodsTypeList: ConvertToGoodsTypeInfoList(list),
+		GoodsTypeList: conv.ConvertToGoodsTypeInfoList(list),
 	}
 }
 
@@ -45,13 +46,13 @@ func (ss *StorehouseServer) RequestModifyGoodsType(ctx *gin.Context, rawReq inte
 	req := rawReq.(*dto.ModifyGoodsTypeReq)
 	switch req.Operate {
 	case enum.OperateTypeAdd:
-		err := ss.storeService.AddGoodsType(ConvertFromGoodsTypeInfo(req.GoodsType))
+		err := ss.storeService.AddGoodsType(conv.ConvertFromGoodsTypeInfo(req.GoodsType))
 		if err != nil {
 			res.Code = enum.SqlError
 			return
 		}
 	case enum.OperateTypeModify:
-		err := ss.storeService.UpdateGoodsType(ConvertFromGoodsTypeInfo(req.GoodsType))
+		err := ss.storeService.UpdateGoodsType(conv.ConvertFromGoodsTypeInfo(req.GoodsType))
 		if err != nil {
 			res.Code = enum.SqlError
 			return
@@ -71,7 +72,7 @@ func (ss *StorehouseServer) RequestGoodsList(ctx *gin.Context, rawReq interface{
 	}
 
 	res.Data = &dto.GoodsListRes{
-		GoodsList: ConvertToGoodsInfoList(goodsList),
+		GoodsList: conv.ConvertToGoodsInfoList(goodsList),
 		PaginationRes: dto.PaginationRes{
 			Page:        req.Page,
 			PageSize:    req.PageSize,
@@ -106,13 +107,13 @@ func (ss *StorehouseServer) RequestModifyGoods(ctx *gin.Context, rawReq interfac
 
 	switch req.Operate {
 	case enum.OperateTypeAdd:
-		err := ss.storeService.AddGoods(ConvertFromGoodsInfo(req.Goods))
+		err := ss.storeService.AddGoods(conv.ConvertFromGoodsInfo(req.Goods))
 		if err != nil {
 			res.Code = enum.SqlError
 			return
 		}
 	case enum.OperateTypeModify:
-		err := ss.storeService.UpdateGoods(ConvertFromGoodsInfo(req.Goods))
+		err := ss.storeService.UpdateGoods(conv.ConvertFromGoodsInfo(req.Goods))
 		if err != nil {
 			res.Code = enum.SqlError
 			return
@@ -132,7 +133,7 @@ func (ss *StorehouseServer) RequestGoodsPriceList(ctx *gin.Context, rawReq inter
 	}
 
 	res.Data = &dto.GoodsPriceListRes{
-		GoodsPriceList: ConvertToGoodsPriceList(goodsList),
+		GoodsPriceList: conv.ConvertToGoodsPriceList(goodsList),
 		PaginationRes: dto.PaginationRes{
 			Page:        req.Page,
 			PageSize:    req.PageSize,
@@ -160,7 +161,7 @@ func (ss *StorehouseServer) RequestStoreTypeList(ctx *gin.Context, rawReq interf
 	}
 
 	res.Data = &dto.StoreTypeListRes{
-		StoreTypeList: ConvertToStoreTypeInfoList(list),
+		StoreTypeList: conv.ConvertToStoreTypeInfoList(list),
 	}
 }
 
@@ -168,13 +169,13 @@ func (ss *StorehouseServer) RequestModifyStoreType(ctx *gin.Context, rawReq inte
 	req := rawReq.(*dto.ModifyStoreTypeReq)
 	switch req.Operate {
 	case enum.OperateTypeAdd:
-		err := ss.storeService.AddStoreType(ConvertFromStoreTypeInfo(req.StoreType))
+		err := ss.storeService.AddStoreType(conv.ConvertFromStoreTypeInfo(req.StoreType))
 		if err != nil {
 			res.Code = enum.SqlError
 			return
 		}
 	case enum.OperateTypeModify:
-		err := ss.storeService.UpdateStoreType(ConvertFromStoreTypeInfo(req.StoreType))
+		err := ss.storeService.UpdateStoreType(conv.ConvertFromStoreTypeInfo(req.StoreType))
 		if err != nil {
 			res.Code = enum.SqlError
 			return

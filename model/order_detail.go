@@ -49,7 +49,7 @@ func (odm *OrderDetailModel) BatchInsert(tx *sql.Tx, orderDetail []*OrderDetail)
 func (odm *OrderDetailModel) GetOrderDetailByCondition(condition string, params ...interface{}) ([]*OrderDetail, error) {
 	retList, err := utils.SqlQuery(odm.sqlCli, orderDetailTable, &OrderDetail{}, condition, params...)
 	if err != nil {
-		logger.Warn(goodsLogTag, "GetOrderDetail Failed|Condition:%v|Params:%#v|Err:%v",
+		logger.Warn(orderDetailLogTag, "GetOrderDetail Failed|Condition:%v|Params:%#v|Err:%v",
 			condition, params, err)
 		return nil, err
 	}
@@ -61,7 +61,7 @@ func (odm *OrderDetailModel) GetOrderDetail(orderID uint32) ([]*OrderDetail, err
 	condition := " WHERE `order_id` = ? "
 	retList, err := utils.SqlQuery(odm.sqlCli, orderDetailTable, &OrderDetail{}, condition, orderID)
 	if err != nil {
-		logger.Warn(goodsLogTag, "GetOrderDetail Failed|Condition:%v|OrderID:%#v|Err:%v",
+		logger.Warn(orderDetailLogTag, "GetOrderDetail Failed|Condition:%v|OrderID:%#v|Err:%v",
 			condition, orderID, err)
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func (odm *OrderDetailModel) GetOrderDetailByOrderList(orderIDList []uint32) ([]
 	condition := fmt.Sprintf(" WHERE `order_id` in (%v) ", orderIDStr[1:])
 	retList, err := utils.SqlQuery(odm.sqlCli, orderDetailTable, &OrderDetail{}, condition)
 	if err != nil {
-		logger.Warn(goodsLogTag, "GetOrderDetail Failed|Condition:%v|OrderID:%#v|Err:%v",
+		logger.Warn(orderDetailLogTag, "GetOrderDetail Failed|Condition:%v|OrderID:%#v|Err:%v",
 			condition, orderIDList, err)
 		return nil, err
 	}

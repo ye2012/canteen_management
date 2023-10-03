@@ -7,9 +7,15 @@ import (
 )
 
 type OrderMenuReq struct {
+	Uid uint32 `json:"uid"`
 }
 
-type OrderMenuRes = []*OrderNode
+type OrderMenuRes struct {
+	Menu       []*OrderNode       `json:"menu"`
+	GoodsMap   map[string]float64 `json:"goods_map"`
+	TotalCost  float64            `json:"total_cost"`
+	TotalGoods float64            `json:"total_goods"`
+}
 
 type ApplyItem struct {
 	DishID   uint32  `json:"dish_id"`
@@ -157,4 +163,38 @@ type OrderDiscountListRes struct {
 type ModifyOrderDiscountReq struct {
 	Operate      enum.OperateType   `json:"operate"`
 	DiscountInfo *OrderDiscountInfo `json:"discount_info"`
+}
+
+type ModifyCartReq struct {
+	Uid      uint32  `json:"uid"`
+	CartType uint8   `json:"cart_type"`
+	ItemID   string  `json:"item_id"`
+	Quantity float64 `json:"quantity"`
+}
+
+type ModifyCartRes struct {
+	GoodsMap   map[string]float64 `json:"goods_map"`
+	TotalCost  float64            `json:"total_cost"`
+	TotalGoods float64            `json:"total_goods"`
+}
+
+type GetOrderCardReq struct {
+}
+
+type OrderCardDish struct {
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	DishID   uint32  `json:"dish_id"`
+	Price    float64 `json:"price"`
+	Quantity float64 `json:"quantity"`
+}
+
+type OrderCartMeal struct {
+	ID    string           `json:"id"`
+	Name  string           `json:"name"`
+	Child []*OrderCardDish `json:"children"`
+}
+
+type GetOrderCardRes struct {
+	MealList []*OrderCartMeal `json:"meal_list"`
 }

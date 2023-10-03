@@ -1,11 +1,10 @@
 package server
 
 import (
-	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/canteen_management/conv"
 	"github.com/canteen_management/dto"
 	"github.com/canteen_management/enum"
 	"github.com/canteen_management/logger"
@@ -17,8 +16,6 @@ import (
 
 const (
 	orderServerLogTag = "OrderServer"
-
-	KeyPrice = "price"
 )
 
 type OrderServer struct {
@@ -56,6 +53,8 @@ func NewOrderServer(dbConf utils.Config) (*OrderServer, error) {
 }
 
 func (os *OrderServer) RequestOrderMenu(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.OrderMenuReq)
+	uid := req.Uid
 	typeMap, err := os.dishService.GetDishTypeMap()
 	if err != nil {
 		res.Code = enum.SystemError
@@ -68,50 +67,39 @@ func (os *OrderServer) RequestOrderMenu(ctx *gin.Context, rawReq interface{}, re
 	}
 
 	nowTime := time.Now().Unix()
-	orderDate := nowTime + 3600*24
+	orderDate := utils.GetZeroTime(nowTime + 3600*24)
 	dayMenu, err := os.menuService.GetWeekMenuByTime(orderDate, 1)
 	if err != nil {
 		logger.Warn(orderServerLogTag, "RequestOrderMenu GetWeekMenuByTime Failed|Err:%v", err)
 		res.Code = enum.SystemError
 		return
 	}
-	tomorrowData := ConvertMenuToOrderNode(orderDate, dayMenu, dishMap, typeMap)
-
-	resData := dto.OrderMenuRes{}
-	resData = append(resData, tomorrowData...)
-	res.Data = resData
-}
-
-func ConvertMenuToOrderNode(menuDate int64, dayMenu map[uint8][]uint32, dishMap map[uint32]*model.Dish,
-	typeMap map[uint32]*model.DishType) dto.OrderMenuRes {
-	retData := dto.OrderMenuRes{}
-	for mealType, totalDishList := range dayMenu {
-		mealName := time.Unix(menuDate, 0).Format("01-02") + enum.GetMealName(mealType)
-		retMeal := &dto.OrderNode{ID: fmt.Sprintf("%v_%v", menuDate, mealType), Name: mealName}
-		dishListByType := make(map[uint32][]*model.Dish)
-		for _, dishID := range totalDishList {
-			dishType := dishMap[dishID].DishType
-			if _, ok := dishListByType[dishType]; ok == false {
-				dishListByType[dishType] = make([]*model.Dish, 0)
-			}
-			dishListByType[dishType] = append(dishListByType[dishType], dishMap[dishID])
+	dishQuantityMap, totalCost, totalGoods := make(map[string]float64), 0.0, 0.0
+	if uid != 0 {
+		_, cartDetails, err := os.orderService.GetCart(uid)
+		if err != nil {
+			res.Code = enum.SystemError
+			return
 		}
-
-		retMeal.Children = make([]*dto.OrderNode, 0, len(dishListByType))
-		for dishType, dishList := range dishListByType {
-			retListByType := &dto.OrderNode{ID: fmt.Sprintf("%v", dishType), Name: typeMap[dishType].DishTypeName}
-			retListByType.Children = make([]*dto.OrderNode, 0, len(dishList))
-			for index, dish := range dishList {
-				retDish := &dto.OrderNode{ID: fmt.Sprintf("%v_%v_%v", retMeal.ID, dish.ID, index),
-					DishID: dish.ID, Name: dish.DishName, Price: dish.Price}
-				retListByType.Children = append(retListByType.Children, retDish)
+		for _, detail := range cartDetails {
+			dishQuantityMap[detail.ItemID] = detail.Quantity
+			dishID, _ := conv.ConvertDishID(detail.ItemID)
+			dish, ok := dishMap[dishID]
+			if ok {
+				totalCost += dish.Price * detail.Quantity
 			}
-			retMeal.Children = append(retMeal.Children, retListByType)
+			totalGoods += detail.Quantity
 		}
-
-		retData = append(retData, retMeal)
 	}
-	return retData
+	tomorrowData := conv.ConvertMenuToOrderNode(orderDate, dayMenu, dishMap, typeMap, dishQuantityMap, true)
+
+	resData := dto.OrderMenuRes{
+		Menu:       tomorrowData,
+		GoodsMap:   dishQuantityMap,
+		TotalGoods: totalGoods,
+		TotalCost:  totalCost,
+	}
+	res.Data = resData
 }
 
 func (os *OrderServer) RequestApplyOrder(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
@@ -147,12 +135,12 @@ func (os *OrderServer) RequestApplyOrder(ctx *gin.Context, rawReq interface{}, r
 	applyPay := &service.ApplyPayOrderInfo{PayOrder: payOrder, OrderList: make([]*service.ApplyOrderInfo, 0)}
 	for _, orderInfo := range req.OrderList {
 		applyInfo := &service.ApplyOrderInfo{}
-		orderDao := ConvertToOrderDao(uid, wxUser.PhoneNumber, orderInfo.ID, req.BuildingID, req.Floor, req.Room)
+		orderDao := conv.ConvertToOrderDao(uid, wxUser.PhoneNumber, orderInfo.ID, req.BuildingID, req.Floor, req.Room)
 		if orderDao == nil {
 			logger.Warn(orderServerLogTag, "Convert OrderDao Failed|Req:%#v", *req)
 			continue
 		}
-		orderItems := ConvertToOrderDetailDao(orderInfo.OrderItems)
+		orderItems := conv.ConvertToOrderDetailDao(orderInfo.OrderItems)
 
 		applyInfo.Order = orderDao
 		applyInfo.Items = orderItems
@@ -204,38 +192,6 @@ func (os *OrderServer) RequestDeliverOrder(ctx *gin.Context, rawReq interface{},
 	}
 }
 
-func ConvertToOrderDao(uid uint32, phoneNumber, ID string, buildingID, floor uint32, room string) *model.OrderDao {
-	ids := strings.Split(ID, "_")
-	if len(ids) != 2 {
-		logger.Warn(orderServerLogTag, "ID illegal|ID:%v", ID)
-		return nil
-	}
-	mealTime, _ := strconv.ParseInt(ids[0], 10, 32)
-	mealType, _ := strconv.ParseInt(ids[1], 10, 32)
-
-	return &model.OrderDao{
-		OrderDate:   time.Unix(mealTime, 0),
-		MealType:    uint8(mealType),
-		Uid:         uid,
-		PhoneNumber: phoneNumber,
-		BuildingID:  buildingID,
-		Floor:       floor,
-		Room:        room,
-	}
-}
-
-func ConvertToOrderDetailDao(items []*dto.ApplyItem) []*model.OrderDetail {
-	retList := make([]*model.OrderDetail, 0)
-	for _, item := range items {
-		retInfo := &model.OrderDetail{
-			DishID:   item.DishID,
-			Quantity: item.Quantity,
-		}
-		retList = append(retList, retInfo)
-	}
-	return retList
-}
-
 func (os *OrderServer) RequestPayOrderList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.PayOrderListReq)
 	dishMap, err := os.dishService.GetDishIDMap()
@@ -277,7 +233,7 @@ func (os *OrderServer) RequestPayOrderList(ctx *gin.Context, rawReq interface{},
 		return
 	}
 
-	orderInfoList := ConvertToOrderInfoList(orderList, detailMap, dishMap)
+	orderInfoList := conv.ConvertToOrderInfoList(orderList, detailMap, dishMap)
 	for _, orderInfo := range orderInfoList {
 		if index, ok := payOrderIDMap[orderInfo.PayOrderID]; ok {
 			payOrderInfoList[index].OrderList = append(payOrderInfoList[index].OrderList, orderInfo)
@@ -337,7 +293,7 @@ func (os *OrderServer) RequestOrderList(ctx *gin.Context, rawReq interface{}, re
 		return
 	}
 
-	orderInfoList := ConvertToOrderInfoList(orderList, detailMap, dishMap)
+	orderInfoList := conv.ConvertToOrderInfoList(orderList, detailMap, dishMap)
 	resData := &dto.OrderListRes{OrderList: orderInfoList,
 		PaginationRes: dto.PaginationRes{
 			Page:        req.Page,
@@ -346,44 +302,6 @@ func (os *OrderServer) RequestOrderList(ctx *gin.Context, rawReq interface{}, re
 		},
 	}
 	res.Data = resData
-}
-
-func ConvertToOrderInfoList(orderList []*model.OrderDao, detailMap map[uint32][]*model.OrderDetail,
-	dishMap map[uint32]*model.Dish) []*dto.OrderInfo {
-	retList := make([]*dto.OrderInfo, 0)
-	for _, order := range orderList {
-		retInfo := &dto.OrderInfo{
-			ID:            fmt.Sprintf("%v_%v", order.OrderDate.Unix(), order.MealType),
-			Name:          order.OrderDate.Format("01-02") + enum.GetMealName(order.MealType),
-			OrderID:       fmt.Sprintf("%v", order.ID),
-			OrderNo:       "",
-			PayOrderID:    order.PayOrderID,
-			UserPhone:     order.PhoneNumber,
-			BuildingID:    order.BuildingID,
-			Floor:         order.Floor,
-			Room:          order.Room,
-			TotalAmount:   order.TotalAmount,
-			PaymentAmount: order.PayAmount,
-			OrderItems:    make([]*dto.ApplyItem, 0),
-			CreateTime:    order.CreateAt.Unix(),
-			OrderStatus:   order.Status,
-		}
-		if details, ok := detailMap[order.ID]; ok {
-			orderItems := make([]*dto.ApplyItem, 0, len(details))
-			for _, detail := range details {
-				item := &dto.ApplyItem{
-					DishID:   detail.DishID,
-					DishName: dishMap[detail.DishID].DishName,
-					Price:    detail.Price,
-					Quantity: detail.Quantity,
-				}
-				orderItems = append(orderItems, item)
-			}
-			retInfo.OrderItems = orderItems
-		}
-		retList = append(retList, retInfo)
-	}
-	return retList
 }
 
 func (os *OrderServer) RequestDiscountList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
@@ -452,4 +370,46 @@ func (os *OrderServer) RequestModifyDiscount(ctx *gin.Context, rawReq interface{
 		logger.Warn(orderServerLogTag, "RequestModifyDiscount Unknown OperateType|Type:%v", req.Operate)
 		res.Code = enum.SystemError
 	}
+}
+
+func (os *OrderServer) RequestModifyCart(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.ModifyCartReq)
+
+	uid := req.Uid
+	dishMap, err := os.dishService.GetDishIDMap()
+	if err != nil {
+		logger.Warn(orderServerLogTag, "GetDishIDMap Failed|Err:%v", err)
+		res.Code = enum.SystemError
+		return
+	}
+
+	ids := strings.Split(req.ItemID, "_")
+	if len(ids) != 4 {
+		res.Code = enum.ParamsError
+		res.Msg = "id不合法"
+		return
+	}
+
+	_, cartDetails, err := os.orderService.ModifyCart(uid, req.ItemID, req.Quantity)
+	if err != nil {
+		res.Code = enum.SqlError
+		res.Msg = err.Error()
+		return
+	}
+
+	retData := &dto.ModifyCartRes{
+		GoodsMap:   make(map[string]float64),
+		TotalCost:  0.0,
+		TotalGoods: 0,
+	}
+	for _, detail := range cartDetails {
+		retData.GoodsMap[detail.ItemID] = detail.Quantity
+		dishID, _ := conv.ConvertDishID(detail.ItemID)
+		dish, ok := dishMap[dishID]
+		if ok {
+			retData.TotalCost += dish.Price * detail.Quantity
+		}
+		retData.TotalGoods += detail.Quantity
+	}
+	res.Data = retData
 }

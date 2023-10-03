@@ -2,11 +2,12 @@ package service
 
 import (
 	"database/sql"
+	"time"
+
 	"github.com/canteen_management/enum"
 	"github.com/canteen_management/logger"
 	"github.com/canteen_management/model"
 	"github.com/canteen_management/utils"
-	"time"
 )
 
 const (
@@ -31,6 +32,8 @@ type OrderService struct {
 	orderModel         *model.OrderModel
 	orderDetailModel   *model.OrderDetailModel
 	orderDiscountModel *model.OrderDiscountModel
+	shoppingCartModel  *model.ShoppingCartModel
+	cartDetailModel    *model.CartDetailModel
 }
 
 func NewOrderService(sqlCli *sql.DB) *OrderService {
@@ -38,11 +41,15 @@ func NewOrderService(sqlCli *sql.DB) *OrderService {
 	orderModel := model.NewOrderModel(sqlCli)
 	orderDetailModel := model.NewOrderDetailModel(sqlCli)
 	orderDiscountModel := model.NewOrderDiscountModel(sqlCli)
+	shoppingCartModel := model.NewShoppingCartModel(sqlCli)
+	cartDetailModel := model.NewCartDetailModel(sqlCli)
 	return &OrderService{
 		payOrderModel:      payOrderModel,
 		orderModel:         orderModel,
 		orderDetailModel:   orderDetailModel,
 		orderDiscountModel: orderDiscountModel,
+		shoppingCartModel:  shoppingCartModel,
+		cartDetailModel:    cartDetailModel,
 		sqlCli:             sqlCli,
 	}
 }
@@ -353,4 +360,117 @@ func (os *OrderService) LoginUserOrderDiscountInfo(uid uint32, discountType uint
 	}
 
 	return minPay, discountAmount, nil
+}
+
+func (os *OrderService) GetCart(uid uint32) (*model.ShoppingCart, []*model.CartDetail, error) {
+	carts, err := os.shoppingCartModel.GetCart(enum.CartTypeOrder, uid)
+	if err != nil {
+		logger.Warn(orderServiceLogTag, "GetCart Failed|Err:%v", err)
+		return nil, nil, err
+	}
+
+	cart, cartDetails := (*model.ShoppingCart)(nil), make([]*model.CartDetail, 0)
+	if len(carts) > 0 {
+		if carts[0].CreateAt.Unix() < utils.GetZeroTime(time.Now().Unix()) {
+			err = os.shoppingCartModel.Delete(enum.CartTypeOrder, uid, 0)
+			if err != nil {
+				logger.Warn(orderServiceLogTag, "Delete ShoppingCart Failed|Err:%v", err)
+				return nil, nil, err
+			}
+			cartIDs := make([]uint32, 0, len(carts))
+			for _, preCart := range carts {
+				cartIDs = append(cartIDs, preCart.ID)
+			}
+			err = os.cartDetailModel.Delete(cartIDs)
+			if err != nil {
+				logger.Warn(orderServiceLogTag, "Delete CartDetail Failed|Err:%v", err)
+				return nil, nil, err
+			}
+		} else {
+			cart = carts[0]
+			cartDetails, err = os.cartDetailModel.GetCartDetail(cart.ID)
+			if err != nil {
+				logger.Warn(orderServiceLogTag, "GetCartDetail Failed|Err:%v", err)
+				return nil, nil, err
+			}
+		}
+	}
+	return cart, cartDetails, nil
+}
+
+func (os *OrderService) ModifyCart(uid uint32, itemID string, quantity float64) (*model.ShoppingCart, []*model.CartDetail, error) {
+	tx, err := utils.Begin(os.sqlCli)
+	if err != nil {
+		logger.Warn(orderServiceLogTag, "ModifyCart Begin Failed|Err:%v", err)
+		return nil, nil, err
+	}
+	defer utils.End(tx, err)
+
+	carts, err := os.shoppingCartModel.GetCartByTxWithLock(tx, enum.CartTypeOrder, uid)
+	if err != nil {
+		logger.Warn(orderServiceLogTag, "GetCard Failed|Err:%v", err)
+		return nil, nil, err
+	}
+
+	cart, cartDetails := (*model.ShoppingCart)(nil), make([]*model.CartDetail, 0)
+	if len(carts) > 0 {
+		if carts[0].CreateAt.Unix() < utils.GetZeroTime(time.Now().Unix()) {
+			err = os.shoppingCartModel.DeleteWithTx(tx, enum.CartTypeOrder, uid, 0)
+			if err != nil {
+				logger.Warn(orderServiceLogTag, "Delete ShoppingCart Failed|Err:%v", err)
+				return nil, nil, err
+			}
+			cartIDs := make([]uint32, 0, len(carts))
+			for _, preCart := range carts {
+				cartIDs = append(cartIDs, preCart.ID)
+			}
+			err = os.cartDetailModel.DeleteWithTx(tx, cartIDs)
+			if err != nil {
+				logger.Warn(orderServiceLogTag, "Delete CartDetail Failed|Err:%v", err)
+				return nil, nil, err
+			}
+		} else {
+			cart = carts[0]
+			cartDetails, err = os.cartDetailModel.GetCartDetailWithLock(tx, cart.ID)
+			if err != nil {
+				logger.Warn(orderServiceLogTag, "GetCartDetailWithLock Failed|Err:%v", err)
+				return nil, nil, err
+			}
+		}
+	}
+	if cart == nil {
+		cart = &model.ShoppingCart{
+			CartType: enum.CartTypeOrder,
+			Uid:      uid,
+		}
+		err = os.shoppingCartModel.InsertWithTx(tx, cart)
+		if err != nil {
+			logger.Warn(orderServiceLogTag, "Insert ShoppingCart Failed|Err:%v", err)
+			return nil, nil, err
+		}
+	}
+
+	found := false
+	for _, detail := range cartDetails {
+		if detail.ItemID == itemID {
+			detail.Quantity = quantity
+			err = os.cartDetailModel.UpdateDetail(tx, detail)
+			if err != nil {
+				logger.Warn(orderServiceLogTag, "UpdateDetail Failed|Err:%v", err)
+				return nil, nil, err
+			}
+			found = true
+		}
+	}
+	if found == false {
+		detail := &model.CartDetail{CartID: cart.ID, ItemID: itemID, Quantity: quantity}
+		err = os.cartDetailModel.BatchInsert(tx, []*model.CartDetail{detail})
+		if err != nil {
+			logger.Warn(orderServiceLogTag, "Insert CartDetail Failed|Err:%v", err)
+			return nil, nil, err
+		}
+		cartDetails = append(cartDetails, detail)
+	}
+
+	return cart, cartDetails, nil
 }

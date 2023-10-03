@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/canteen_management/conv"
 	"time"
 
 	"github.com/canteen_management/dto"
@@ -54,7 +55,7 @@ func (ms *MenuServer) RequestDishTypeList(ctx *gin.Context, rawReq interface{}, 
 	}
 
 	res.Data = &dto.DishTypeListRes{
-		List: ConvertToDishTypeInfoList(list),
+		List: conv.ConvertToDishTypeInfoList(list),
 		PaginationRes: dto.PaginationRes{
 			Page:        req.Page,
 			PageSize:    req.PageSize,
@@ -68,13 +69,13 @@ func (ms *MenuServer) RequestModifyDishType(ctx *gin.Context, rawReq interface{}
 
 	switch req.Operate {
 	case enum.OperateTypeAdd:
-		err := ms.dishService.AddDishType(ConvertFromDishTypeInfo(&req.TypeInfo))
+		err := ms.dishService.AddDishType(conv.ConvertFromDishTypeInfo(&req.TypeInfo))
 		if err != nil {
 			res.Code = enum.SqlError
 			return
 		}
 	case enum.OperateTypeModify:
-		err := ms.dishService.ModifyDishType(ConvertFromDishTypeInfo(&req.TypeInfo))
+		err := ms.dishService.ModifyDishType(conv.ConvertFromDishTypeInfo(&req.TypeInfo))
 		if err != nil {
 			res.Code = enum.SqlError
 			return
@@ -101,7 +102,7 @@ func (ms *MenuServer) RequestDishList(ctx *gin.Context, rawReq interface{}, res 
 	}
 
 	res.Data = &dto.DishListRes{
-		DishList: ConvertToDishInfoList(dishList, typeMap),
+		DishList: conv.ConvertToDishInfoList(dishList, typeMap),
 		PaginationRes: dto.PaginationRes{
 			Page:        req.Page,
 			PageSize:    req.PageSize,
@@ -118,13 +119,13 @@ func (ms *MenuServer) RequestModifyDish(ctx *gin.Context, rawReq interface{}, re
 	// todo 校验type
 	switch req.Operate {
 	case enum.OperateTypeAdd:
-		err := ms.dishService.AddDish(ConvertFromDishInfo(&req.DishInfo))
+		err := ms.dishService.AddDish(conv.ConvertFromDishInfo(&req.DishInfo))
 		if err != nil {
 			res.Code = enum.SqlError
 			return
 		}
 	case enum.OperateTypeModify:
-		err := ms.dishService.ModifyDish(ConvertFromDishInfo(&req.DishInfo))
+		err := ms.dishService.ModifyDish(conv.ConvertFromDishInfo(&req.DishInfo))
 		if err != nil {
 			res.Code = enum.SqlError
 			return
@@ -150,7 +151,7 @@ func (ms *MenuServer) RequestWeekMenuList(ctx *gin.Context, rawReq interface{}, 
 		return
 	}
 	res.Data = &dto.WeekMenuListRes{
-		MenuList: ConvertToWeekMenuList(menuList, dishIDMap),
+		MenuList: conv.ConvertToWeekMenuList(menuList, dishIDMap),
 	}
 }
 
@@ -223,7 +224,7 @@ func (ms *MenuServer) RequestWeekMenuDetail(ctx *gin.Context, rawReq interface{}
 		return
 	}
 
-	resData, err := ConvertToWeekMenuDetail(weekMenu, dishIDMap, dishTypeMap)
+	resData, err := conv.ConvertToWeekMenuDetail(weekMenu, dishIDMap, dishTypeMap)
 	if err != nil {
 		res.Code = enum.SystemError
 		return
