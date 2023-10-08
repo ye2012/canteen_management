@@ -2,6 +2,7 @@ package dto
 
 import (
 	"fmt"
+
 	"github.com/canteen_management/enum"
 )
 
@@ -48,13 +49,13 @@ type AdminUserListReq struct {
 }
 
 type UserInfo struct {
-	ID          uint32 `json:"id"`
-	NickName    string `json:"nick_name"`
-	UserName    string `json:"user_name"`
-	PhoneNumber string `json:"phone_number"`
-	Password    string `json:"password"`
-	Role        uint32 `json:"role"`
-	OpenID      string `json:"open_id"`
+	ID          uint32   `json:"id"`
+	NickName    string   `json:"nick_name"`
+	UserName    string   `json:"user_name"`
+	PhoneNumber string   `json:"phone_number"`
+	Password    string   `json:"password"`
+	RoleList    []uint32 `json:"role_list"`
+	OpenID      string   `json:"open_id"`
 }
 
 type UserListRes struct {

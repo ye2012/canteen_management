@@ -17,6 +17,10 @@ type Response struct {
 	NotEscapeHtml bool `json:"-"`
 }
 
+type PaginationQ interface {
+	FixPagination()
+}
+
 type PaginationReq struct {
 	Page     int32 `json:"page"`
 	PageSize int32 `json:"page_size"`
@@ -31,6 +35,9 @@ func (pr *PaginationReq) FixPagination() {
 	}
 }
 
+type PaginationS interface {
+	Format()
+}
 type PaginationRes struct {
 	Page        int32 `json:"page"`
 	PageSize    int32 `json:"page_size"`
@@ -72,6 +79,18 @@ type OrderNode struct {
 	DishID   uint32       `json:"dish_id,omitempty"`
 	Quantity float64      `json:"quantity"`
 	Children []*OrderNode `json:"children,omitempty"`
+}
+
+type GoodsNode struct {
+	ID        string       `json:"id"`
+	Price     float64      `json:"price,omitempty"`
+	Name      string       `json:"name"`
+	GoodsID   uint32       `json:"goods_id,omitempty"`
+	Quantity  float64      `json:"quantity"`
+	Left      float64      `json:"left"`
+	BatchSize float64      `json:"batch_size"`
+	BatchUnit string       `json:"batch_unit"`
+	Children  []*GoodsNode `json:"children,omitempty"`
 }
 
 type RequestChecker interface {

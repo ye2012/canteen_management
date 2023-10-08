@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/canteen_management/conv"
 	"github.com/canteen_management/dto"
 	"github.com/canteen_management/enum"
 	"github.com/canteen_management/logger"
@@ -17,6 +18,7 @@ const (
 type PurchaseServer struct {
 	storeService    *service.StoreService
 	purchaseService *service.PurchaseService
+	cartService     *service.CartService
 }
 
 func NewPurchaseServer(dbConf utils.Config) (*PurchaseServer, error) {
@@ -27,9 +29,11 @@ func NewPurchaseServer(dbConf utils.Config) (*PurchaseServer, error) {
 	}
 	purchaseService := service.NewPurchaseService(sqlCli)
 	storeService := service.NewStoreService(sqlCli)
+	cartService := service.NewCartService(sqlCli)
 	return &PurchaseServer{
 		purchaseService: purchaseService,
 		storeService:    storeService,
+		cartService:     cartService,
 	}, nil
 }
 
@@ -44,7 +48,7 @@ func (ps *PurchaseServer) RequestSupplierList(ctx *gin.Context, rawReq interface
 	}
 
 	retData := &dto.SupplierListRes{
-		SupplierList:     ConvertToSupplier(supplierList),
+		SupplierList:     conv.ConvertToSupplier(supplierList),
 		LastValidityTime: lastValidityTime,
 	}
 	res.Data = retData
@@ -55,13 +59,13 @@ func (ps *PurchaseServer) RequestModifySupplier(ctx *gin.Context, rawReq interfa
 
 	switch req.Operate {
 	case enum.OperateTypeAdd:
-		err := ps.purchaseService.AddSupplier(ConvertFromSupplierInfo(req.Supplier))
+		err := ps.purchaseService.AddSupplier(conv.ConvertFromSupplierInfo(req.Supplier))
 		if err != nil {
 			res.Code = enum.SqlError
 			return
 		}
 	case enum.OperateTypeModify:
-		err := ps.purchaseService.UpdateSupplier(ConvertFromSupplierInfo(req.Supplier))
+		err := ps.purchaseService.UpdateSupplier(conv.ConvertFromSupplierInfo(req.Supplier))
 		if err != nil {
 			res.Code = enum.SqlError
 			return
@@ -94,6 +98,43 @@ func (ps *PurchaseServer) RequestRenewSupplier(ctx *gin.Context, rawReq interfac
 	}
 }
 
+func (ps *PurchaseServer) RequestPurchaseList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.PurchaseListReq)
+	goodsMap, err := ps.storeService.GetGoodsMap()
+	if err != nil {
+		logger.Warn(purchaseServerLogTag, "GetGoodsMap Failed|Err:%v", err)
+		res.Code = enum.SystemError
+		return
+	}
+	supplierMap, err := ps.purchaseService.GetSupplierMap()
+	if err != nil {
+		logger.Warn(purchaseServerLogTag, "GetSupplierMap Failed|Err:%v", err)
+		res.Code = enum.SystemError
+		return
+	}
+
+	purchaseList, totalNumber, detailMap, err := ps.purchaseService.GetPurchaseList(req.Status, req.Uid, req.PurchaseID,
+		req.StartTime, req.EndTime, req.Page, req.PageSize)
+	if err != nil {
+		logger.Warn(purchaseServerLogTag, "GetPurchaseList Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		res.Msg = err.Error()
+		return
+	}
+
+	logger.Debug(purchaseServerLogTag, "PurchaseListLen:%v", len(purchaseList))
+	orderInfoList := conv.ConvertToPurchaseInfoList(purchaseList, detailMap, goodsMap, supplierMap)
+	resData := &dto.PurchaseListRes{
+		PurchaseList: orderInfoList,
+		PaginationRes: dto.PaginationRes{
+			Page:        req.Page,
+			PageSize:    req.PageSize,
+			TotalNumber: totalNumber,
+		},
+	}
+	res.Data = resData
+}
+
 func (ps *PurchaseServer) RequestApplyPurchase(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.ApplyPurchaseReq)
 	AdminUid := uint32(0)
@@ -105,9 +146,22 @@ func (ps *PurchaseServer) RequestApplyPurchase(ctx *gin.Context, rawReq interfac
 		return
 	}
 
-	details := ConvertFromApplyPurchase(req.GoodsList, goodsMap)
+	details := conv.ConvertFromApplyPurchase(req.GoodsList, goodsMap)
 	purchaseOrder := &model.PurchaseOrder{Creator: AdminUid, Status: enum.PurchaseNew}
 	err = ps.purchaseService.ApplyPurchaseOrder(purchaseOrder, details)
+	if err != nil {
+		res.Code = enum.SqlError
+		res.Msg = err.Error()
+		return
+	}
+
+	ps.cartService.ClearCart(AdminUid, enum.CartTypePurchase)
+}
+
+func (ps *PurchaseServer) RequestReviewPurchase(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.ReviewPurchaseReq)
+
+	err := ps.purchaseService.ReviewPurchaseOrder(req.PurchaseID)
 	if err != nil {
 		res.Code = enum.SqlError
 		res.Msg = err.Error()
@@ -135,7 +189,7 @@ func (ps *PurchaseServer) RequestReceivePurchase(ctx *gin.Context, rawReq interf
 		return
 	}
 
-	details := ConvertFromApplyPurchase(req.GoodsList, goodsMap)
+	details := conv.ConvertFromApplyPurchase(req.GoodsList, goodsMap)
 	err = ps.purchaseService.ReceivePurchaseOrder(req.PurchaseID, details)
 	if err != nil {
 		res.Code = enum.SqlError
@@ -144,45 +198,4 @@ func (ps *PurchaseServer) RequestReceivePurchase(ctx *gin.Context, rawReq interf
 	}
 
 	ps.storeService.GetStoreTypeList()
-}
-
-func ConvertToSupplier(suppliers []*model.Supplier) []*dto.SupplierInfo {
-	retList := make([]*dto.SupplierInfo, 0)
-	for _, supplier := range suppliers {
-		retInfo := &dto.SupplierInfo{
-			SupplierID:       supplier.ID,
-			Name:             supplier.Name,
-			PhoneNumber:      supplier.PhoneNumber,
-			IDNumber:         supplier.IDNumber,
-			Location:         supplier.Location,
-			ValidityDeadline: supplier.ValidityDeadline.Unix(),
-			OpenID:           supplier.OpenID,
-		}
-		retList = append(retList, retInfo)
-	}
-	return retList
-}
-
-func ConvertFromSupplierInfo(supplierInfo *dto.SupplierInfo) *model.Supplier {
-	return &model.Supplier{ID: supplierInfo.SupplierID, Name: supplierInfo.Name, PhoneNumber: supplierInfo.PhoneNumber,
-		IDNumber: supplierInfo.IDNumber, Location: supplierInfo.Location}
-}
-
-func ConvertFromApplyPurchase(goodsList []*dto.PurchaseGoodsInfo, goodsMap map[uint32]*model.Goods) []*model.PurchaseDetail {
-	detailList := make([]*model.PurchaseDetail, 0, len(goodsList))
-	for _, purchaseGoods := range goodsList {
-		goods, ok := goodsMap[purchaseGoods.GoodsID]
-		if ok == false {
-			continue
-		}
-		detail := &model.PurchaseDetail{
-			GoodsID:       goods.ID,
-			GoodsType:     goods.GoodsTypeID,
-			ExpectAmount:  purchaseGoods.ExpectAmount,
-			ReceiveAmount: 0,
-			Price:         goods.Price,
-		}
-		detailList = append(detailList, detail)
-	}
-	return detailList
 }

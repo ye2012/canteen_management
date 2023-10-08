@@ -23,6 +23,7 @@ type OrderServer struct {
 	menuService  *service.MenuService
 	orderService *service.OrderService
 	userService  *service.UserService
+	cartService  *service.CartService
 }
 
 func NewOrderServer(dbConf utils.Config) (*OrderServer, error) {
@@ -43,12 +44,14 @@ func NewOrderServer(dbConf utils.Config) (*OrderServer, error) {
 	}
 	orderService := service.NewOrderService(sqlCli)
 	userService := service.NewUserService(sqlCli)
+	cartService := service.NewCartService(sqlCli)
 
 	return &OrderServer{
 		dishService:  dishService,
 		menuService:  menuService,
 		orderService: orderService,
 		userService:  userService,
+		cartService:  cartService,
 	}, nil
 }
 
@@ -76,7 +79,7 @@ func (os *OrderServer) RequestOrderMenu(ctx *gin.Context, rawReq interface{}, re
 	}
 	dishQuantityMap, totalCost, totalGoods := make(map[string]float64), 0.0, 0.0
 	if uid != 0 {
-		_, cartDetails, err := os.orderService.GetCart(uid)
+		_, cartDetails, err := os.cartService.GetCart(uid, enum.CartTypeOrder)
 		if err != nil {
 			res.Code = enum.SystemError
 			return
@@ -173,6 +176,8 @@ func (os *OrderServer) ProcessApplyOrder(uid uint32, req *dto.ApplyPayOrderReq, 
 		logger.Warn(orderServerLogTag, "ApplyPayOrder Failed|Err:%v", err)
 		return "", enum.SqlError, err.Error()
 	}
+
+	os.cartService.ClearCart(uid, enum.CartTypeOrder)
 
 	req.TotalAmount = totalAmount
 	if payMethod == enum.PayMethodWeChat {
@@ -464,7 +469,7 @@ func (os *OrderServer) RequestModifyCart(ctx *gin.Context, rawReq interface{}, r
 		return
 	}
 
-	_, cartDetails, err := os.orderService.ModifyCart(uid, req.ItemID, req.Quantity)
+	_, cartDetails, err := os.cartService.ModifyCart(uid, req.ItemID, req.Quantity, enum.CartTypeOrder)
 	if err != nil {
 		res.Code = enum.SqlError
 		res.Msg = err.Error()

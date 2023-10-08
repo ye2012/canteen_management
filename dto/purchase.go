@@ -38,6 +38,7 @@ type RenewSupplierReq struct {
 }
 
 type PurchaseGoodsInfo struct {
+	ID            uint32  `json:"id"`
 	GoodsID       uint32  `json:"goods_id"`
 	Name          string  `json:"name"`
 	GoodsTypeID   uint32  `json:"goods_type_id"`
@@ -54,11 +55,26 @@ type PurchaseOrderInfo struct {
 	Status       uint8                `json:"status"`
 }
 
-type PurchaseOrderListReq struct {
+type PurchaseListReq struct {
+	PaginationReq
+	Status     int8   `json:"status"`
+	Uid        uint32 `json:"uid"`
+	PurchaseID uint32 `json:"purchase_id"`
+	StartTime  int64  `json:"start_time"`
+	EndTime    int64  `json:"end_time"`
+}
+
+type PurchaseListRes struct {
+	PaginationRes
+	PurchaseList []*PurchaseOrderInfo `json:"purchase_list"`
 }
 
 type ApplyPurchaseReq struct {
 	GoodsList []*PurchaseGoodsInfo `json:"goods_list"`
+}
+
+type ReviewPurchaseReq struct {
+	PurchaseID uint32 `json:"purchase_id"`
 }
 
 type ConfirmPurchaseReq struct {

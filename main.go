@@ -44,7 +44,11 @@ func StartServer() {
 		logger.Warn(serverLogTag, "HandleUserApi Failed|Err:%v", err)
 		return
 	}
-	HandlePurchaseApi(router)
+	err = HandlePurchaseApi(router)
+	if err != nil {
+		logger.Warn(serverLogTag, "HandlePurchaseApi Failed|Err:%v", err)
+		return
+	}
 	err = HandleStorehouseApi(router)
 	if err != nil {
 		logger.Warn(serverLogTag, "HandleStorehouseApi Failed|Err:%v", err)
@@ -56,7 +60,11 @@ func StartServer() {
 		return
 	}
 	HandleStatisticApi(router)
-	HandleOrderApi(router)
+	err = HandleOrderApi(router)
+	if err != nil {
+		logger.Warn(serverLogTag, "HandleOrderApi Failed|Err:%v", err)
+		return
+	}
 	HandleUploadApi(router)
 
 	router.Run(":8081")
@@ -100,19 +108,17 @@ func HandlePurchaseApi(router *gin.Engine) error {
 		return err
 	}
 
-	//purchaseRouter.POST("/purchaseList", NewHandler(storeServer.,
-	//	&dto.{}))
-	//
-	//purchaseRouter.POST("/applyPurchase", NewHandler(storeServer.,
-	//	&dto.{}))
-	//purchaseRouter.POST("/reviewPurchase", NewHandler(storeServer.,
-	//	&dto.{}))
-	//purchaseRouter.POST("/acceptPurchase", NewHandler(storeServer.,
-	//	&dto.{}))
-	//purchaseRouter.POST("/finishPurchase", NewHandler(storeServer.,
-	//	&dto.{}))
-	//
-	//
+	purchaseRouter.POST("/purchaseList", NewHandler(purchaseServer.RequestPurchaseList,
+		func() interface{} { return new(dto.PurchaseListReq) }))
+	purchaseRouter.POST("/applyPurchase", NewHandler(purchaseServer.RequestApplyPurchase,
+		func() interface{} { return new(dto.ApplyPurchaseReq) }))
+	purchaseRouter.POST("/reviewPurchase", NewHandler(purchaseServer.RequestReviewPurchase,
+		func() interface{} { return new(dto.ReviewPurchaseReq) }))
+	purchaseRouter.POST("/confirmPurchase", NewHandler(purchaseServer.RequestConfirmPurchase,
+		func() interface{} { return new(dto.ConfirmPurchaseReq) }))
+	purchaseRouter.POST("/receivePurchase", NewHandler(purchaseServer.RequestReceivePurchase,
+		func() interface{} { return new(dto.ReceivePurchaseReq) }))
+
 	purchaseRouter.POST("/supplierList", NewHandler(purchaseServer.RequestSupplierList,
 		func() interface{} { return new(dto.SupplierListReq) }))
 	purchaseRouter.POST("/modifySupplier", NewHandler(purchaseServer.RequestModifySupplier,
@@ -144,6 +150,8 @@ func HandleStorehouseApi(router *gin.Engine) error {
 
 	storeRouter.POST("/goodsList", NewHandler(storeServer.RequestGoodsList,
 		func() interface{} { return new(dto.GoodsListReq) }))
+	storeRouter.POST("/goodsNodeList", NewHandler(storeServer.RequestGoodsNodeList,
+		func() interface{} { return new(dto.GoodsNodeListReq) }))
 	storeRouter.POST("/modifyGoods", NewHandler(storeServer.RequestModifyGoods,
 		func() interface{} { return new(dto.ModifyGoodsInfoReq) }))
 
@@ -285,8 +293,8 @@ func NewHandler(dealFunc RequestDealFunc, reqGen ReqGenerateFunc) gin.HandlerFun
 			ctx.JSON(http.StatusBadRequest, res)
 			return
 		}
-		logger.Debug(serverLogTag, "Req:%#v", req)
-		if pageReq, ok := req.(*dto.PaginationReq); ok {
+		logger.Debug(serverLogTag, "RawReq:%#v", req)
+		if pageReq, ok := req.(dto.PaginationQ); ok {
 			pageReq.FixPagination()
 		}
 		if checker, ok := req.(dto.RequestChecker); ok {
@@ -309,7 +317,7 @@ func NewHandler(dealFunc RequestDealFunc, reqGen ReqGenerateFunc) gin.HandlerFun
 		if res.Code != enum.Success {
 			res.Success = false
 		}
-		if pageRes, ok := res.Data.(*dto.PaginationRes); ok {
+		if pageRes, ok := res.Data.(dto.PaginationS); ok {
 			pageRes.Format()
 		}
 	}

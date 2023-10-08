@@ -2,7 +2,10 @@ package service
 
 import (
 	"database/sql"
+	"github.com/canteen_management/enum"
+	"github.com/canteen_management/utils"
 	"math"
+	"time"
 
 	"github.com/canteen_management/logger"
 	"github.com/canteen_management/model"
@@ -13,19 +16,25 @@ const (
 )
 
 type StoreService struct {
-	storeTypeModel *model.StorehouseTypeModel
-	goodsModel     *model.GoodsModel
-	goodsTypeModel *model.GoodsTypeModel
+	storeTypeModel    *model.StorehouseTypeModel
+	goodsModel        *model.GoodsModel
+	goodsTypeModel    *model.GoodsTypeModel
+	shoppingCartModel *model.ShoppingCartModel
+	cartDetailModel   *model.CartDetailModel
 }
 
 func NewStoreService(sqlCli *sql.DB) *StoreService {
 	storeTypeModel := model.NewStorehouseTypeModelWithDB(sqlCli)
 	goodsModel := model.NewGoodsModelWithDB(sqlCli)
 	goodsTypeModel := model.NewGoodsTypeModelWithDB(sqlCli)
+	shoppingCartModel := model.NewShoppingCartModel(sqlCli)
+	cartDetailModel := model.NewCartDetailModel(sqlCli)
 	return &StoreService{
-		storeTypeModel: storeTypeModel,
-		goodsModel:     goodsModel,
-		goodsTypeModel: goodsTypeModel,
+		storeTypeModel:    storeTypeModel,
+		goodsModel:        goodsModel,
+		goodsTypeModel:    goodsTypeModel,
+		shoppingCartModel: shoppingCartModel,
+		cartDetailModel:   cartDetailModel,
 	}
 }
 
@@ -172,4 +181,40 @@ func (ss *StoreService) UpdateGoodsPrice(goodsID uint32, priceMap map[uint8]floa
 		return err
 	}
 	return nil
+}
+
+func (ss *StoreService) GetCart(uid uint32, cartType enum.CartType) (*model.ShoppingCart, []*model.CartDetail, error) {
+	carts, err := ss.shoppingCartModel.GetCart(cartType, uid)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "GetCart Failed|Err:%v", err)
+		return nil, nil, err
+	}
+
+	cart, cartDetails := (*model.ShoppingCart)(nil), make([]*model.CartDetail, 0)
+	if len(carts) > 0 {
+		if carts[0].CreateAt.Unix() < utils.GetZeroTime(time.Now().Unix()) {
+			err = ss.shoppingCartModel.Delete(cartType, uid, 0)
+			if err != nil {
+				logger.Warn(storeServiceLogTag, "Delete ShoppingCart Failed|Err:%v", err)
+				return nil, nil, err
+			}
+			cartIDs := make([]uint32, 0, len(carts))
+			for _, preCart := range carts {
+				cartIDs = append(cartIDs, preCart.ID)
+			}
+			err = ss.cartDetailModel.Delete(cartIDs)
+			if err != nil {
+				logger.Warn(storeServiceLogTag, "Delete CartDetail Failed|Err:%v", err)
+				return nil, nil, err
+			}
+		} else {
+			cart = carts[0]
+			cartDetails, err = ss.cartDetailModel.GetCartDetail(cart.ID)
+			if err != nil {
+				logger.Warn(storeServiceLogTag, "GetCartDetail Failed|Err:%v", err)
+				return nil, nil, err
+			}
+		}
+	}
+	return cart, cartDetails, nil
 }

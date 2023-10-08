@@ -1,6 +1,9 @@
 package dto
 
-import "github.com/canteen_management/enum"
+import (
+	"fmt"
+	"github.com/canteen_management/enum"
+)
 
 type GoodsTypeListReq struct {
 	PaginationReq
@@ -76,4 +79,22 @@ type GoodsPriceListRes struct {
 type ModifyGoodsPriceReq struct {
 	GoodsID  uint32            `json:"goods_id"`
 	PriceMap map[uint8]float64 `json:"price_map"`
+}
+
+type GoodsNodeListReq struct {
+	CartType uint8 `json:"cart_type"`
+}
+
+func (gnl *GoodsNodeListReq) CheckParams() error {
+	if gnl.CartType == 0 || gnl.CartType >= enum.CartTypeMax {
+		return fmt.Errorf("CartType错误")
+	}
+	return nil
+}
+
+type GoodsNodeListRes struct {
+	GoodsList  []*GoodsNode       `json:"goods_list"`
+	GoodsMap   map[string]float64 `json:"goods_map"`
+	TotalCost  float64            `json:"total_cost"`
+	TotalGoods float64            `json:"total_goods"`
 }

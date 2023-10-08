@@ -1,8 +1,11 @@
 package conv
 
 import (
+	"fmt"
 	"github.com/canteen_management/dto"
 	"github.com/canteen_management/model"
+	"strconv"
+	"strings"
 )
 
 func ConvertFromStoreTypeInfo(info *dto.StoreTypeInfo) *model.StorehouseType {
@@ -51,4 +54,51 @@ func ConvertToGoodsPriceList(daoList []*model.Goods) []*dto.GoodsPriceInfo {
 			PriceList: dao.ToGoodsPrice(), AveragePrice: dao.Price})
 	}
 	return retList
+}
+
+func ConvertGoodsID(itemID string) (uint32, error) {
+	ids := strings.Split(itemID, IndexDelimiter)
+	if len(ids) != 2 {
+		return 0, fmt.Errorf("id不合法")
+	}
+
+	goodsID, err := strconv.ParseInt(ids[1], 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("转化商品id失败|ID:%v", itemID)
+	}
+	return uint32(goodsID), nil
+}
+
+func ConvertGoodsListToGoodsNode(goodsMap map[uint32]*model.Goods, goodsTypes []*model.GoodsType) []*dto.GoodsNode {
+	retData := make([]*dto.GoodsNode, 0)
+	goodsTypeMap := make(map[uint32][]*model.Goods)
+	for _, goods := range goodsMap {
+		_, ok := goodsTypeMap[goods.GoodsTypeID]
+		if ok == false {
+			goodsTypeMap[goods.GoodsTypeID] = make([]*model.Goods, 0)
+		}
+		goodsTypeMap[goods.GoodsTypeID] = append(goodsTypeMap[goods.GoodsTypeID], goods)
+	}
+	for _, goodsType := range goodsTypes {
+		goodsList, ok := goodsTypeMap[goodsType.ID]
+		if !ok || len(goodsList) == 0 {
+			continue
+		}
+		typeNode := &dto.GoodsNode{ID: fmt.Sprintf("%v", goodsType.ID), Name: goodsType.GoodsTypeName,
+			Children: make([]*dto.GoodsNode, 0, len(goodsList))}
+		for _, goods := range goodsList {
+			goodsNode := &dto.GoodsNode{
+				ID:        fmt.Sprintf("%v_%v", goodsType.ID, goods.ID),
+				Price:     goods.Price,
+				Name:      goods.Name,
+				GoodsID:   goods.ID,
+				Left:      goods.Quantity,
+				BatchSize: goods.BatchSize,
+				BatchUnit: goods.BatchUnit,
+			}
+			typeNode.Children = append(typeNode.Children, goodsNode)
+		}
+		retData = append(retData, typeNode)
+	}
+	return retData
 }
