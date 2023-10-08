@@ -78,6 +78,15 @@ func HandleUserApi(router *gin.Engine) error {
 		func() interface{} { return new(dto.OrderUserListReq) }))
 	userRouter.POST("/modifyOrderUser", NewHandler(userServer.RequestModifyOrderUser,
 		func() interface{} { return new(dto.ModifyOrderUserReq) }))
+	userRouter.POST("/bindOrderUser", NewHandler(userServer.RequestBindOrderUser,
+		func() interface{} { return new(dto.BindOrderUserReq) }))
+
+	userRouter.POST("/adminUserList", NewHandler(userServer.RequestAdminUserList,
+		func() interface{} { return new(dto.AdminUserListReq) }))
+	userRouter.POST("/modifyAdminUser", NewHandler(userServer.RequestModifyAdminUser,
+		func() interface{} { return new(dto.ModifyAdminUserReq) }))
+	userRouter.POST("/bindAdminUser", NewHandler(userServer.RequestBindAdminUser,
+		func() interface{} { return new(dto.BindAdminReq) }))
 	//userRouter.POST("/modifyUser", NewHandler(storeServer.,
 	//	&dto.{}))
 	return nil
@@ -224,8 +233,12 @@ func HandleOrderApi(router *gin.Engine) error {
 	}
 	orderRouter.POST("/orderMenuList", NewHandler(orderServer.RequestOrderMenu,
 		func() interface{} { return new(dto.OrderMenuReq) }))
+	orderRouter.POST("/orderAnalysis", NewHandler(orderServer.RequestOrderDishAnalysis,
+		func() interface{} { return new(dto.OrderDishAnalysisReq) }))
 	orderRouter.POST("/applyPayOrder", NewHandler(orderServer.RequestApplyOrder,
 		func() interface{} { return new(dto.ApplyPayOrderReq) }))
+	orderRouter.POST("/applyCashOrder", NewHandler(orderServer.RequestApplyCashOrder,
+		func() interface{} { return new(dto.ApplyCashOrderReq) }))
 	orderRouter.POST("/cancelPayOrder", NewHandler(orderServer.RequestCancelPayOrder,
 		func() interface{} { return new(dto.CancelPayOrderReq) }))
 	orderRouter.POST("/payOrderList", NewHandler(orderServer.RequestPayOrderList,

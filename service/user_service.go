@@ -90,6 +90,7 @@ func (us *UserService) WxUserLogin(openID string) (*model.WxUser, error) {
 }
 
 func (us *UserService) BindPhoneNumber(uid uint32, phoneNumber string) error {
+	// todo 手机号不能重复
 	condition := " WHERE `id` = ?  "
 	users, err := us.wxUserModel.GetWxUserByCondition(condition, uid)
 	if err != nil {
@@ -106,7 +107,7 @@ func (us *UserService) BindPhoneNumber(uid uint32, phoneNumber string) error {
 		return fmt.Errorf("用户已经绑定过电话了，如需修改，请联系管理员")
 	}
 
-	orderUser, err := us.orderUserModel.GetOrderUser(phoneNumber, 0, 1, 10)
+	orderUser, err := us.orderUserModel.GetOrderUser("", phoneNumber, 0, 1, 10)
 	if err != nil {
 		logger.Warn(userServiceLogTag, "GetOrderUser Failed|phone:%v|Err:%v", phoneNumber, err)
 		return err
@@ -141,14 +142,14 @@ func (us *UserService) BindPhoneNumber(uid uint32, phoneNumber string) error {
 	return nil
 }
 
-func (us *UserService) GetOrderUserList(phoneNumber string, discountLevel, page, pageSize int32) ([]*model.OrderUser, uint32, error) {
-	userList, err := us.orderUserModel.GetOrderUser(phoneNumber, discountLevel, page, pageSize)
+func (us *UserService) GetOrderUserList(openID, phoneNumber string, discountLevel, page, pageSize int32) ([]*model.OrderUser, uint32, error) {
+	userList, err := us.orderUserModel.GetOrderUser(openID, phoneNumber, discountLevel, page, pageSize)
 	if err != nil {
 		logger.Warn(userServiceLogTag, "GetOrderUser Failed|Err:%v", err)
 		return nil, 0, err
 	}
 
-	userNumber, err := us.orderUserModel.GetOrderUserCount(phoneNumber, discountLevel)
+	userNumber, err := us.orderUserModel.GetOrderUserCount(openID, phoneNumber, discountLevel)
 	if err != nil {
 		logger.Warn(userServiceLogTag, "GetOrderUserCount Failed|Err:%v", err)
 		return nil, 0, err
@@ -160,6 +161,22 @@ func (us *UserService) AddOrderUser(userList []*model.OrderUser) error {
 	err := us.orderUserModel.BatchInsert(userList)
 	if err != nil {
 		logger.Warn(userServiceLogTag, "AddOrderUser Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
+func (us *UserService) BindOrderUser(id uint32, openID string) error {
+	wxUser, err := us.wxUserModel.GetWxUserByOpenID(openID)
+	if err != nil || wxUser == nil {
+		logger.Warn(userServiceLogTag, "BindOrderUser GetWxUser Failed|Err:%v", err)
+		return fmt.Errorf("用户不存在")
+	}
+
+	orderUser := &model.OrderUser{ID: id, OpenID: openID, Uid: wxUser.ID}
+	err = us.orderUserModel.UpdateOrderUserWithTx(nil, orderUser, "id", "open_id", "uid")
+	if err != nil {
+		logger.Warn(userServiceLogTag, "BindOrderUser Failed|Err:%v", err)
 		return err
 	}
 	return nil
@@ -197,18 +214,68 @@ func (us *UserService) UpdateOrderUser(updateInfo *model.OrderUser) error {
 	return nil
 }
 
-func (us *UserService) AddAdminUser(user *model.AdminUser) {
-	us.adminUserModel.Insert(user)
+func (us UserService) GetAdminUserList(roleType uint8, page, pageSize int32) ([]*model.AdminUser, int32, error) {
+	adminList, err := us.adminUserModel.GetAdminUserByCondition(" ORDER BY `id` ASC ")
+	if err != nil {
+		logger.Warn(userServiceLogTag, "GetAdminUserByCondition Failed|Err:%v", err)
+		return nil, 0, err
+	}
+	if roleType == 0 {
+		return adminList, int32(len(adminList)), nil
+	}
+	role := uint32(1 << roleType)
+	retList := make([]*model.AdminUser, 0)
+	for _, admin := range adminList {
+		if (admin.Role & role) > 0 {
+			retList = append(retList, admin)
+		}
+	}
+	count := int32(len(retList))
+	start := (page - 1) * pageSize
+	if start >= count {
+		retList = make([]*model.AdminUser, 0)
+	} else {
+		retList = retList[start:]
+	}
+	if pageSize < int32(len(retList)) {
+		retList = retList[0:pageSize]
+	}
+	return retList, count, nil
 }
 
-func (us *UserService) UpdateAdminUser(user *model.AdminUser) {
-	us.adminUserModel.UpdateAdminUserInfo(user, "id")
+func (us *UserService) AddAdminUser(user *model.AdminUser) error {
+	err := us.adminUserModel.Insert(user)
+	if err != nil {
+		logger.Warn(userServiceLogTag, "Insert AdminUser Failed|Err:%v", err)
+		return err
+	}
+	return nil
 }
 
-func (us *UserService) DeleteAdminUser(user *model.AdminUser) {
-	us.adminUserModel.Insert(user)
+func (us *UserService) UpdateAdminUser(user *model.AdminUser) error {
+	err := us.adminUserModel.UpdateAdminUserInfo(user, "id")
+	if err != nil {
+		logger.Warn(userServiceLogTag, "Update AdminUser Failed|Err:%v", err)
+		return err
+	}
+	return nil
 }
 
-func (us *UserService) BindAdminUser(userID uint32, openID string) {
+func (us *UserService) DeleteAdminUser(id uint32) error {
+	err := us.adminUserModel.DeleteByID(id)
+	if err != nil {
+		logger.Warn(userServiceLogTag, "DeleteAdminUser Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
 
+func (us *UserService) BindAdminUser(userID uint32, openID string) error {
+	adminUser := &model.AdminUser{ID: userID, OpenID: openID}
+	err := us.adminUserModel.UpdateAdminUserByCondition(adminUser, "id", "open_id")
+	if err != nil {
+		logger.Warn(userServiceLogTag, "BindAdminUser Failed|Err:%v", err)
+		return err
+	}
+	return nil
 }

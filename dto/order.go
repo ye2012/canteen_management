@@ -37,6 +37,11 @@ func (apo *ApplyPayOrderReq) CheckParams() error {
 	return nil
 }
 
+type ApplyCashOrderReq struct {
+	*PayOrderInfo
+	Uid uint32 `json:"uid"`
+}
+
 type CancelPayOrderReq struct {
 	OrderID uint32 `json:"order_id"`
 }
@@ -52,6 +57,7 @@ type PayOrderInfo struct {
 	Floor          uint32       `json:"floor"`
 	Room           string       `json:"room"`
 	TotalAmount    float64      `json:"total_amount"`
+	PayMethod      uint8        `json:"pay_method"`
 	PaymentAmount  float64      `json:"payment_amount"`
 	DiscountAmount float64      `json:"discount_amount"`
 	Status         uint8        `json:"status"`
@@ -61,6 +67,7 @@ type OrderInfo struct {
 	ID            string       `json:"id"`
 	Name          string       `json:"name"`
 	PayOrderID    uint32       `json:"pay_order_id"`
+	MealType      uint8        `json:"meal_type"`
 	UserPhone     string       `json:"user_phone"`
 	OrderID       string       `json:"order_id"`
 	OrderNo       string       `json:"order_no"`
@@ -68,6 +75,7 @@ type OrderInfo struct {
 	Floor         uint32       `json:"floor"`
 	Room          string       `json:"room"`
 	TotalAmount   float64      `json:"total_amount"`
+	PayMethod     uint8        `json:"pay_method"`
 	PaymentAmount float64      `json:"payment_amount"`
 	OrderItems    []*ApplyItem `json:"order_items"`
 	CreateTime    int64        `json:"create_time"`
@@ -105,6 +113,24 @@ type FloorFilterRes struct {
 	Floors []int32 `json:"floors"`
 }
 
+type OrderDishAnalysisReq struct {
+	OrderDate int64  `json:"order_date"`
+	MealType  uint8  `json:"meal_type"`
+	DishType  uint32 `json:"dish_type"`
+}
+
+type OrderDishSummaryInfo struct {
+	DishID      uint32 `json:"dish_id"`
+	DishName    string `json:"dish_name"`
+	DishType    uint32 `json:"dish_type"`
+	Quantity    int32  `json:"quantity"`
+	OrderNumber int32  `json:"order_number"`
+}
+
+type OrderDishAnalysisRes struct {
+	Summary []*OrderDishSummaryInfo `json:"summary"`
+}
+
 type OrderListReq struct {
 	PaginationReq
 	OrderStatus int8   `json:"order_status"`
@@ -113,6 +139,7 @@ type OrderListReq struct {
 	BuildingID  uint32 `json:"building_id"`
 	Floor       uint32 `json:"floor"`
 	Room        string `json:"room"`
+	MealType    uint8  `json:"meal_type"`
 	StartTime   int64  `json:"start_time"`
 	EndTime     int64  `json:"end_time"`
 }
@@ -124,6 +151,7 @@ type OrderListRes struct {
 
 type OrderUserListReq struct {
 	PaginationReq
+	OpenID        string `json:"open_id"`
 	PhoneNumber   string `json:"phone_number"`
 	DiscountLevel int32  `json:"discount_level"`
 }
@@ -143,6 +171,11 @@ type OrderUserListRes struct {
 type ModifyOrderUserReq struct {
 	Operate  enum.OperateType `json:"operate"`
 	UserList []*OrderUserInfo `json:"user_list"`
+}
+
+type BindOrderUserReq struct {
+	ID     uint32 `json:"id"`
+	OpenID string `json:"open_id"`
 }
 
 type OrderDiscountListReq struct {
@@ -195,6 +228,6 @@ type OrderCartMeal struct {
 	Child []*OrderCardDish `json:"children"`
 }
 
-type GetOrderCardRes struct {
+type GetOrderCartRes struct {
 	MealList []*OrderCartMeal `json:"meal_list"`
 }

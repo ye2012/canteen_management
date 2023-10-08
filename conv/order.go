@@ -69,6 +69,7 @@ func ConvertToOrderDao(uid uint32, phoneNumber, ID string, buildingID, floor uin
 		BuildingID:  buildingID,
 		Floor:       floor,
 		Room:        room,
+		PayMethod:   enum.PayMethodWeChat,
 	}
 }
 
@@ -94,11 +95,13 @@ func ConvertToOrderInfoList(orderList []*model.OrderDao, detailMap map[uint32][]
 			OrderID:       fmt.Sprintf("%v", order.ID),
 			OrderNo:       "",
 			PayOrderID:    order.PayOrderID,
+			MealType:      order.MealType,
 			UserPhone:     order.PhoneNumber,
 			BuildingID:    order.BuildingID,
 			Floor:         order.Floor,
 			Room:          order.Room,
 			TotalAmount:   order.TotalAmount,
+			PayMethod:     order.PayMethod,
 			PaymentAmount: order.PayAmount,
 			OrderItems:    make([]*dto.ApplyItem, 0),
 			CreateTime:    order.CreateAt.Unix(),

@@ -29,6 +29,7 @@ type PayOrderDao struct {
 	Floor          uint32    `json:"floor"`
 	Room           string    `json:"room"`
 	TotalAmount    float64   `json:"total_amount"`
+	PayMethod      uint8     `json:"pay_method"`
 	PayAmount      float64   `json:"pay_amount"`
 	DiscountAmount float64   `json:"discount_amount"`
 	Status         uint8     `json:"status"`

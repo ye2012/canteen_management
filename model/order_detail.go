@@ -69,7 +69,7 @@ func (odm *OrderDetailModel) GetOrderDetail(orderID uint32) ([]*OrderDetail, err
 	return retList.([]*OrderDetail), nil
 }
 
-func (odm *OrderDetailModel) GetOrderDetailByOrderList(orderIDList []uint32) ([]*OrderDetail, error) {
+func (odm *OrderDetailModel) GetOrderDetailByOrderList(orderIDList []uint32, dishType uint32) ([]*OrderDetail, error) {
 	if len(orderIDList) == 0 {
 		return nil, fmt.Errorf("order len zero")
 	}
@@ -78,6 +78,9 @@ func (odm *OrderDetailModel) GetOrderDetailByOrderList(orderIDList []uint32) ([]
 		orderIDStr += fmt.Sprintf(",%v", orderID)
 	}
 	condition := fmt.Sprintf(" WHERE `order_id` in (%v) ", orderIDStr[1:])
+	if dishType != 0 {
+		condition += fmt.Sprintf(" AND `dish_type` = %v ", dishType)
+	}
 	retList, err := utils.SqlQuery(odm.sqlCli, orderDetailTable, &OrderDetail{}, condition)
 	if err != nil {
 		logger.Warn(orderDetailLogTag, "GetOrderDetail Failed|Condition:%v|OrderID:%#v|Err:%v",

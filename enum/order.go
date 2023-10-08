@@ -14,7 +14,7 @@ type OrderStatus = int8
 const (
 	OrderNew = iota
 	OrderPaid
-	OrderAccept
+	OrderCancel
 	OrderReady
 	OrderFinish
 )
@@ -41,3 +41,10 @@ func GetBuildingName(buildingID uint32) string {
 	}
 	return ""
 }
+
+type PayMethod = uint8
+
+const (
+	PayMethodWeChat PayMethod = iota
+	PayMethodCash
+)

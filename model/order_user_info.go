@@ -56,9 +56,13 @@ func (oum *OrderUserModel) GetOrderUserByCondition(condition string, params ...i
 	return retList.([]*OrderUser), nil
 }
 
-func (oum *OrderUserModel) GetOrderUser(phoneNumber string, discountLevel, page, pageSize int32) ([]*OrderUser, error) {
+func (oum *OrderUserModel) GetOrderUser(openID, phoneNumber string, discountLevel, page, pageSize int32) ([]*OrderUser, error) {
 	condition := " WHERE 1=1 "
 	params := make([]interface{}, 0)
+	if openID != "" {
+		condition += " AND `open_id` = ? "
+		params = append(params, openID)
+	}
 	if phoneNumber != "" {
 		condition += " AND `phone_number` = ? "
 		params = append(params, phoneNumber)
@@ -78,9 +82,13 @@ func (oum *OrderUserModel) GetOrderUser(phoneNumber string, discountLevel, page,
 	return retList.([]*OrderUser), nil
 }
 
-func (oum *OrderUserModel) GetOrderUserCount(phoneNumber string, discountLevel int32) (int32, error) {
+func (oum *OrderUserModel) GetOrderUserCount(openID, phoneNumber string, discountLevel int32) (int32, error) {
 	condition := " WHERE 1=1 "
 	params := make([]interface{}, 0)
+	if openID != "" {
+		condition += " AND `open_id` = ? "
+		params = append(params, openID)
+	}
 	if phoneNumber != "" {
 		condition += " AND `phone_number` = ? "
 		params = append(params, phoneNumber)
@@ -103,15 +111,15 @@ func (oum *OrderUserModel) UpdateOrderUser(userInfo *OrderUser) error {
 	return oum.UpdateOrderUserWithTx(nil, userInfo, "id", orderUserUpdateTag...)
 }
 
-func (oum *OrderUserModel) UpdateOrderUserWithTx(tx *sql.Tx, userInfo *OrderUser, conditionTag string, params ...string) error {
+func (oum *OrderUserModel) UpdateOrderUserWithTx(tx *sql.Tx, userInfo *OrderUser, conditionTag string, updateTags ...string) error {
 	if tx == nil {
-		err := utils.SqlUpdateWithUpdateTags(oum.sqlCli, orderUserTable, userInfo, conditionTag, params...)
+		err := utils.SqlUpdateWithUpdateTags(oum.sqlCli, orderUserTable, userInfo, conditionTag, updateTags...)
 		if err != nil {
 			logger.Warn(orderUserLogTag, "SqlUpdateWithUpdateTags Failed|Err:%v", err)
 			return err
 		}
 	} else {
-		err := utils.SqlUpdateWithUpdateTags(tx, orderUserTable, userInfo, conditionTag, params...)
+		err := utils.SqlUpdateWithUpdateTags(tx, orderUserTable, userInfo, conditionTag, updateTags...)
 		if err != nil {
 			logger.Warn(orderUserLogTag, "SqlUpdateWithUpdateTags Failed|Err:%v", err)
 			return err

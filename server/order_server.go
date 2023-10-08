@@ -104,20 +104,33 @@ func (os *OrderServer) RequestOrderMenu(ctx *gin.Context, rawReq interface{}, re
 
 func (os *OrderServer) RequestApplyOrder(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.ApplyPayOrderReq)
+	uid := uint32(1)
+
+	prepareID, code, msg := os.ProcessApplyOrder(uid, req, enum.PayMethodWeChat)
+	if code != enum.Success {
+		res.Code = code
+		res.Msg = msg
+		return
+	}
+
+	resData := &dto.ApplyOrderRes{
+		PayOrderInfo: req,
+		PrepareID:    prepareID,
+	}
+	res.Data = resData
+}
+
+func (os *OrderServer) ProcessApplyOrder(uid uint32, req *dto.ApplyPayOrderReq, payMethod enum.PayMethod) (string, enum.ErrorCode, string) {
 	dishMap, err := os.dishService.GetDishIDMap()
 	if err != nil {
 		logger.Warn(orderServerLogTag, "GetDishIDMap Failed|Err:%v", err)
-		res.Code = enum.SystemError
-		return
+		return "", enum.SystemError, ""
 	}
-	uid := uint32(1)
 
 	wxUser, err := os.userService.GetWxUser(uid)
 	if err != nil || wxUser == nil {
 		logger.Warn(orderServerLogTag, "GetWxUser Failed|Err:%v", err)
-		res.Code = enum.SystemError
-		res.Msg = "用户不存在"
-		return
+		return "", enum.SystemError, "用户不存在"
 	}
 	discountLevel := os.userService.GetWxUserDiscount(wxUser.OpenID)
 
@@ -129,7 +142,9 @@ func (os *OrderServer) RequestApplyOrder(ctx *gin.Context, rawReq interface{}, r
 		Floor:          req.Floor,
 		Room:           req.Room,
 		DiscountAmount: 0,
+		PayMethod:      payMethod,
 		Status:         enum.PayOrderNew,
+		PayAmount:      req.PaymentAmount,
 	}
 
 	applyPay := &service.ApplyPayOrderInfo{PayOrder: payOrder, OrderList: make([]*service.ApplyOrderInfo, 0)}
@@ -149,24 +164,36 @@ func (os *OrderServer) RequestApplyOrder(ctx *gin.Context, rawReq interface{}, r
 
 	if len(applyPay.OrderList) == 0 {
 		logger.Warn(orderServerLogTag, "ApplyList Length Zero")
-		res.Code = enum.ParamsError
-		res.Msg = "ID不合法"
-		return
+		return "", enum.ParamsError, "ID不合法"
 	}
 
 	applyPay.PayOrder.MealTime = applyPay.OrderList[0].Order.OrderDate
 	prepareID, totalAmount, payAmount, err := os.orderService.ApplyPayOrder(applyPay, dishMap, discountLevel)
 	if err != nil {
 		logger.Warn(orderServerLogTag, "ApplyPayOrder Failed|Err:%v", err)
-		res.Code = enum.SqlError
-		return
+		return "", enum.SqlError, err.Error()
 	}
 
 	req.TotalAmount = totalAmount
-	req.PaymentAmount = payAmount
+	if payMethod == enum.PayMethodWeChat {
+		req.PaymentAmount = payAmount
+	}
+	return prepareID, enum.Success, ""
+}
+
+func (os *OrderServer) RequestApplyCashOrder(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.ApplyCashOrderReq)
+	uid := req.Uid
+
+	prepareID, code, msg := os.ProcessApplyOrder(uid, req.PayOrderInfo, enum.PayMethodCash)
+	if code != enum.Success {
+		res.Code = code
+		res.Msg = msg
+		return
+	}
 
 	resData := &dto.ApplyOrderRes{
-		PayOrderInfo: req,
+		PayOrderInfo: req.PayOrderInfo,
 		PrepareID:    prepareID,
 	}
 	res.Data = resData
@@ -218,6 +245,7 @@ func (os *OrderServer) RequestPayOrderList(ctx *gin.Context, rawReq interface{},
 			Floor:          payOrder.Floor,
 			Room:           payOrder.Room,
 			TotalAmount:    payOrder.TotalAmount,
+			PayMethod:      payOrder.PayMethod,
 			PaymentAmount:  payOrder.PayAmount,
 			DiscountAmount: payOrder.DiscountAmount,
 			Status:         payOrder.Status,
@@ -248,6 +276,52 @@ func (os *OrderServer) RequestPayOrderList(ctx *gin.Context, rawReq interface{},
 		},
 	}
 	res.Data = resData
+}
+
+func (os *OrderServer) RequestOrderDishAnalysis(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.OrderDishAnalysisReq)
+	dishMap, err := os.dishService.GetDishIDMap()
+	if err != nil {
+		logger.Warn(orderServerLogTag, "GetDishIDMap Failed|Err:%v", err)
+		res.Code = enum.SystemError
+		return
+	}
+
+	startTime := utils.GetZeroTime(req.OrderDate)
+	endTime := utils.GetDayEndTime(req.OrderDate)
+	_, detailMap, err := os.orderService.GetAllOrder(req.MealType, startTime, endTime, enum.OrderPaid, req.DishType)
+	if err != nil {
+		logger.Warn(orderServerLogTag, "GetAllOrder Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		return
+	}
+
+	orderNumberMap := make(map[uint32]int32, 0)
+	quantityMap := make(map[uint32]int32)
+	for _, detailList := range detailMap {
+		for _, detailInfo := range detailList {
+			if _, ok := quantityMap[detailInfo.DishID]; ok {
+				quantityMap[detailInfo.DishID] += detailInfo.Quantity
+				orderNumberMap[detailInfo.DishID] += 1
+			} else {
+				quantityMap[detailInfo.DishID] = detailInfo.Quantity
+				orderNumberMap[detailInfo.DishID] = 1
+			}
+		}
+
+	}
+	retData := &dto.OrderDishAnalysisRes{Summary: make([]*dto.OrderDishSummaryInfo, 0)}
+	for dishID, quantity := range quantityMap {
+		summary := &dto.OrderDishSummaryInfo{
+			DishID:      dishID,
+			DishName:    dishMap[dishID].DishName,
+			DishType:    dishMap[dishID].DishType,
+			Quantity:    quantity,
+			OrderNumber: orderNumberMap[dishID],
+		}
+		retData.Summary = append(retData.Summary, summary)
+	}
+	res.Data = retData
 }
 
 func (os *OrderServer) RequestFloorFilter(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
@@ -285,8 +359,8 @@ func (os *OrderServer) RequestOrderList(ctx *gin.Context, rawReq interface{}, re
 	if req.EndTime > 0 {
 		req.EndTime = utils.GetDayEndTime(req.EndTime)
 	}
-	orderList, totalNumber, detailMap, err := os.orderService.GetOrderList(orderIDList, req.Uid, req.BuildingID,
-		req.Floor, req.Room, req.OrderStatus, req.Page, req.PageSize, req.StartTime, req.EndTime)
+	orderList, totalNumber, detailMap, err := os.orderService.GetOrderList(orderIDList, req.Uid, req.MealType,
+		req.BuildingID, req.Floor, req.Room, req.OrderStatus, req.Page, req.PageSize, req.StartTime, req.EndTime)
 	if err != nil {
 		logger.Warn(orderServerLogTag, "GetOrderList Failed|Err:%v", err)
 		res.Code = enum.SqlError

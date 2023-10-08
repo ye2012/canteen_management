@@ -56,12 +56,16 @@ func NewOrderService(sqlCli *sql.DB) *OrderService {
 
 func (os *OrderService) ApplyPayOrder(applyInfo *ApplyPayOrderInfo, dishMap map[uint32]*model.Dish,
 	discountType uint8) (prepareID string, totalAmount, payAmount float64, err error) {
-	discountInfo, err := os.orderDiscountModel.GetDiscountByID(discountType)
-	if err != nil {
-		logger.Warn(orderServiceLogTag, "GetDiscountByID Failed|ID:%v|Err:%v", discountType, err)
-		return
+	discountAmount := 0.0
+	if discountType > 0 {
+		discountInfo := &model.OrderDiscount{}
+		discountInfo, err = os.orderDiscountModel.GetDiscountByID(discountType)
+		if err != nil {
+			logger.Warn(orderServiceLogTag, "GetDiscountByID Failed|ID:%v|Err:%v", discountType, err)
+			return
+		}
+		discountAmount = discountInfo.GetMealDiscount(enum.MealBreakfast)
 	}
-	discountAmount := discountInfo.GetMealDiscount(enum.MealBreakfast)
 
 	tx, err := os.sqlCli.Begin()
 	if err != nil {
@@ -129,16 +133,55 @@ func (os *OrderService) ApplyPayOrder(applyInfo *ApplyPayOrderInfo, dishMap map[
 		logger.Warn(orderServiceLogTag, "UpdatePayOrderInfoByID Failed|ID:%v|Err:%v", applyInfo.PayOrder.ID, err)
 		return
 	}
+
+	err = os.clearCart(tx, applyInfo.PayOrder.Uid)
+	if err != nil {
+		logger.Warn(orderServiceLogTag, "ClearCart Failed|Uid:%v|Err:%v", applyInfo.PayOrder.Uid, err)
+		return
+	}
 	return
 }
 
-func (os *OrderService) CancelPayOrder(orderID uint32) (err error) {
-	order := &model.PayOrderDao{ID: orderID, Status: enum.PayOrderCancel}
-	err = os.payOrderModel.UpdatePayOrderInfoByID(nil, order, "status")
+func (os *OrderService) clearCart(tx *sql.Tx, uid uint32) error {
+	cartList, err := os.shoppingCartModel.GetCartByTxWithLock(tx, enum.CartTypeOrder, uid)
 	if err != nil {
-		logger.Warn(orderServiceLogTag, "CancelPayOrder Failed|Dao:%v|Err:%v", order, err)
+		logger.Warn(orderServiceLogTag, "GetCartByTxWithLock Failed|Uid:%v|Err:%v", uid, err)
+		return err
+	}
+
+	err = os.shoppingCartModel.DeleteByTx(tx, enum.CartTypeOrder, uid, 0)
+	if err != nil {
+		logger.Warn(orderServiceLogTag, "Delete Cart Failed|Uid:%v|Err:%v", uid, err)
+		return err
+	}
+
+	cartIDList := make([]uint32, 0)
+	for _, cart := range cartList {
+		cartIDList = append(cartIDList, cart.ID)
+	}
+	if len(cartIDList) == 0 {
+		logger.Info(orderServiceLogTag, "Empty Cart|Uid:%v", uid)
+		return nil
+	}
+
+	err = os.cartDetailModel.DeleteWithTx(tx, cartIDList)
+	if err != nil {
+		logger.Warn(orderServiceLogTag, "Delete CartDetail Failed|IDs:%#v|Err:%v", cartIDList, err)
+		return err
+	}
+	return nil
+}
+
+func (os *OrderService) CancelPayOrder(orderID uint32) (err error) {
+	payOrder := &model.PayOrderDao{ID: orderID, Status: enum.PayOrderCancel}
+	err = os.payOrderModel.UpdatePayOrderInfoByID(nil, payOrder, "status")
+	if err != nil {
+		logger.Warn(orderServiceLogTag, "CancelPayOrder Failed|Dao:%v|Err:%v", payOrder, err)
 		return
 	}
+
+	order := &model.OrderDao{PayOrderID: orderID, Status: enum.OrderCancel}
+	os.orderModel.UpdateOrderInfo(nil, order, "pay_order_id", "status")
 	return
 }
 
@@ -227,7 +270,7 @@ func (os *OrderService) GetOrderListByPayOrderID(payOrderList []uint32) ([]*mode
 	for _, order := range orderList {
 		orderIDList = append(orderIDList, order.ID)
 	}
-	details, err := os.orderDetailModel.GetOrderDetailByOrderList(orderIDList)
+	details, err := os.orderDetailModel.GetOrderDetailByOrderList(orderIDList, 0)
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "GetOrderDetailByOrderList Failed|Err:%v", err)
 		return nil, nil, err
@@ -253,15 +296,46 @@ func (os *OrderService) GetFloors(buildingID uint32, status int8, startTime, end
 	return floors, err
 }
 
-func (os *OrderService) GetOrderList(orderIDList []uint32, uid uint32, buildingID, floor uint32, room string,
+func (os *OrderService) GetAllOrder(mealType uint8, startTime, endTime int64, status int8,
+	dishType uint32) ([]*model.OrderDao, map[uint32][]*model.OrderDetail, error) {
+	orderList, err := os.orderModel.GetAllOrder(mealType, startTime, endTime, status)
+	if err != nil {
+		logger.Warn(orderServiceLogTag, "GetAllOrder Failed|Err:%v", err)
+		return nil, nil, err
+	}
+
+	if len(orderList) == 0 {
+		return make([]*model.OrderDao, 0), make(map[uint32][]*model.OrderDetail), nil
+	}
+
+	orderIDList := make([]uint32, 0)
+	for _, order := range orderList {
+		orderIDList = append(orderIDList, order.ID)
+	}
+	details, err := os.orderDetailModel.GetOrderDetailByOrderList(orderIDList, dishType)
+	if err != nil {
+		logger.Warn(orderServiceLogTag, "GetOrderDetailByOrderList Failed|Err:%v", err)
+		return nil, nil, err
+	}
+	detailMap := make(map[uint32][]*model.OrderDetail, 0)
+	for _, detail := range details {
+		if _, ok := detailMap[detail.OrderID]; ok == false {
+			detailMap[detail.OrderID] = make([]*model.OrderDetail, 0)
+		}
+		detailMap[detail.OrderID] = append(detailMap[detail.OrderID], detail)
+	}
+	return orderList, detailMap, nil
+}
+
+func (os *OrderService) GetOrderList(orderIDList []uint32, uid uint32, mealType uint8, buildingID, floor uint32, room string,
 	orderStatus int8, page, pageSize int32, startTime, endTime int64) ([]*model.OrderDao, int32, map[uint32][]*model.OrderDetail, error) {
-	orderList, err := os.orderModel.GetOrderList(orderIDList, uid, buildingID, floor, room, orderStatus,
+	orderList, err := os.orderModel.GetOrderList(orderIDList, uid, mealType, buildingID, floor, room, orderStatus,
 		startTime, endTime, page, pageSize)
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "GetOrderList Failed|Err:%v", err)
 		return nil, 0, nil, err
 	}
-	orderCount, err := os.orderModel.GetOrderListCount(orderIDList, uid, orderStatus, buildingID, floor, room, startTime, endTime)
+	orderCount, err := os.orderModel.GetOrderListCount(orderIDList, uid, mealType, orderStatus, buildingID, floor, room, startTime, endTime)
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "GetOrderListCount Failed|Err:%v", err)
 		return nil, 0, nil, err
@@ -274,7 +348,7 @@ func (os *OrderService) GetOrderList(orderIDList []uint32, uid uint32, buildingI
 	for _, order := range orderList {
 		orderIDList = append(orderIDList, order.ID)
 	}
-	details, err := os.orderDetailModel.GetOrderDetailByOrderList(orderIDList)
+	details, err := os.orderDetailModel.GetOrderDetailByOrderList(orderIDList, 0)
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "GetOrderDetailByOrderList Failed|Err:%v", err)
 		return nil, 0, nil, err

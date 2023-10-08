@@ -118,3 +118,7 @@ func (scm *ShoppingCartModel) DeleteWithTx(tx *sql.Tx, cartType uint8, uid, cart
 func (scm *ShoppingCartModel) Delete(cartType uint8, uid, cartID uint32) error {
 	return scm.DeleteWithTx(nil, cartType, uid, cartID)
 }
+
+func (scm *ShoppingCartModel) DeleteByTx(tx *sql.Tx, cartType uint8, uid, cartID uint32) error {
+	return scm.DeleteWithTx(tx, cartType, uid, cartID)
+}

@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/canteen_management/logger"
@@ -50,6 +51,17 @@ func (aum *AdminUserModel) Insert(dao *AdminUser) error {
 	return nil
 }
 
+func (aum *AdminUserModel) DeleteByID(id uint32) error {
+	sqlStr := fmt.Sprintf("DELETE FROM `%v` WHERE `id` = ?", adminUserTable)
+	_, err := aum.sqlCli.Exec(sqlStr, id)
+	if err != nil {
+		logger.Warn(adminUserModelLogTag, "DeleteByID Failed|ID:%v|Err:%v", id, err)
+		return err
+	}
+
+	return nil
+}
+
 func (aum *AdminUserModel) GetAdminUserByCondition(condition string, params ...interface{}) ([]*AdminUser, error) {
 	retList, err := utils.SqlQuery(aum.sqlCli, adminUserTable, &AdminUser{}, condition, params...)
 	if err != nil {
@@ -61,8 +73,8 @@ func (aum *AdminUserModel) GetAdminUserByCondition(condition string, params ...i
 	return retList.([]*AdminUser), nil
 }
 
-func (aum *AdminUserModel) UpdateAdminUserByCondition(adminUser *AdminUser, conditionTag string, params ...string) error {
-	err := utils.SqlUpdateWithUpdateTags(aum.sqlCli, adminUserTable, adminUser, conditionTag, params...)
+func (aum *AdminUserModel) UpdateAdminUserByCondition(adminUser *AdminUser, conditionTag string, updateTags ...string) error {
+	err := utils.SqlUpdateWithUpdateTags(aum.sqlCli, adminUserTable, adminUser, conditionTag, updateTags...)
 	if err != nil {
 		logger.Warn(adminUserModelLogTag, "UpdateAdminUserByCondition Failed|Err:%v", err)
 		return err

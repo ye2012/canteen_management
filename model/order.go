@@ -3,9 +3,9 @@ package model
 import (
 	"database/sql"
 	"fmt"
-	"github.com/canteen_management/enum"
 	"time"
 
+	"github.com/canteen_management/enum"
 	"github.com/canteen_management/logger"
 	"github.com/canteen_management/utils"
 )
@@ -28,6 +28,7 @@ type OrderDao struct {
 	Floor          uint32    `json:"floor"`
 	Room           string    `json:"room"`
 	TotalAmount    float64   `json:"total_amount"`
+	PayMethod      uint8     `json:"pay_method"`
 	PayAmount      float64   `json:"pay_amount"`
 	DiscountAmount float64   `json:"discount_amount"`
 	DeliverUid     uint32    `json:"deliver_user_id"`
@@ -64,10 +65,14 @@ func (om *OrderModel) InsertWithTx(tx *sql.Tx, dao *OrderDao) (err error) {
 }
 
 func (om *OrderModel) UpdateOrderInfoByID(tx *sql.Tx, order *OrderDao, updateTags ...string) (err error) {
+	return om.UpdateOrderInfo(tx, order, "id", updateTags...)
+}
+
+func (om *OrderModel) UpdateOrderInfo(tx *sql.Tx, order *OrderDao, conditionTag string, updateTags ...string) (err error) {
 	if tx != nil {
-		err = utils.SqlUpdateWithUpdateTags(tx, orderTable, order, "id", updateTags...)
+		err = utils.SqlUpdateWithUpdateTags(tx, orderTable, order, conditionTag, updateTags...)
 	} else {
-		err = utils.SqlUpdateWithUpdateTags(om.sqlCli, orderTable, order, "id", updateTags...)
+		err = utils.SqlUpdateWithUpdateTags(om.sqlCli, orderTable, order, conditionTag, updateTags...)
 	}
 	if err != nil {
 		logger.Warn(orderLogTag, "UpdateOrderInfoByID Failed|Err:%v", err)
@@ -144,7 +149,6 @@ func (om *OrderModel) GetFloors(buildingID uint32, status int8, startTime, endTi
 	condition, params := om.GenerateCondition(make([]uint32, 0), 0, status, buildingID, 0, "",
 		startTime, endTime, mealType)
 	sqlStr := fmt.Sprintf("SELECT DISTINCT(`floor`) FROM `%v` %v", orderTable, condition)
-	logger.Debug(orderLogTag, "sql:%v", sqlStr)
 	rows, err := om.sqlCli.Query(sqlStr, params...)
 	if err != nil {
 		logger.Warn(orderLogTag, "GetFloors Query Failed|BuildingID:%v|Status:%v|MealType:%v|Err:%v",
@@ -167,9 +171,22 @@ func (om *OrderModel) GetFloors(buildingID uint32, status int8, startTime, endTi
 	return floors, nil
 }
 
-func (om *OrderModel) GetOrderList(idList []uint32, uid uint32, buildingID, floor uint32, room string,
+func (om *OrderModel) GetAllOrder(mealType uint8, startTime, endTime int64, status int8) ([]*OrderDao, error) {
+	condition, params := om.GenerateCondition(make([]uint32, 0), 0, status, 0, 0, "",
+		startTime, endTime, mealType)
+	retList, err := utils.SqlQuery(om.sqlCli, orderTable, &OrderDao{}, condition, params...)
+	if err != nil {
+		logger.Warn(orderLogTag, "GetAllOrder Failed|MealType:%v|Start:%v|End:%v|Status:%v|Err:%v",
+			mealType, startTime, endTime, status, err)
+		return nil, err
+	}
+
+	return retList.([]*OrderDao), nil
+}
+
+func (om *OrderModel) GetOrderList(idList []uint32, uid uint32, mealType uint8, buildingID, floor uint32, room string,
 	status int8, startTime, endTime int64, page, pageSize int32) ([]*OrderDao, error) {
-	condition, params := om.GenerateCondition(idList, uid, status, buildingID, floor, room, startTime, endTime, enum.MealUnknown)
+	condition, params := om.GenerateCondition(idList, uid, status, buildingID, floor, room, startTime, endTime, mealType)
 	condition += " ORDER BY `id` ASC LIMIT ?,? "
 	params = append(params, (page-1)*pageSize, pageSize)
 	retList, err := utils.SqlQuery(om.sqlCli, orderTable, &OrderDao{}, condition, params...)
@@ -181,10 +198,10 @@ func (om *OrderModel) GetOrderList(idList []uint32, uid uint32, buildingID, floo
 	return retList.([]*OrderDao), nil
 }
 
-func (om *OrderModel) GetOrderListCount(idList []uint32, uid uint32, status int8, buildingID, floor uint32,
+func (om *OrderModel) GetOrderListCount(idList []uint32, uid uint32, mealType uint8, status int8, buildingID, floor uint32,
 	room string, startTime, endTime int64) (int32, error) {
 	condition, params := om.GenerateCondition(idList, uid, status, buildingID, floor, room,
-		startTime, endTime, enum.MealUnknown)
+		startTime, endTime, mealType)
 
 	sqlStr := fmt.Sprintf("SELECT COUNT(*) FROM `%v` %v", orderTable, condition)
 	row := om.sqlCli.QueryRow(sqlStr, params...)
