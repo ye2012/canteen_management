@@ -244,6 +244,17 @@ func (us UserService) GetAdminUserList(roleType uint8, page, pageSize int32) ([]
 }
 
 func (us *UserService) AddAdminUser(user *model.AdminUser) error {
+	if user.OpenID != "" {
+		wxUser, err := us.wxUserModel.GetWxUserByOpenID(user.OpenID)
+		if err != nil {
+			logger.Warn(userServiceLogTag, "GetWxUserByOpenID Failed|Err:%v", err)
+			return err
+		}
+		if wxUser == nil {
+			logger.Warn(userServiceLogTag, "WxUser NotExist|OpenID:%v", user.OpenID)
+			return fmt.Errorf("用户不存在，请确认OpenID是否正确")
+		}
+	}
 	err := us.adminUserModel.Insert(user)
 	if err != nil {
 		logger.Warn(userServiceLogTag, "Insert AdminUser Failed|Err:%v", err)
@@ -271,8 +282,17 @@ func (us *UserService) DeleteAdminUser(id uint32) error {
 }
 
 func (us *UserService) BindAdminUser(userID uint32, openID string) error {
+	wxUser, err := us.wxUserModel.GetWxUserByOpenID(openID)
+	if err != nil {
+		logger.Warn(userServiceLogTag, "GetWxUserByOpenID Failed|Err:%v", err)
+		return err
+	}
+	if wxUser == nil {
+		logger.Warn(userServiceLogTag, "WxUser NotExist|OpenID:%v", openID)
+		return fmt.Errorf("要绑定的用户不存在，请确认OpenID是否正确")
+	}
 	adminUser := &model.AdminUser{ID: userID, OpenID: openID}
-	err := us.adminUserModel.UpdateAdminUserByCondition(adminUser, "id", "open_id")
+	err = us.adminUserModel.UpdateAdminUserByCondition(adminUser, "id", "open_id")
 	if err != nil {
 		logger.Warn(userServiceLogTag, "BindAdminUser Failed|Err:%v", err)
 		return err

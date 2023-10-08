@@ -196,6 +196,7 @@ func (us *UserServer) RequestModifyAdminUser(ctx *gin.Context, rawReq interface{
 		err := us.userService.AddAdminUser(userInfo)
 		if err != nil {
 			res.Code = enum.SqlError
+			res.Msg = err.Error()
 			return
 		}
 	case enum.OperateTypeModify:
@@ -221,6 +222,7 @@ func (us *UserServer) RequestBindAdminUser(ctx *gin.Context, rawReq interface{},
 	err := us.userService.BindAdminUser(req.User.ID, req.User.OpenID)
 	if err != nil {
 		res.Code = enum.SqlError
+		res.Msg = err.Error()
 		return
 	}
 }
