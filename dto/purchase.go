@@ -48,11 +48,13 @@ type PurchaseGoodsInfo struct {
 }
 
 type PurchaseOrderInfo struct {
-	ID           uint32               `json:"id"`
-	Supplier     uint32               `json:"supplier"`
-	SupplierName string               `json:"supplier_name"`
-	GoodsList    []*PurchaseGoodsInfo `json:"goods_list"`
-	Status       uint8                `json:"status"`
+	ID            uint32               `json:"id"`
+	Supplier      uint32               `json:"supplier"`
+	SupplierName  string               `json:"supplier_name"`
+	GoodsList     []*PurchaseGoodsInfo `json:"goods_list"`
+	TotalAmount   float64              `json:"total_amount"`
+	PaymentAmount float64              `json:"payment_amount"`
+	Status        uint8                `json:"status"`
 }
 
 type PurchaseListReq struct {

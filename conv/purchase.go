@@ -52,11 +52,13 @@ func ConvertToPurchaseInfoList(purchaseList []*model.PurchaseOrder, detailMap ma
 	retList := make([]*dto.PurchaseOrderInfo, 0, len(purchaseList))
 	for _, purchase := range purchaseList {
 		retInfo := &dto.PurchaseOrderInfo{
-			ID:           purchase.ID,
-			Supplier:     purchase.Supplier,
-			SupplierName: supplierMap[purchase.Supplier].Name,
-			GoodsList:    make([]*dto.PurchaseGoodsInfo, 0),
-			Status:       purchase.Status,
+			ID:            purchase.ID,
+			Supplier:      purchase.Supplier,
+			SupplierName:  supplierMap[purchase.Supplier].Name,
+			GoodsList:     make([]*dto.PurchaseGoodsInfo, 0),
+			TotalAmount:   purchase.TotalAmount,
+			PaymentAmount: purchase.PayAmount,
+			Status:        purchase.Status,
 		}
 		details, ok := detailMap[purchase.ID]
 		if !ok {
