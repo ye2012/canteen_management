@@ -42,8 +42,8 @@ type PurchaseGoodsInfo struct {
 	GoodsID       uint32  `json:"goods_id"`
 	Name          string  `json:"name"`
 	GoodsTypeID   uint32  `json:"goods_type_id"`
-	ExpectAmount  float64 `json:"expect_amount"`
-	ReceiveAmount float64 `json:"receive_amount"`
+	ExpectNumber  float64 `json:"expect_number"`
+	ReceiveNumber float64 `json:"receive_number"`
 	Price         float64 `json:"price"`
 }
 

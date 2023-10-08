@@ -13,17 +13,13 @@ const (
 	purchaseDetailLogTag = "PurchaseDetailModel"
 )
 
-var (
-	purchaseDetailUpdateTags = []string{"receive_amount"}
-)
-
 type PurchaseDetail struct {
 	ID            uint32  `json:"id"`
 	PurchaseID    uint32  `json:"purchase_id"`
 	GoodsID       uint32  `json:"goods_id"`
 	GoodsType     uint32  `json:"goods_type"`
-	ExpectAmount  float64 `json:"expect_amount"`
-	ReceiveAmount float64 `json:"receive_amount"`
+	ExpectNumber  float64 `json:"expect_number"`
+	ReceiveNumber float64 `json:"receive_number"`
 	Price         float64 `json:"price"`
 }
 
@@ -71,9 +67,9 @@ func (pdm *PurchaseDetailModel) BatchUpdateDetailWithTx(tx *sql.Tx, detailList [
 		daoList = append(daoList, detail)
 	}
 	if tx != nil {
-		err = utils.SqlBatchUpdateTag(tx, purchaseDetailTable, daoList, "id", "receive_amount")
+		err = utils.SqlBatchUpdateTag(tx, purchaseDetailTable, daoList, "id", "receive_number")
 	} else {
-		err = utils.SqlBatchUpdateTag(pdm.sqlCli, purchaseDetailTable, daoList, "id", "receive_amount")
+		err = utils.SqlBatchUpdateTag(pdm.sqlCli, purchaseDetailTable, daoList, "id", "receive_number")
 	}
 	if err != nil {
 		logger.Warn(purchaseDetailLogTag, "BatchUpdateDetail Failed|Err:%v", err)

@@ -193,7 +193,7 @@ func (ps *PurchaseService) ApplyPurchaseOrder(purchase *model.PurchaseOrder, det
 
 	totalAmount := 0.0
 	for _, item := range details {
-		totalAmount += item.Price
+		totalAmount += item.Price * item.ExpectNumber
 	}
 
 	purchase.Supplier = supplier.ID
@@ -267,8 +267,8 @@ func (ps *PurchaseService) ReceivePurchaseOrder(purchaseID uint32, details []*mo
 	payAmount := 0.0
 	goodsList := make([]*model.Goods, 0, len(details))
 	for _, item := range details {
-		payAmount += item.Price * item.ReceiveAmount
-		goodsList = append(goodsList, &model.Goods{ID: item.GoodsID, Quantity: item.ReceiveAmount})
+		payAmount += item.Price * item.ReceiveNumber
+		goodsList = append(goodsList, &model.Goods{ID: item.GoodsID, Quantity: item.ReceiveNumber})
 	}
 
 	tx, err := ps.sqlCli.Begin()

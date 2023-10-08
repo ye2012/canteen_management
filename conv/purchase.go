@@ -38,8 +38,8 @@ func ConvertFromApplyPurchase(goodsList []*dto.PurchaseGoodsInfo, goodsMap map[u
 			ID:            purchaseGoods.ID,
 			GoodsID:       goods.ID,
 			GoodsType:     goods.GoodsTypeID,
-			ExpectAmount:  purchaseGoods.ExpectAmount,
-			ReceiveAmount: purchaseGoods.ReceiveAmount,
+			ExpectNumber:  purchaseGoods.ExpectNumber,
+			ReceiveNumber: purchaseGoods.ReceiveNumber,
 			Price:         goods.Price,
 		}
 		detailList = append(detailList, detail)
@@ -70,8 +70,8 @@ func ConvertToPurchaseInfoList(purchaseList []*model.PurchaseOrder, detailMap ma
 				GoodsID:       detail.GoodsID,
 				Name:          goodsMap[detail.GoodsID].Name,
 				GoodsTypeID:   detail.GoodsType,
-				ExpectAmount:  detail.ExpectAmount,
-				ReceiveAmount: detail.ReceiveAmount,
+				ExpectNumber:  detail.ExpectNumber,
+				ReceiveNumber: detail.ReceiveNumber,
 				Price:         detail.Price,
 			}
 			retInfo.GoodsList = append(retInfo.GoodsList, purchaseGoods)
