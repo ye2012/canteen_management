@@ -73,24 +73,24 @@ type TableRowColumnInfo struct {
 type TableRowInfo = map[string]*TableRowColumnInfo
 
 type OrderNode struct {
-	ID       string       `json:"id"`
-	Price    float64      `json:"price,omitempty"`
-	Name     string       `json:"name"`
-	DishID   uint32       `json:"dish_id,omitempty"`
-	Quantity float64      `json:"quantity"`
-	Children []*OrderNode `json:"children,omitempty"`
+	ID             string       `json:"id"`
+	Price          float64      `json:"price,omitempty"`
+	Name           string       `json:"name"`
+	DishID         uint32       `json:"dish_id,omitempty"`
+	SelectedNumber int32        `json:"selected_number"`
+	Children       []*OrderNode `json:"children,omitempty"`
 }
 
 type GoodsNode struct {
-	ID        string       `json:"id"`
-	Price     float64      `json:"price,omitempty"`
-	Name      string       `json:"name"`
-	GoodsID   uint32       `json:"goods_id,omitempty"`
-	Quantity  float64      `json:"quantity"`
-	Left      float64      `json:"left"`
-	BatchSize float64      `json:"batch_size"`
-	BatchUnit string       `json:"batch_unit"`
-	Children  []*GoodsNode `json:"children,omitempty"`
+	ID             string       `json:"id"`
+	Price          float64      `json:"price,omitempty"`
+	Name           string       `json:"name"`
+	GoodsID        uint32       `json:"goods_id,omitempty"`
+	SelectedNumber int32        `json:"selected_number"`
+	Left           float64      `json:"left"`
+	BatchSize      float64      `json:"batch_size"`
+	BatchUnit      string       `json:"batch_unit"`
+	Children       []*GoodsNode `json:"children,omitempty"`
 }
 
 type RequestChecker interface {

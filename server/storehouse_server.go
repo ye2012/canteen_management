@@ -188,7 +188,7 @@ func (ss *StorehouseServer) RequestModifyStoreType(ctx *gin.Context, rawReq inte
 
 func (ss *StorehouseServer) RequestGoodsNodeList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.GoodsNodeListReq)
-	uid := uint32(1)
+	uid := req.Uid
 	goodsMap, err := ss.storeService.GetGoodsMap()
 	if err != nil {
 		res.Code = enum.SqlError
@@ -202,7 +202,7 @@ func (ss *StorehouseServer) RequestGoodsNodeList(ctx *gin.Context, rawReq interf
 		return
 	}
 
-	goodsQuantityMap, totalCost, totalGoods := make(map[string]float64), 0.0, 0.0
+	goodsSelectedMap, totalCost, totalGoods := make(map[string]float64), 0.0, 0.0
 	if uid != 0 {
 		_, cartDetails, err := ss.storeService.GetCart(uid, req.CartType)
 		if err != nil {
@@ -210,19 +210,21 @@ func (ss *StorehouseServer) RequestGoodsNodeList(ctx *gin.Context, rawReq interf
 			return
 		}
 		for _, detail := range cartDetails {
-			goodsQuantityMap[detail.ItemID] = detail.Quantity
+			goodsSelectedMap[detail.ItemID] = detail.Quantity
 			goodsID, _ := conv.ConvertGoodsID(detail.ItemID)
 			goods, ok := goodsMap[goodsID]
 			if ok {
 				totalCost += goods.Price * detail.Quantity
 			}
-			totalGoods += detail.Quantity
+			if detail.Quantity > 0 {
+				totalGoods += 1
+			}
 		}
 	}
 
 	retData := &dto.GoodsNodeListRes{
-		GoodsList:  conv.ConvertGoodsListToGoodsNode(goodsMap, goodsTypeList),
-		GoodsMap:   goodsQuantityMap,
+		GoodsList:  conv.ConvertGoodsListToGoodsNode(goodsMap, goodsTypeList, goodsSelectedMap),
+		GoodsMap:   goodsSelectedMap,
 		TotalGoods: totalGoods,
 		TotalCost:  totalCost,
 	}

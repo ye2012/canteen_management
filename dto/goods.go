@@ -2,6 +2,7 @@ package dto
 
 import (
 	"fmt"
+
 	"github.com/canteen_management/enum"
 )
 
@@ -82,7 +83,8 @@ type ModifyGoodsPriceReq struct {
 }
 
 type GoodsNodeListReq struct {
-	CartType uint8 `json:"cart_type"`
+	CartType uint8  `json:"cart_type"`
+	Uid      uint32 `json:"uid"`
 }
 
 func (gnl *GoodsNodeListReq) CheckParams() error {

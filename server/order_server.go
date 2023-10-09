@@ -365,7 +365,8 @@ func (os *OrderServer) RequestOrderList(ctx *gin.Context, rawReq interface{}, re
 		req.EndTime = utils.GetDayEndTime(req.EndTime)
 	}
 	orderList, totalNumber, detailMap, err := os.orderService.GetOrderList(orderIDList, req.Uid, req.MealType,
-		req.BuildingID, req.Floor, req.Room, req.OrderStatus, req.Page, req.PageSize, req.StartTime, req.EndTime)
+		req.BuildingID, req.Floor, req.Room, req.OrderStatus, req.PayMethod, req.Page, req.PageSize,
+		req.StartTime, req.EndTime)
 	if err != nil {
 		logger.Warn(orderServerLogTag, "GetOrderList Failed|Err:%v", err)
 		res.Code = enum.SqlError
@@ -463,13 +464,14 @@ func (os *OrderServer) RequestModifyCart(ctx *gin.Context, rawReq interface{}, r
 	}
 
 	ids := strings.Split(req.ItemID, "_")
-	if len(ids) != 4 {
+	if (req.CartType == enum.CartTypeOrder && len(ids) != 4) ||
+		(req.CartType == enum.CartTypePurchase && len(ids) != 2) {
 		res.Code = enum.ParamsError
 		res.Msg = "id不合法"
 		return
 	}
 
-	_, cartDetails, err := os.cartService.ModifyCart(uid, req.ItemID, req.Quantity, enum.CartTypeOrder)
+	_, cartDetails, err := os.cartService.ModifyCart(uid, req.ItemID, req.Quantity, req.CartType)
 	if err != nil {
 		res.Code = enum.SqlError
 		res.Msg = err.Error()

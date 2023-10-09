@@ -100,7 +100,7 @@ func (om *OrderModel) GetOrderListByPayOrder(payOrderList []uint32) ([]*OrderDao
 }
 
 func (om *OrderModel) GenerateCondition(idList []uint32, uid uint32, status int8, buildingID, floor uint32,
-	room string, startTime, endTime int64, mealType uint8) (string, []interface{}) {
+	room string, startTime, endTime int64, mealType uint8, payMethod int8) (string, []interface{}) {
 	condition := " WHERE 1=1 "
 	params := make([]interface{}, 0)
 	if len(idList) > 0 {
@@ -138,6 +138,10 @@ func (om *OrderModel) GenerateCondition(idList []uint32, uid uint32, status int8
 		condition += " AND `meal_type` = ? "
 		params = append(params, mealType)
 	}
+	if payMethod > -1 {
+		condition += " AND `pay_method` = ? "
+		params = append(params, payMethod)
+	}
 	if room != "" {
 		condition += " AND `room` = ? "
 		params = append(params, room)
@@ -145,9 +149,9 @@ func (om *OrderModel) GenerateCondition(idList []uint32, uid uint32, status int8
 	return condition, params
 }
 
-func (om *OrderModel) GetFloors(buildingID uint32, status int8, startTime, endTime int64, mealType uint8) ([]int32, error) {
+func (om *OrderModel) GetFloors(buildingID uint32, status, payMethod int8, startTime, endTime int64, mealType uint8) ([]int32, error) {
 	condition, params := om.GenerateCondition(make([]uint32, 0), 0, status, buildingID, 0, "",
-		startTime, endTime, mealType)
+		startTime, endTime, mealType, payMethod)
 	sqlStr := fmt.Sprintf("SELECT DISTINCT(`floor`) FROM `%v` %v", orderTable, condition)
 	rows, err := om.sqlCli.Query(sqlStr, params...)
 	if err != nil {
@@ -171,9 +175,9 @@ func (om *OrderModel) GetFloors(buildingID uint32, status int8, startTime, endTi
 	return floors, nil
 }
 
-func (om *OrderModel) GetAllOrder(mealType uint8, startTime, endTime int64, status int8) ([]*OrderDao, error) {
+func (om *OrderModel) GetAllOrder(mealType uint8, startTime, endTime int64, status, payMethod int8) ([]*OrderDao, error) {
 	condition, params := om.GenerateCondition(make([]uint32, 0), 0, status, 0, 0, "",
-		startTime, endTime, mealType)
+		startTime, endTime, mealType, payMethod)
 	retList, err := utils.SqlQuery(om.sqlCli, orderTable, &OrderDao{}, condition, params...)
 	if err != nil {
 		logger.Warn(orderLogTag, "GetAllOrder Failed|MealType:%v|Start:%v|End:%v|Status:%v|Err:%v",
@@ -185,8 +189,9 @@ func (om *OrderModel) GetAllOrder(mealType uint8, startTime, endTime int64, stat
 }
 
 func (om *OrderModel) GetOrderList(idList []uint32, uid uint32, mealType uint8, buildingID, floor uint32, room string,
-	status int8, startTime, endTime int64, page, pageSize int32) ([]*OrderDao, error) {
-	condition, params := om.GenerateCondition(idList, uid, status, buildingID, floor, room, startTime, endTime, mealType)
+	status, payMethod int8, startTime, endTime int64, page, pageSize int32) ([]*OrderDao, error) {
+	condition, params := om.GenerateCondition(idList, uid, status, buildingID, floor, room, startTime, endTime,
+		mealType, payMethod)
 	condition += " ORDER BY `id` ASC LIMIT ?,? "
 	params = append(params, (page-1)*pageSize, pageSize)
 	retList, err := utils.SqlQuery(om.sqlCli, orderTable, &OrderDao{}, condition, params...)
@@ -198,10 +203,10 @@ func (om *OrderModel) GetOrderList(idList []uint32, uid uint32, mealType uint8, 
 	return retList.([]*OrderDao), nil
 }
 
-func (om *OrderModel) GetOrderListCount(idList []uint32, uid uint32, mealType uint8, status int8, buildingID, floor uint32,
-	room string, startTime, endTime int64) (int32, error) {
+func (om *OrderModel) GetOrderListCount(idList []uint32, uid uint32, mealType uint8, status, payMethod int8, buildingID,
+	floor uint32, room string, startTime, endTime int64) (int32, error) {
 	condition, params := om.GenerateCondition(idList, uid, status, buildingID, floor, room,
-		startTime, endTime, mealType)
+		startTime, endTime, mealType, payMethod)
 
 	sqlStr := fmt.Sprintf("SELECT COUNT(*) FROM `%v` %v", orderTable, condition)
 	row := om.sqlCli.QueryRow(sqlStr, params...)

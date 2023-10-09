@@ -232,7 +232,7 @@ func (os *OrderService) GetOrderListByPayOrderID(payOrderList []uint32) ([]*mode
 }
 
 func (os *OrderService) GetFloors(buildingID uint32, status int8, startTime, endTime int64, mealType uint8) ([]int32, error) {
-	floors, err := os.orderModel.GetFloors(buildingID, status, startTime, endTime, mealType)
+	floors, err := os.orderModel.GetFloors(buildingID, status, -1, startTime, endTime, mealType)
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "GetFloors Failed|Err:%v", err)
 		return floors, err
@@ -242,7 +242,7 @@ func (os *OrderService) GetFloors(buildingID uint32, status int8, startTime, end
 
 func (os *OrderService) GetAllOrder(mealType uint8, startTime, endTime int64, status int8,
 	dishType uint32) ([]*model.OrderDao, map[uint32][]*model.OrderDetail, error) {
-	orderList, err := os.orderModel.GetAllOrder(mealType, startTime, endTime, status)
+	orderList, err := os.orderModel.GetAllOrder(mealType, startTime, endTime, status, -1)
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "GetAllOrder Failed|Err:%v", err)
 		return nil, nil, err
@@ -272,14 +272,14 @@ func (os *OrderService) GetAllOrder(mealType uint8, startTime, endTime int64, st
 }
 
 func (os *OrderService) GetOrderList(orderIDList []uint32, uid uint32, mealType uint8, buildingID, floor uint32, room string,
-	orderStatus int8, page, pageSize int32, startTime, endTime int64) ([]*model.OrderDao, int32, map[uint32][]*model.OrderDetail, error) {
-	orderList, err := os.orderModel.GetOrderList(orderIDList, uid, mealType, buildingID, floor, room, orderStatus,
+	orderStatus, payMethod int8, page, pageSize int32, startTime, endTime int64) ([]*model.OrderDao, int32, map[uint32][]*model.OrderDetail, error) {
+	orderList, err := os.orderModel.GetOrderList(orderIDList, uid, mealType, buildingID, floor, room, orderStatus, payMethod,
 		startTime, endTime, page, pageSize)
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "GetOrderList Failed|Err:%v", err)
 		return nil, 0, nil, err
 	}
-	orderCount, err := os.orderModel.GetOrderListCount(orderIDList, uid, mealType, orderStatus, buildingID, floor, room, startTime, endTime)
+	orderCount, err := os.orderModel.GetOrderListCount(orderIDList, uid, mealType, orderStatus, payMethod, buildingID, floor, room, startTime, endTime)
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "GetOrderListCount Failed|Err:%v", err)
 		return nil, 0, nil, err

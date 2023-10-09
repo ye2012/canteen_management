@@ -134,6 +134,7 @@ type OrderDishAnalysisRes struct {
 type OrderListReq struct {
 	PaginationReq
 	OrderStatus int8   `json:"order_status"`
+	PayMethod   int8   `json:"pay_method"`
 	Uid         uint32 `json:"uid"`
 	OrderID     uint32 `json:"order_id"`
 	BuildingID  uint32 `json:"building_id"`

@@ -69,7 +69,8 @@ func ConvertGoodsID(itemID string) (uint32, error) {
 	return uint32(goodsID), nil
 }
 
-func ConvertGoodsListToGoodsNode(goodsMap map[uint32]*model.Goods, goodsTypes []*model.GoodsType) []*dto.GoodsNode {
+func ConvertGoodsListToGoodsNode(goodsMap map[uint32]*model.Goods, goodsTypes []*model.GoodsType,
+	goodsSelectedMap map[string]float64) []*dto.GoodsNode {
 	retData := make([]*dto.GoodsNode, 0)
 	goodsTypeMap := make(map[uint32][]*model.Goods)
 	for _, goods := range goodsMap {
@@ -86,6 +87,7 @@ func ConvertGoodsListToGoodsNode(goodsMap map[uint32]*model.Goods, goodsTypes []
 		}
 		typeNode := &dto.GoodsNode{ID: fmt.Sprintf("%v", goodsType.ID), Name: goodsType.GoodsTypeName,
 			Children: make([]*dto.GoodsNode, 0, len(goodsList))}
+		typeSelected := int32(0)
 		for _, goods := range goodsList {
 			goodsNode := &dto.GoodsNode{
 				ID:        fmt.Sprintf("%v_%v", goodsType.ID, goods.ID),
@@ -97,7 +99,11 @@ func ConvertGoodsListToGoodsNode(goodsMap map[uint32]*model.Goods, goodsTypes []
 				BatchUnit: goods.BatchUnit,
 			}
 			typeNode.Children = append(typeNode.Children, goodsNode)
+			if selected, ok := goodsSelectedMap[goodsNode.ID]; ok && selected > 0 {
+				typeSelected += 1
+			}
 		}
+		typeNode.SelectedNumber = typeSelected
 		retData = append(retData, typeNode)
 	}
 	return retData

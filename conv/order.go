@@ -32,7 +32,7 @@ func ConvertMenuToOrderNode(menuDate int64, dayMenu map[uint8][]uint32, dishMap 
 		}
 
 		retMeal.Children = make([]*dto.OrderNode, 0, len(dishListByType))
-		mealQuantity := 0.0
+		mealSelected := int32(0)
 		for dishType, dishList := range dishListByType {
 			retListByType := &dto.OrderNode{ID: fmt.Sprintf("%v", dishType), Name: typeMap[dishType].DishTypeName}
 			retListByType.Children = make([]*dto.OrderNode, 0, len(dishList))
@@ -40,13 +40,13 @@ func ConvertMenuToOrderNode(menuDate int64, dayMenu map[uint8][]uint32, dishMap 
 				retDish := &dto.OrderNode{ID: fmt.Sprintf("%v_%v_%v", retMeal.ID, dish.ID, index),
 					DishID: dish.ID, Name: dish.DishName, Price: dish.Price}
 				if quantity, ok := dishQuantityMap[retDish.ID]; (ok && quantity > 0) || includeAll {
-					mealQuantity += quantity
+					mealSelected += int32(quantity)
 					retListByType.Children = append(retListByType.Children, retDish)
 				}
 			}
 			retMeal.Children = append(retMeal.Children, retListByType)
 		}
-		retMeal.Quantity = mealQuantity
+		retMeal.SelectedNumber = mealSelected
 		retData = append(retData, retMeal)
 	}
 	return retData
