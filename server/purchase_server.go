@@ -199,3 +199,9 @@ func (ps *PurchaseServer) RequestReceivePurchase(ctx *gin.Context, rawReq interf
 
 	ps.storeService.GetStoreTypeList()
 }
+
+func (ps *PurchaseServer) RequestApplyOutbound(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+}
+
+func (ps *PurchaseServer) RequestOutboundOrderList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+}

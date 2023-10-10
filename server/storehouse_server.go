@@ -5,6 +5,7 @@ import (
 	"github.com/canteen_management/dto"
 	"github.com/canteen_management/enum"
 	"github.com/canteen_management/logger"
+	"github.com/canteen_management/model"
 	"github.com/canteen_management/service"
 	"github.com/canteen_management/utils"
 	"github.com/gin-gonic/gin"
@@ -31,14 +32,30 @@ func NewStorehouseServer(dbConf utils.Config) (*StorehouseServer, error) {
 }
 
 func (ss *StorehouseServer) RequestGoodsTypeList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.GoodsTypeListReq)
 	list, err := ss.storeService.GetGoodsTypeList()
 	if err != nil {
 		res.Code = enum.SqlError
 		return
 	}
 
+	skip := (req.Page - 1) * req.PageSize
+	if skip < int32(len(list)) {
+		list = list[skip:]
+	} else {
+		list = make([]*model.GoodsType, 0)
+	}
+	if int32(len(list)) > req.PageSize {
+		list = list[:req.PageSize]
+	}
+
 	res.Data = &dto.GoodsTypeListRes{
 		GoodsTypeList: conv.ConvertToGoodsTypeInfoList(list),
+		PaginationRes: dto.PaginationRes{
+			Page:        req.Page,
+			PageSize:    req.PageSize,
+			TotalNumber: int32(len(list)),
+		},
 	}
 }
 
@@ -229,12 +246,6 @@ func (ss *StorehouseServer) RequestGoodsNodeList(ctx *gin.Context, rawReq interf
 		TotalCost:  totalCost,
 	}
 	res.Data = retData
-}
-
-func (ss *StorehouseServer) RequestApplyOutbound(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
-}
-
-func (ss *StorehouseServer) RequestOutboundOrderList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 }
 
 func (ss *StorehouseServer) RequestInventoryOrder(ctx *gin.Context, rawReq interface{}, res *dto.Response) {

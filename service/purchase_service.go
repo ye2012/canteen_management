@@ -41,7 +41,7 @@ func NewPurchaseService(sqlCli *sql.DB) *PurchaseService {
 }
 
 func (ps *PurchaseService) GetSupplierMap() (map[uint32]*model.Supplier, error) {
-	supplierList, err := ps.supplierModel.GetSupplier(0, "", "")
+	supplierList, err := ps.supplierModel.GetSupplier(0, "", "", "")
 	if err != nil {
 		logger.Warn(purchaseServiceLogTag, "GetSupplierMap Failed|Err:%v", err)
 		return nil, err
@@ -54,7 +54,7 @@ func (ps *PurchaseService) GetSupplierMap() (map[uint32]*model.Supplier, error) 
 }
 
 func (ps *PurchaseService) GetSupplierList(name, phoneNumber string) ([]*model.Supplier, int64, error) {
-	supplierList, err := ps.supplierModel.GetSupplier(0, name, phoneNumber)
+	supplierList, err := ps.supplierModel.GetSupplier(0, name, phoneNumber, "")
 	if err != nil {
 		logger.Warn(purchaseServiceLogTag, "GetSupplier Failed|Err:%v", err)
 		return nil, 0, err
@@ -86,7 +86,7 @@ func (ps *PurchaseService) UpdateSupplier(supplier *model.Supplier) error {
 }
 
 func (ps *PurchaseService) BindSupplier(supplierID uint32, openID string) error {
-	suppliers, err := ps.supplierModel.GetSupplier(supplierID, "", "")
+	suppliers, err := ps.supplierModel.GetSupplier(supplierID, "", "", "")
 	if err != nil {
 		logger.Warn(purchaseServiceLogTag, "BindSupplier GetSupplier Failed|Err:%v", err)
 		return err
@@ -114,7 +114,7 @@ func (ps *PurchaseService) BindSupplier(supplierID uint32, openID string) error 
 }
 
 func (ps *PurchaseService) RenewSupplier(supplierID uint32, endTime int64) error {
-	suppliers, err := ps.supplierModel.GetSupplier(supplierID, "", "")
+	suppliers, err := ps.supplierModel.GetSupplier(supplierID, "", "", "")
 	if err != nil {
 		logger.Warn(purchaseServiceLogTag, "RenewSupplier GetSupplier Failed|Err:%v", err)
 		return err

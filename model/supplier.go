@@ -62,7 +62,7 @@ func (sm *SupplierModel) GetCurrentSupplier() (*Supplier, error) {
 	return supplier, nil
 }
 
-func (sm *SupplierModel) GetSupplier(id uint32, name, phoneNumber string) ([]*Supplier, error) {
+func (sm *SupplierModel) GetSupplier(id uint32, name, phoneNumber, openID string) ([]*Supplier, error) {
 	var params []interface{}
 	condition := " WHERE 1=1 "
 	if id != 0 {
@@ -76,6 +76,10 @@ func (sm *SupplierModel) GetSupplier(id uint32, name, phoneNumber string) ([]*Su
 	if phoneNumber != "" {
 		condition += " AND `phone_number` = ? "
 		params = append(params, phoneNumber)
+	}
+	if openID != "" {
+		condition += " AND `open_id` = ? "
+		params = append(params, openID)
 	}
 
 	retList, err := utils.SqlQuery(sm.sqlCli, supplierTable, &Supplier{}, condition, params...)

@@ -11,12 +11,13 @@ type CanteenLoginReq struct {
 }
 
 type CanteenLoginRes struct {
-	Uid         uint32  `json:"uid"`
-	OpenID      string  `json:"open_id"`
-	PhoneNumber string  `json:"phone_number"`
-	Discount    float64 `json:"discount"`
-	ExtraPay    float64 `json:"extra_pay"`
-	Role        uint32  `json:"role"`
+	Uid          uint32  `json:"uid"`
+	OpenID       string  `json:"open_id"`
+	PhoneNumber  string  `json:"phone_number"`
+	Discount     float64 `json:"discount"`
+	DiscountLeft float64 `json:"discount_left"`
+	ExtraPay     float64 `json:"extra_pay"`
+	Role         uint32  `json:"role"`
 }
 
 type BindPhoneNumberReq struct {
@@ -38,9 +39,10 @@ type KitchenLoginReq struct {
 }
 
 type KitchenLoginRes struct {
-	Code     string `json:"code"`
-	UserName string `json:"user_name"`
-	Password string `json:"password"`
+	Uid         uint32 `json:"uid"`
+	OpenID      string `json:"open_id"`
+	PhoneNumber string `json:"phone_number"`
+	Role        uint32 `json:"role"`
 }
 
 type AdminUserListReq struct {

@@ -351,15 +351,16 @@ func (os *OrderService) UpdateOrderDiscount(discountInfo *model.OrderDiscount) e
 	return os.orderDiscountModel.UpdateDiscountType(discountInfo)
 }
 
-func (os *OrderService) LoginUserOrderDiscountInfo(uid uint32, discountType uint8) (float64, float64, error) {
-	discountAmount := 0.0
+func (os *OrderService) LoginUserOrderDiscountInfo(uid uint32, discountType uint8) (float64, float64, float64, error) {
+	discountAmount, totalDiscount := 0.0, 0.0
 	if discountType > 0 {
 		discountInfo, err := os.orderDiscountModel.GetDiscountByID(discountType)
 		if err != nil {
 			logger.Warn(orderServiceLogTag, "GetDiscountByID Failed|Err:%v", err)
-			return 0, 0, err
+			return 0, 0, 0, err
 		}
 		discountAmount = discountInfo.GetMealDiscount(enum.MealBreakfast)
+		totalDiscount = discountAmount
 	}
 
 	timeStart, timeEnd := utils.GetDayTimeRange(time.Now().Add(time.Hour * 24).Unix())
@@ -367,7 +368,7 @@ func (os *OrderService) LoginUserOrderDiscountInfo(uid uint32, discountType uint
 		[]int8{enum.PayOrderNew, enum.PayOrderFinish}, timeStart, timeEnd)
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "GetOrderList Failed|Err:%v", err)
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
 	minPay := extraPayAmount
 	for _, payOrder := range payOrderList {
@@ -377,5 +378,5 @@ func (os *OrderService) LoginUserOrderDiscountInfo(uid uint32, discountType uint
 		}
 	}
 
-	return minPay, discountAmount, nil
+	return minPay, totalDiscount, discountAmount, nil
 }

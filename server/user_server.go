@@ -64,16 +64,15 @@ func (us *UserServer) RequestCanteenLogin(ctx *gin.Context, rawReq interface{}, 
 		res.Msg = err.Error()
 		return
 	}
+	role := us.userService.GetWxUserRole(openID)
 	resData := &dto.CanteenLoginRes{
 		Uid:         user.ID,
 		OpenID:      user.OpenID,
 		PhoneNumber: user.PhoneNumber,
-		Role:        1,
+		Role:        role,
 	}
-
 	discountType := us.userService.GetWxUserDiscount(user.OpenID)
-
-	resData.ExtraPay, resData.Discount, err = us.orderService.LoginUserOrderDiscountInfo(user.ID, discountType)
+	resData.ExtraPay, resData.Discount, resData.DiscountLeft, err = us.orderService.LoginUserOrderDiscountInfo(user.ID, discountType)
 	if err != nil {
 		res.Code = enum.SqlError
 		res.Msg = err.Error()
@@ -84,7 +83,30 @@ func (us *UserServer) RequestCanteenLogin(ctx *gin.Context, rawReq interface{}, 
 }
 
 func (us *UserServer) RequestKitchenLoginLogin(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
-	_ = rawReq.(*dto.KitchenLoginReq)
+	req := rawReq.(*dto.KitchenLoginReq)
+
+	openID, err := utils.MiniProgramLogin(config.Config.AppID, config.Config.AppSecret, req.Code)
+	if err != nil {
+		res.Code = enum.SystemError
+		res.Msg = err.Error()
+		return
+	}
+
+	user, err := us.userService.WxUserLogin(openID)
+	if err != nil {
+		res.Code = enum.SqlError
+		res.Msg = err.Error()
+		return
+	}
+	role := us.userService.GetWxUserRole(openID)
+	resData := &dto.KitchenLoginRes{
+		Uid:         user.ID,
+		OpenID:      user.OpenID,
+		PhoneNumber: user.PhoneNumber,
+		Role:        role,
+	}
+
+	res.Data = resData
 }
 
 func (us *UserServer) RequestOrderUserList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {

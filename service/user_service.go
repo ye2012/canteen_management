@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"fmt"
+	"github.com/canteen_management/enum"
 
 	"github.com/canteen_management/logger"
 	"github.com/canteen_management/model"
@@ -18,17 +19,20 @@ type UserService struct {
 	adminUserModel *model.AdminUserModel
 	wxUserModel    *model.WxUserModel
 	orderUserModel *model.OrderUserModel
+	supplierModel  *model.SupplierModel
 }
 
 func NewUserService(sqlCli *sql.DB) *UserService {
 	wxUserModel := model.NewWxUserModelWithDB(sqlCli)
 	orderUserModel := model.NewOrderUserModel(sqlCli)
 	adminUserModel := model.NewAdminUserModelWithDB(sqlCli)
+	supplierModel := model.NewSupplierModelWithDB(sqlCli)
 	return &UserService{
 		sqlCli:         sqlCli,
 		wxUserModel:    wxUserModel,
 		orderUserModel: orderUserModel,
 		adminUserModel: adminUserModel,
+		supplierModel:  supplierModel,
 	}
 }
 
@@ -38,10 +42,20 @@ func (us *UserService) GetWxUserRole(openID string) uint32 {
 		logger.Warn(userServiceLogTag, "GetAdminUserByCondition Failed|OpenID:%v|Err:%v", openID, err)
 		return 0
 	}
-	if len(adminList) == 0 {
-		return 0
+	role := uint32(0)
+	if len(adminList) != 0 {
+		role |= adminList[0].Role
 	}
-	return adminList[0].Role
+
+	suppliers, err := us.supplierModel.GetSupplier(0, "", "", openID)
+	if err != nil {
+		logger.Warn(userServiceLogTag, "GetSupplier Failed|OpenID:%v|Err:%v", openID, err)
+		return role
+	}
+	if len(suppliers) != 0 {
+		role |= uint32(1 << enum.RoleSupplier)
+	}
+	return role
 }
 
 func (us *UserService) GetWxUser(userID uint32) (*model.WxUser, error) {
