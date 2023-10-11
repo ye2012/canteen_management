@@ -107,7 +107,7 @@ func (os *OrderServer) RequestOrderMenu(ctx *gin.Context, rawReq interface{}, re
 
 func (os *OrderServer) RequestApplyOrder(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.ApplyPayOrderReq)
-	uid := uint32(1)
+	uid := req.Uid
 
 	prepareID, code, msg := os.ProcessApplyOrder(uid, req, enum.PayMethodWeChat)
 	if code != enum.Success {
@@ -209,6 +209,16 @@ func (os *OrderServer) RequestCancelPayOrder(ctx *gin.Context, rawReq interface{
 	err := os.orderService.CancelPayOrder(req.OrderID)
 	if err != nil {
 		logger.Warn(orderServerLogTag, "CancelPayOrder Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		return
+	}
+}
+
+func (os *OrderServer) RequestFinishPayOrder(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.FinishPayOrderReq)
+	err := os.orderService.FinishPayOrder(req.OrderID)
+	if err != nil {
+		logger.Warn(orderServerLogTag, "FinishPayOrder Failed|Err:%v", err)
 		res.Code = enum.SqlError
 		return
 	}

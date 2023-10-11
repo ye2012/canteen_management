@@ -252,10 +252,13 @@ func HandleOrderApi(router *gin.Engine) error {
 		func() interface{} { return new(dto.ApplyCashOrderReq) }))
 	orderRouter.POST("/cancelPayOrder", NewHandler(orderServer.RequestCancelPayOrder,
 		func() interface{} { return new(dto.CancelPayOrderReq) }))
+	orderRouter.POST("/finishPayOrder", NewHandler(orderServer.RequestFinishPayOrder,
+		func() interface{} { return new(dto.FinishPayOrderReq) }))
 	orderRouter.POST("/payOrderList", NewHandler(orderServer.RequestPayOrderList,
 		func() interface{} { return new(dto.PayOrderListReq) }))
 	orderRouter.POST("/orderList", NewHandler(orderServer.RequestOrderList,
 		func() interface{} { return new(dto.OrderListReq) }))
+
 	orderRouter.POST("/floorFilter", NewHandler(orderServer.RequestFloorFilter,
 		func() interface{} { return new(dto.FloorFilterReq) }))
 	orderRouter.POST("/deliverOrder", NewHandler(orderServer.RequestDeliverOrder,

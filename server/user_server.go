@@ -85,7 +85,7 @@ func (us *UserServer) RequestCanteenLogin(ctx *gin.Context, rawReq interface{}, 
 func (us *UserServer) RequestKitchenLogin(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.KitchenLoginReq)
 
-	openID, err := utils.MiniProgramLogin(config.Config.AppID, config.Config.AppSecret, req.Code)
+	openID, err := utils.MiniProgramLogin(config.Config.KitchenAppID, config.Config.KitchenAppSecret, req.Code)
 	if err != nil {
 		res.Code = enum.SystemError
 		res.Msg = err.Error()

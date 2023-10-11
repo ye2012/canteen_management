@@ -137,7 +137,7 @@ func (ps *PurchaseServer) RequestPurchaseList(ctx *gin.Context, rawReq interface
 
 func (ps *PurchaseServer) RequestApplyPurchase(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.ApplyPurchaseReq)
-	AdminUid := uint32(0)
+	AdminUid := req.Uid
 
 	goodsMap, err := ps.storeService.GetGoodsMap()
 	if err != nil {

@@ -69,6 +69,7 @@ type PurchaseListRes struct {
 }
 
 type ApplyPurchaseReq struct {
+	Uid       uint32               `json:"uid"`
 	GoodsList []*PurchaseGoodsInfo `json:"goods_list"`
 }
 

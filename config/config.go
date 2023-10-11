@@ -14,6 +14,8 @@ var Config = &struct {
 	PrivateKeyPath   string       `json:"private_key_path"`
 	AppID            string       `json:"app_id"`
 	AppSecret        string       `json:"app_secret"`
+	KitchenAppID     string       `json:"kitchen_app_id"`
+	KitchenAppSecret string       `json:"kitchen_app_secret"`
 }{}
 
 func LoadConfig(configPath string) error {

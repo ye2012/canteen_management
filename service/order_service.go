@@ -129,6 +129,19 @@ func (os *OrderService) CancelPayOrder(orderID uint32) (err error) {
 	return
 }
 
+func (os *OrderService) FinishPayOrder(orderID uint32) (err error) {
+	payOrder := &model.PayOrderDao{ID: orderID, Status: enum.PayOrderFinish}
+	err = os.payOrderModel.UpdatePayOrderInfoByID(nil, payOrder, "status")
+	if err != nil {
+		logger.Warn(orderServiceLogTag, "CancelPayOrder Failed|Dao:%v|Err:%v", payOrder, err)
+		return
+	}
+
+	order := &model.OrderDao{PayOrderID: orderID, Status: enum.OrderPaid}
+	os.orderModel.UpdateOrderInfo(nil, order, "pay_order_id", "status")
+	return
+}
+
 func (os *OrderService) DeliverOrder(orderID uint32) (err error) {
 	order := &model.OrderDao{ID: orderID, Status: enum.OrderFinish, DeliverTime: time.Now()}
 	err = os.orderModel.UpdateOrderInfoByID(nil, order, "status", "deliver_time")

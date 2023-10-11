@@ -46,12 +46,17 @@ type CancelPayOrderReq struct {
 	OrderID uint32 `json:"order_id"`
 }
 
+type FinishPayOrderReq struct {
+	OrderID uint32 `json:"order_id"`
+}
+
 type DeliverOrderReq struct {
 	OrderID uint32 `json:"order_id"`
 }
 
 type PayOrderInfo struct {
 	ID             uint32       `json:"id"`
+	Uid            uint32       `json:"uid"`
 	OrderList      []*OrderInfo `json:"order_list"`
 	BuildingID     uint32       `json:"building_id"`
 	Floor          uint32       `json:"floor"`

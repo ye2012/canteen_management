@@ -51,10 +51,6 @@ func (ss *StoreService) Init() error {
 	return nil
 }
 
-func (ss *StoreService) ReceivePurchase(details []*model.PurchaseDetail) {
-
-}
-
 func (ss *StoreService) GetStoreTypeList() ([]*model.StorehouseType, error) {
 	typeList, err := ss.storeTypeModel.GetStorehouseTypes()
 	if err != nil {
