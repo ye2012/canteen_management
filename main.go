@@ -79,6 +79,8 @@ func HandleUserApi(router *gin.Engine) error {
 	}
 	userRouter.POST("/canteenLogin", NewHandler(userServer.RequestCanteenLogin,
 		func() interface{} { return new(dto.CanteenLoginReq) }))
+	userRouter.POST("/kitchenLogin", NewHandler(userServer.RequestKitchenLogin,
+		func() interface{} { return new(dto.KitchenLoginReq) }))
 	userRouter.POST("/bindPhoneNumber", NewHandler(userServer.RequestBindPhoneNumber,
 		func() interface{} { return new(dto.BindPhoneNumberReq) }))
 
@@ -118,6 +120,11 @@ func HandlePurchaseApi(router *gin.Engine) error {
 		func() interface{} { return new(dto.ConfirmPurchaseReq) }))
 	purchaseRouter.POST("/receivePurchase", NewHandler(purchaseServer.RequestReceivePurchase,
 		func() interface{} { return new(dto.ReceivePurchaseReq) }))
+
+	purchaseRouter.POST("/applyOutbound", NewHandler(purchaseServer.RequestApplyOutbound,
+		func() interface{} { return new(dto.ApplyOutboundReq) }))
+	purchaseRouter.POST("/outboundList", NewHandler(purchaseServer.RequestOutboundOrderList,
+		func() interface{} { return new(dto.OutboundListReq) }))
 
 	purchaseRouter.POST("/supplierList", NewHandler(purchaseServer.RequestSupplierList,
 		func() interface{} { return new(dto.SupplierListReq) }))
@@ -160,10 +167,6 @@ func HandleStorehouseApi(router *gin.Engine) error {
 	storeRouter.POST("/modifyGoodsPrice", NewHandler(storeServer.RequestModifyGoodsPrice,
 		func() interface{} { return new(dto.ModifyGoodsPriceReq) }))
 
-	//storeRouter.POST("/applyConsumeGoods", NewHandler(storeServer.,
-	//	&dto.{}))
-	//storeRouter.POST("/confirmConsumeGoods", NewHandler(storeServer.,
-	//	&dto.{}))
 	return nil
 }
 

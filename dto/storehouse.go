@@ -34,16 +34,29 @@ type ResetStoreGoodsQuantity struct {
 	Goods *GoodsTypeInfo `json:"goods"`
 }
 
-type GoodsOutboundInfo struct {
-	GoodsId       int64   `json:"goods_id"`
-	Name          string  `json:"name"`
-	GoodsTypeID   uint32  `json:"goods_type_id"`
-	ExpectAmount  float64 `json:"expect_amount"`
-	ReceiveAmount float64 `json:"receive_amount"`
-	Discount      float64 `json:"discount"`
-	DealPrice     float64 `json:"deal_price"`
+type OutboundGoodsInfo struct {
+	PurchaseGoodsBase
 }
 
 type ApplyOutboundReq struct {
-	GoodsList []*GoodsOutboundInfo `json:"goods_list"`
+	GoodsList []*OutboundGoodsInfo `json:"goods_list"`
+}
+
+type OutboundListReq struct {
+	PaginationReq
+	Uid        uint32 `json:"uid"`
+	PurchaseID uint32 `json:"outbound_id"`
+	StartTime  int64  `json:"start_time"`
+	EndTime    int64  `json:"end_time"`
+}
+
+type OutboundOrderInfo struct {
+	ID          uint32               `json:"id"`
+	GoodsList   []*OutboundGoodsInfo `json:"goods_list"`
+	TotalAmount float64              `json:"total_amount"`
+}
+
+type OutboundListRes struct {
+	PaginationRes
+	OutboundList []*OutboundOrderInfo `json:"outbound_list"`
 }

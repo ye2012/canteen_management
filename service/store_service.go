@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"fmt"
 	"github.com/canteen_management/enum"
 	"github.com/canteen_management/utils"
 	"math"
@@ -16,11 +17,14 @@ const (
 )
 
 type StoreService struct {
-	storeTypeModel    *model.StorehouseTypeModel
-	goodsModel        *model.GoodsModel
-	goodsTypeModel    *model.GoodsTypeModel
-	shoppingCartModel *model.ShoppingCartModel
-	cartDetailModel   *model.CartDetailModel
+	sqlCli              *sql.DB
+	storeTypeModel      *model.StorehouseTypeModel
+	goodsModel          *model.GoodsModel
+	goodsTypeModel      *model.GoodsTypeModel
+	shoppingCartModel   *model.ShoppingCartModel
+	cartDetailModel     *model.CartDetailModel
+	outboundModel       *model.OutboundOrderModel
+	outboundDetailModel *model.OutboundDetailModel
 }
 
 func NewStoreService(sqlCli *sql.DB) *StoreService {
@@ -29,12 +33,17 @@ func NewStoreService(sqlCli *sql.DB) *StoreService {
 	goodsTypeModel := model.NewGoodsTypeModelWithDB(sqlCli)
 	shoppingCartModel := model.NewShoppingCartModel(sqlCli)
 	cartDetailModel := model.NewCartDetailModel(sqlCli)
+	outboundModel := model.NewOutboundOrderModelWithDB(sqlCli)
+	outboundDetailModel := model.NewOutboundDetailModelWithDB(sqlCli)
 	return &StoreService{
-		storeTypeModel:    storeTypeModel,
-		goodsModel:        goodsModel,
-		goodsTypeModel:    goodsTypeModel,
-		shoppingCartModel: shoppingCartModel,
-		cartDetailModel:   cartDetailModel,
+		sqlCli:              sqlCli,
+		storeTypeModel:      storeTypeModel,
+		goodsModel:          goodsModel,
+		goodsTypeModel:      goodsTypeModel,
+		shoppingCartModel:   shoppingCartModel,
+		cartDetailModel:     cartDetailModel,
+		outboundModel:       outboundModel,
+		outboundDetailModel: outboundDetailModel,
 	}
 }
 
@@ -217,4 +226,97 @@ func (ss *StoreService) GetCart(uid uint32, cartType enum.CartType) (*model.Shop
 		}
 	}
 	return cart, cartDetails, nil
+}
+
+func (ss *StoreService) ApplyOutboundOrder(outbound *model.OutboundOrder, details []*model.OutboundDetail) (err error) {
+	tx, err := ss.sqlCli.Begin()
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "ApplyOutboundOrder Begin Failed|Err:%v", err)
+		return err
+	}
+	defer utils.End(tx, err)
+
+	totalAmount, goodsIDList, outMap := 0.0, make([]uint32, 0, len(details)), make(map[uint32]float64)
+	for _, item := range details {
+		totalAmount += item.Price * item.OutNumber
+		goodsIDList = append(goodsIDList, item.GoodsID)
+		outMap[item.GoodsID] = item.OutNumber
+	}
+
+	goodsList, err := ss.goodsModel.GetGoodsByIDListWithLock(tx, goodsIDList)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "GetGoodsByIDListWithLock Failed|Err:%v", err)
+		return err
+	}
+	for _, goods := range goodsList {
+		outNumber, ok := outMap[goods.ID]
+		if !ok {
+			continue
+		}
+		if outNumber > goods.Quantity {
+			logger.Warn(storeServiceLogTag, "OutNumber Extent StoreQuantity|Goods:%v|Out:%v|Store:%v",
+				goods.ID, outNumber, goods.Quantity)
+			return fmt.Errorf("%v出库数量超出库存数量", goods.Name)
+		}
+	}
+	outbound.TotalAmount = totalAmount
+	err = ss.outboundModel.InsertWithTx(tx, outbound)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "Insert Outbound Failed|Err:%v", err)
+		return err
+	}
+	goodsUpdateList := make([]*model.Goods, 0, len(details))
+	for _, item := range details {
+		item.OutboundID = outbound.ID
+		goodsUpdateList = append(goodsUpdateList, &model.Goods{ID: item.GoodsID, Quantity: -item.OutNumber})
+	}
+	err = ss.outboundDetailModel.BatchInsertWithTx(tx, details)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "BatchInsert OutboundDetail Failed|Err:%v", err)
+		return err
+	}
+
+	err = ss.goodsModel.BatchAddQuantityWithTx(tx, goodsUpdateList)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "BatchDelQuantity Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
+func (ss *StoreService) GetOutboundList(uid, outboundID uint32, startTime, endTime int64,
+	page, pageSize int32) ([]*model.OutboundOrder, int32, map[uint32][]*model.OutboundDetail, error) {
+	outboundList, err := ss.outboundModel.GetOutboundOrderList(outboundID, uid, startTime, endTime, page, pageSize)
+	if err != nil {
+		logger.Warn(purchaseServiceLogTag, "GetOutboundOrderList Failed|Err:%v", err)
+		return nil, 0, nil, err
+	}
+	purchaseCount, err := ss.outboundModel.GetOutboundOrderCount(outboundID, uid, startTime, endTime)
+	if err != nil {
+		logger.Warn(orderServiceLogTag, "GetOutboundOrderCount Failed|Err:%v", err)
+		return nil, 0, nil, err
+	}
+
+	if len(outboundList) == 0 {
+		return make([]*model.OutboundOrder, 0), 0, make(map[uint32][]*model.OutboundDetail), nil
+	}
+
+	orderIDList := make([]uint32, 0, len(outboundList))
+	for _, outbound := range outboundList {
+		orderIDList = append(orderIDList, outbound.ID)
+	}
+	details, err := ss.outboundDetailModel.GetOutboundDetailByOrderList(orderIDList, 0)
+	if err != nil {
+		logger.Warn(orderServiceLogTag, "GetOutboundDetailByOrderList Failed|Err:%v", err)
+		return nil, 0, nil, err
+	}
+
+	detailMap := make(map[uint32][]*model.OutboundDetail, 0)
+	for _, detail := range details {
+		if _, ok := detailMap[detail.OutboundID]; ok == false {
+			detailMap[detail.OutboundID] = make([]*model.OutboundDetail, 0)
+		}
+		detailMap[detail.OutboundID] = append(detailMap[detail.OutboundID], detail)
+	}
+	return outboundList, purchaseCount, detailMap, nil
 }

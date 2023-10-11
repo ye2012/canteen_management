@@ -22,7 +22,7 @@ const (
 type PurchaseStatus = int8
 
 const (
-	PurchaseNew = iota
+	PurchaseNew PurchaseStatus = iota
 	PurchaseReviewed
 	PurchaseAccept
 	PurchaseReceived
@@ -47,4 +47,11 @@ type PayMethod = uint8
 const (
 	PayMethodWeChat PayMethod = iota
 	PayMethodCash
+)
+
+type OutboundStatus = int8
+
+const (
+	OutboundNew OutboundStatus = iota
+	OutboundReviewed
 )

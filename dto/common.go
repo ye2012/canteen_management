@@ -110,3 +110,11 @@ func GetCustomContextInfo(c *gin.Context) *CustomContextInfo {
 	}
 	return customInfo.(*CustomContextInfo)
 }
+
+type PurchaseGoodsBase struct {
+	ID           uint32  `json:"id"`
+	GoodsID      uint32  `json:"goods_id"`
+	Name         string  `json:"name"`
+	GoodsTypeID  uint32  `json:"goods_type_id"`
+	ExpectNumber float64 `json:"expect_number"`
+}

@@ -94,6 +94,32 @@ func (gm *GoodsModel) GetAllGoods() ([]*Goods, error) {
 	return retList.([]*Goods), nil
 }
 
+func (gm *GoodsModel) GetGoodsByIDListWithLock(tx *sql.Tx, goodsIdList []uint32) ([]*Goods, error) {
+	if len(goodsIdList) == 0 {
+		return make([]*Goods, 0), nil
+	}
+	idStr := ""
+	for _, goodsID := range goodsIdList {
+		idStr += "," + fmt.Sprintf("%v", goodsID)
+	}
+	contidion := fmt.Sprintf(" WHERE `id` in (%v)", idStr[1:])
+	if tx != nil {
+		retList, err := utils.SqlQueryWithLock(tx, goodsTable, &Goods{}, contidion)
+		if err != nil {
+			logger.Warn(goodsLogTag, "GetGoodsWithLock Failed|Err:%v", err)
+			return nil, err
+		}
+		return retList.([]*Goods), nil
+	}
+
+	retList, err := utils.SqlQueryWithLock(gm.sqlCli, goodsTable, &Goods{}, contidion)
+	if err != nil {
+		logger.Warn(goodsLogTag, "GetGoodsWithLock Failed|Err:%v", err)
+		return nil, err
+	}
+	return retList.([]*Goods), nil
+}
+
 func (gm *GoodsModel) GetGoods(goodsType, storeType uint32, page, pageSize int32) ([]*Goods, error) {
 	condition := " WHERE 1=1 "
 	var params []interface{}

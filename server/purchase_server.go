@@ -201,7 +201,55 @@ func (ps *PurchaseServer) RequestReceivePurchase(ctx *gin.Context, rawReq interf
 }
 
 func (ps *PurchaseServer) RequestApplyOutbound(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.ApplyOutboundReq)
+	uid := uint32(0)
+
+	goodsMap, err := ps.storeService.GetGoodsMap()
+	if err != nil {
+		res.Code = enum.SystemError
+		res.Msg = err.Error()
+		return
+	}
+
+	details := conv.ConvertFromApplyOutbound(req.GoodsList, goodsMap)
+	outboundOrder := &model.OutboundOrder{Creator: uid, Status: enum.OutboundNew}
+	err = ps.storeService.ApplyOutboundOrder(outboundOrder, details)
+	if err != nil {
+		res.Code = enum.SqlError
+		res.Msg = err.Error()
+		return
+	}
+
+	ps.cartService.ClearCart(uid, enum.CartTypeOutbound)
 }
 
 func (ps *PurchaseServer) RequestOutboundOrderList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.OutboundListReq)
+	goodsMap, err := ps.storeService.GetGoodsMap()
+	if err != nil {
+		logger.Warn(purchaseServerLogTag, "GetGoodsMap Failed|Err:%v", err)
+		res.Code = enum.SystemError
+		return
+	}
+
+	outboundList, totalNumber, detailMap, err := ps.storeService.GetOutboundList(req.Uid, req.PurchaseID,
+		req.StartTime, req.EndTime, req.Page, req.PageSize)
+	if err != nil {
+		logger.Warn(purchaseServerLogTag, "GetOutboundList Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		res.Msg = err.Error()
+		return
+	}
+
+	orderInfoList := conv.ConvertToOutboundInfoList(outboundList, detailMap, goodsMap)
+	resData := &dto.OutboundListRes{
+		OutboundList: orderInfoList,
+		PaginationRes: dto.PaginationRes{
+			Page:        req.Page,
+			PageSize:    req.PageSize,
+			TotalNumber: totalNumber,
+		},
+	}
+	res.Data = resData
+
 }

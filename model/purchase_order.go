@@ -26,7 +26,7 @@ type PurchaseOrder struct {
 	TotalAmount float64   `json:"total_amount"`
 	PayAmount   float64   `json:"pay_amount"`
 	Creator     uint32    `json:"creator"`
-	Status      uint8     `json:"status"`
+	Status      int8      `json:"status"`
 	CreateAt    time.Time `json:"created_at"`
 	UpdateAt    time.Time `json:"updated_at"`
 }
@@ -101,7 +101,7 @@ func (pom *PurchaseOrderModel) GetPurchaseOrder(id uint32) (*PurchaseOrder, erro
 	retInfo := &PurchaseOrder{}
 	err := utils.SqlQueryRow(pom.sqlCli, purchaseOrderTable, retInfo, condition, params...)
 	if err != nil {
-		logger.Warn(orderLogTag, "GetOrder Failed|ID:%v|Err:%v", id, err)
+		logger.Warn(purchaseOrderLogTag, "GetOrder Failed|ID:%v|Err:%v", id, err)
 		return nil, err
 	}
 

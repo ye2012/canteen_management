@@ -82,7 +82,7 @@ func (us *UserServer) RequestCanteenLogin(ctx *gin.Context, rawReq interface{}, 
 	res.Data = resData
 }
 
-func (us *UserServer) RequestKitchenLoginLogin(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+func (us *UserServer) RequestKitchenLogin(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.KitchenLoginReq)
 
 	openID, err := utils.MiniProgramLogin(config.Config.AppID, config.Config.AppSecret, req.Code)

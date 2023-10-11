@@ -58,7 +58,7 @@ func ConvertToPurchaseInfoList(purchaseList []*model.PurchaseOrder, detailMap ma
 			GoodsList:     make([]*dto.PurchaseGoodsInfo, 0),
 			TotalAmount:   purchase.TotalAmount,
 			PaymentAmount: purchase.PayAmount,
-			Status:        purchase.Status,
+			Status:        uint8(purchase.Status),
 		}
 		details, ok := detailMap[purchase.ID]
 		if !ok {
@@ -66,13 +66,64 @@ func ConvertToPurchaseInfoList(purchaseList []*model.PurchaseOrder, detailMap ma
 		}
 		for _, detail := range details {
 			purchaseGoods := &dto.PurchaseGoodsInfo{
-				ID:            detail.ID,
-				GoodsID:       detail.GoodsID,
-				Name:          goodsMap[detail.GoodsID].Name,
-				GoodsTypeID:   detail.GoodsType,
-				ExpectNumber:  detail.ExpectNumber,
+				PurchaseGoodsBase: dto.PurchaseGoodsBase{
+					ID:           detail.ID,
+					GoodsID:      detail.GoodsID,
+					Name:         goodsMap[detail.GoodsID].Name,
+					GoodsTypeID:  detail.GoodsType,
+					ExpectNumber: detail.ExpectNumber,
+				},
 				ReceiveNumber: detail.ReceiveNumber,
 				Price:         detail.Price,
+			}
+			retInfo.GoodsList = append(retInfo.GoodsList, purchaseGoods)
+		}
+		retList = append(retList, retInfo)
+	}
+	return retList
+}
+
+func ConvertFromApplyOutbound(goodsList []*dto.OutboundGoodsInfo, goodsMap map[uint32]*model.Goods) []*model.OutboundDetail {
+	detailList := make([]*model.OutboundDetail, 0, len(goodsList))
+	for _, outboundGoods := range goodsList {
+		goods, ok := goodsMap[outboundGoods.GoodsID]
+		if ok == false {
+			continue
+		}
+		detail := &model.OutboundDetail{
+			ID:        outboundGoods.ID,
+			GoodsID:   goods.ID,
+			GoodsType: goods.GoodsTypeID,
+			OutNumber: outboundGoods.ExpectNumber,
+			Price:     goods.Price,
+		}
+		detailList = append(detailList, detail)
+	}
+	return detailList
+}
+
+func ConvertToOutboundInfoList(outboundList []*model.OutboundOrder, detailMap map[uint32][]*model.OutboundDetail,
+	goodsMap map[uint32]*model.Goods) []*dto.OutboundOrderInfo {
+	retList := make([]*dto.OutboundOrderInfo, 0, len(outboundList))
+	for _, outbound := range outboundList {
+		retInfo := &dto.OutboundOrderInfo{
+			ID:          outbound.ID,
+			GoodsList:   make([]*dto.OutboundGoodsInfo, 0),
+			TotalAmount: outbound.TotalAmount,
+		}
+		details, ok := detailMap[outbound.ID]
+		if !ok {
+			continue
+		}
+		for _, detail := range details {
+			purchaseGoods := &dto.OutboundGoodsInfo{
+				PurchaseGoodsBase: dto.PurchaseGoodsBase{
+					ID:           detail.ID,
+					GoodsID:      detail.GoodsID,
+					Name:         goodsMap[detail.GoodsID].Name,
+					GoodsTypeID:  detail.GoodsType,
+					ExpectNumber: detail.OutNumber,
+				},
 			}
 			retInfo.GoodsList = append(retInfo.GoodsList, purchaseGoods)
 		}
