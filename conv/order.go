@@ -19,12 +19,20 @@ const (
 func ConvertMenuToOrderNode(menuDate int64, dayMenu map[uint8][]uint32, dishMap map[uint32]*model.Dish,
 	typeMap map[uint32]*model.DishType, dishQuantityMap map[string]float64, includeAll bool) []*dto.OrderNode {
 	retData := make([]*dto.OrderNode, 0)
-	for mealType, totalDishList := range dayMenu {
+	for mealType := enum.MealUnknown + 1; mealType < enum.MealALL; mealType++ {
+		totalDishList, ok := dayMenu[mealType]
+		if !ok {
+			continue
+		}
+
 		mealName := time.Unix(menuDate, 0).Format("01-02") + enum.GetMealName(mealType)
 		retMeal := &dto.OrderNode{ID: fmt.Sprintf("%v_%v", menuDate, mealType), Name: mealName}
-		dishListByType := make(map[uint32][]*model.Dish)
+		dishListByType, maxTypeID := make(map[uint32][]*model.Dish), uint32(0)
 		for _, dishID := range totalDishList {
 			dishType := dishMap[dishID].DishType
+			if dishType > maxTypeID {
+				maxTypeID = dishType
+			}
 			if _, ok := dishListByType[dishType]; ok == false {
 				dishListByType[dishType] = make([]*model.Dish, 0)
 			}
@@ -33,7 +41,11 @@ func ConvertMenuToOrderNode(menuDate int64, dayMenu map[uint8][]uint32, dishMap 
 
 		retMeal.Children = make([]*dto.OrderNode, 0, len(dishListByType))
 		mealSelected := int32(0)
-		for dishType, dishList := range dishListByType {
+		for dishType := uint32(1); dishType < maxTypeID; dishType++ {
+			dishList, ok := dishListByType[dishType]
+			if !ok {
+				continue
+			}
 			retListByType := &dto.OrderNode{ID: fmt.Sprintf("%v", dishType), Name: typeMap[dishType].DishTypeName}
 			retListByType.Children = make([]*dto.OrderNode, 0, len(dishList))
 			for index, dish := range dishList {
@@ -46,9 +58,11 @@ func ConvertMenuToOrderNode(menuDate int64, dayMenu map[uint8][]uint32, dishMap 
 			}
 			retMeal.Children = append(retMeal.Children, retListByType)
 		}
+
 		retMeal.SelectedNumber = mealSelected
 		retData = append(retData, retMeal)
 	}
+
 	return retData
 }
 

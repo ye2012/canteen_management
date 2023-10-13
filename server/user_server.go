@@ -1,6 +1,7 @@
 package server
 
 import (
+	"fmt"
 	"github.com/canteen_management/config"
 	"github.com/canteen_management/conv"
 	"github.com/canteen_management/dto"
@@ -10,6 +11,7 @@ import (
 	"github.com/canteen_management/service"
 	"github.com/canteen_management/utils"
 	"github.com/gin-gonic/gin"
+	"strconv"
 )
 
 const (
@@ -69,10 +71,38 @@ func (us *UserServer) RequestCanteenLogin(ctx *gin.Context, rawReq interface{}, 
 		Uid:         user.ID,
 		OpenID:      user.OpenID,
 		PhoneNumber: user.PhoneNumber,
-		Role:        role,
+		RoleList:    conv.ConvertToRoleList(role),
 	}
 	discountType := us.userService.GetWxUserDiscount(user.OpenID)
 	resData.ExtraPay, resData.Discount, resData.DiscountLeft, err = us.orderService.LoginUserOrderDiscountInfo(user.ID, discountType)
+	resData.DiscountLeft, _ = strconv.ParseFloat(fmt.Sprintf("%.2f", resData.DiscountLeft), 64)
+	if err != nil {
+		res.Code = enum.SqlError
+		res.Msg = err.Error()
+		return
+	}
+
+	res.Data = resData
+}
+
+func (us *UserServer) RequestCanteenUserCenter(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.CanteenUserCenterReq)
+
+	wxUser, err := us.userService.GetWxUser(req.Uid)
+	if err != nil {
+		res.Code = enum.SqlError
+		res.Msg = "用户不存在"
+		return
+	}
+
+	role := us.userService.GetWxUserRole(wxUser.OpenID)
+	resData := &dto.CanteenUserCenterRes{
+		PhoneNumber: wxUser.PhoneNumber,
+		RoleList:    conv.ConvertToRoleList(role),
+	}
+	discountType := us.userService.GetWxUserDiscount(wxUser.OpenID)
+	resData.ExtraPay, resData.Discount, resData.DiscountLeft, err = us.orderService.LoginUserOrderDiscountInfo(wxUser.ID, discountType)
+	resData.DiscountLeft, _ = strconv.ParseFloat(fmt.Sprintf("%.2f", resData.DiscountLeft), 64)
 	if err != nil {
 		res.Code = enum.SqlError
 		res.Msg = err.Error()
@@ -103,9 +133,27 @@ func (us *UserServer) RequestKitchenLogin(ctx *gin.Context, rawReq interface{}, 
 		Uid:         user.ID,
 		OpenID:      user.OpenID,
 		PhoneNumber: user.PhoneNumber,
-		Role:        role,
+		RoleList:    conv.ConvertToRoleList(role),
 	}
 
+	res.Data = resData
+}
+
+func (us *UserServer) RequestKitchenUserCenter(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.KitchenUserCenterReq)
+
+	wxUser, err := us.userService.GetWxUser(req.Uid)
+	if err != nil {
+		res.Code = enum.SqlError
+		res.Msg = "用户不存在"
+		return
+	}
+
+	role := us.userService.GetWxUserRole(wxUser.OpenID)
+	resData := &dto.KitchenUserCenterRes{
+		PhoneNumber: wxUser.PhoneNumber,
+		RoleList:    conv.ConvertToRoleList(role),
+	}
 	res.Data = resData
 }
 

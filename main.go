@@ -83,6 +83,10 @@ func HandleUserApi(router *gin.Engine) error {
 		func() interface{} { return new(dto.KitchenLoginReq) }))
 	userRouter.POST("/bindPhoneNumber", NewHandler(userServer.RequestBindPhoneNumber,
 		func() interface{} { return new(dto.BindPhoneNumberReq) }))
+	userRouter.POST("/canteenUserCenter", NewHandler(userServer.RequestCanteenUserCenter,
+		func() interface{} { return new(dto.CanteenUserCenterReq) }))
+	userRouter.POST("/kitchenUserCenter", NewHandler(userServer.RequestKitchenUserCenter,
+		func() interface{} { return new(dto.KitchenUserCenterReq) }))
 
 	userRouter.POST("/orderUserList", NewHandler(userServer.RequestOrderUserList,
 		func() interface{} { return new(dto.OrderUserListReq) }))
@@ -323,7 +327,7 @@ func NewHandler(dealFunc RequestDealFunc, reqGen ReqGenerateFunc) gin.HandlerFun
 			}
 		}
 		defer func() {
-			logger.Debug(serverLogTag, "Path:%v|Res:%+v", ctx.FullPath(), res)
+			logger.Debug(serverLogTag, "Path:%v|Res:%+v|%+v", ctx.FullPath(), res.Code, res.Data)
 			ctx.JSON(http.StatusOK, res)
 		}()
 		dealFunc(ctx, req, res)

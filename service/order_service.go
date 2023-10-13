@@ -176,7 +176,7 @@ func (os *OrderService) ApplyOrder(tx *sql.Tx, order *model.OrderDao, items []*m
 	payAmount = payAmount - discountAmount
 	realDiscount := discountAmount
 	if payAmount < 0 {
-		realDiscount = payAmount
+		realDiscount = totalAmount
 		payAmount = 0
 	}
 
@@ -400,6 +400,7 @@ func (os *OrderService) LoginUserOrderDiscountInfo(uid uint32, discountType uint
 		if payOrder.Status == enum.PayOrderFinish {
 			minPay = 0
 		}
+		logger.Debug(orderServiceLogTag, "Discount:%f|OrderDiscount:%f", discountAmount, payOrder.DiscountAmount)
 	}
 
 	return minPay, totalDiscount, discountAmount, nil
