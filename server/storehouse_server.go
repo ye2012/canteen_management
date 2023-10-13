@@ -16,7 +16,8 @@ const (
 )
 
 type StorehouseServer struct {
-	storeService *service.StoreService
+	storeService     *service.StoreService
+	inventoryService *service.InventoryService
 }
 
 func NewStorehouseServer(dbConf utils.Config) (*StorehouseServer, error) {
@@ -26,8 +27,10 @@ func NewStorehouseServer(dbConf utils.Config) (*StorehouseServer, error) {
 		return nil, err
 	}
 	storeService := service.NewStoreService(sqlCli)
+	inventoryService := service.NewInventoryService(sqlCli)
 	return &StorehouseServer{
-		storeService: storeService,
+		storeService:     storeService,
+		inventoryService: inventoryService,
 	}, nil
 }
 
@@ -219,12 +222,15 @@ func (ss *StorehouseServer) RequestGoodsNodeList(ctx *gin.Context, rawReq interf
 		return
 	}
 
-	goodsSelectedMap, totalCost, totalGoods := make(map[string]float64), 0.0, 0.0
+	goodsSelectedMap, totalCost, totalGoods, cartID := make(map[string]float64), 0.0, 0.0, uint32(0)
 	if uid != 0 {
-		_, cartDetails, err := ss.storeService.GetCart(uid, req.CartType)
+		cart, cartDetails, err := ss.storeService.GetCart(uid, req.CartType)
 		if err != nil {
 			res.Code = enum.SystemError
 			return
+		}
+		if cart != nil {
+			cartID = cart.ID
 		}
 		for _, detail := range cartDetails {
 			goodsSelectedMap[detail.ItemID] = detail.Quantity
@@ -244,18 +250,85 @@ func (ss *StorehouseServer) RequestGoodsNodeList(ctx *gin.Context, rawReq interf
 		GoodsMap:   goodsSelectedMap,
 		TotalGoods: totalGoods,
 		TotalCost:  totalCost,
+		CartID:     cartID,
 	}
 	res.Data = retData
 }
 
-func (ss *StorehouseServer) RequestInventoryOrder(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+func (ss *StorehouseServer) RequestInventoryOrderList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.InventoryListReq)
+	goodsMap, err := ss.storeService.GetGoodsMap()
+	if err != nil {
+		logger.Warn(storeServerLogTag, "GetGoodsMap Failed|Err:%v", err)
+		res.Code = enum.SystemError
+		return
+	}
+
+	orderList, orderCount, detailMap, err := ss.inventoryService.InventoryOrderList(req.InventoryID, req.Uid,
+		req.Status, req.StartTime, req.EndTime, req.Page, req.PageSize)
+	if err != nil {
+		logger.Warn(storeServerLogTag, "GetInventoryList Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		res.Msg = err.Error()
+		return
+	}
+
+	orderInfoList := conv.ConvertToInventoryInfoList(orderList, detailMap, goodsMap)
+	resData := &dto.InventoryListRes{
+		InventoryList: orderInfoList,
+		PaginationRes: dto.PaginationRes{
+			Page:        req.Page,
+			PageSize:    req.PageSize,
+			TotalNumber: orderCount,
+		},
+	}
+	res.Data = resData
 }
 
 func (ss *StorehouseServer) RequestStartInventory(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.StartInventoryReq)
+
+	err := ss.inventoryService.StartInventory(req.Uid)
+	if err != nil {
+		logger.Warn(storeServerLogTag, "StartInventory Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		res.Msg = err.Error()
+		return
+	}
+}
+
+func (ss *StorehouseServer) RequestInventory(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.InventoryReq)
+
+	inventoryDetail := conv.ConvertFromApplyInventory(req.InventoryGoodsInfo)
+	err := ss.inventoryService.UpdateInventory(inventoryDetail)
+	if err != nil {
+		logger.Warn(storeServerLogTag, "UpdateInventory Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		res.Msg = err.Error()
+		return
+	}
 }
 
 func (ss *StorehouseServer) RequestApplyInventory(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.ApplyInventoryReq)
+
+	err := ss.inventoryService.ApplyInventory(req.InventoryID)
+	if err != nil {
+		logger.Warn(storeServerLogTag, "ApplyInventory Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		res.Msg = err.Error()
+		return
+	}
 }
 
-func (ss *StorehouseServer) RequestConfirmInventory(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+func (ss *StorehouseServer) RequestReviewInventory(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.ReviewInventoryReq)
+	err := ss.inventoryService.ReviewInventory(req.InventoryID)
+	if err != nil {
+		logger.Warn(storeServerLogTag, "ReviewInventory Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		res.Msg = err.Error()
+		return
+	}
 }

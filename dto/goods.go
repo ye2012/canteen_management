@@ -99,4 +99,5 @@ type GoodsNodeListRes struct {
 	GoodsMap   map[string]float64 `json:"goods_map"`
 	TotalCost  float64            `json:"total_cost"`
 	TotalGoods float64            `json:"total_goods"`
+	CartID     uint32             `json:"cart_id"`
 }

@@ -39,13 +39,14 @@ type OutboundGoodsInfo struct {
 }
 
 type ApplyOutboundReq struct {
+	Uid       uint32               `json:"uid"`
 	GoodsList []*OutboundGoodsInfo `json:"goods_list"`
 }
 
 type OutboundListReq struct {
 	PaginationReq
 	Uid        uint32 `json:"uid"`
-	PurchaseID uint32 `json:"outbound_id"`
+	OutboundID uint32 `json:"outbound_id"`
 	StartTime  int64  `json:"start_time"`
 	EndTime    int64  `json:"end_time"`
 }
@@ -59,4 +60,49 @@ type OutboundOrderInfo struct {
 type OutboundListRes struct {
 	PaginationRes
 	OutboundList []*OutboundOrderInfo `json:"outbound_list"`
+}
+
+type InventoryListReq struct {
+	PaginationReq
+	Uid         uint32 `json:"uid"`
+	InventoryID uint32 `json:"inventory_id"`
+	Status      int8   `json:"status"`
+	StartTime   int64  `json:"start_time"`
+	EndTime     int64  `json:"end_time"`
+}
+
+type InventoryGoodsInfo struct {
+	PurchaseGoodsBase
+	RealNumber float64 `json:"real_number"`
+	Tag        string  `json:"tag"`
+	Status     int8    `json:"status"`
+}
+
+type InventoryOrderInfo struct {
+	ID        uint32                `json:"id"`
+	Status    int8                  `json:"status"`
+	GoodsList []*InventoryGoodsInfo `json:"goods_list"`
+}
+
+type InventoryListRes struct {
+	PaginationRes
+	InventoryList []*InventoryOrderInfo `json:"inventory_list"`
+}
+
+type InventoryReq struct {
+	InventoryID        uint32              `json:"inventory_id"`
+	InventoryGoodsInfo *InventoryGoodsInfo `json:"inventory_goods_info"`
+}
+
+type ApplyInventoryReq struct {
+	Uid         uint32 `json:"uid"`
+	InventoryID uint32 `json:"inventory_id"`
+}
+
+type ReviewInventoryReq struct {
+	InventoryID uint32 `json:"inventory_id"`
+}
+
+type StartInventoryReq struct {
+	Uid uint32 `json:"uid"`
 }

@@ -25,6 +25,7 @@ type PayOrderDao struct {
 	MealTime       time.Time `json:"meal_time"`
 	Uid            uint32    `json:"uid"`
 	OpenID         string    `json:"open_id"`
+	CartID         uint32    `json:"cart_id"`
 	BuildingID     uint32    `json:"building_id"`
 	Floor          uint32    `json:"floor"`
 	Room           string    `json:"room"`
@@ -76,7 +77,7 @@ func (pom *PayOrderModel) UpdatePayOrderInfoByID(tx *sql.Tx, order *PayOrderDao,
 	return nil
 }
 
-func (pom *PayOrderModel) GenerateCondition(idList []uint32, uid uint32, statusList []int8, timeStart, timeEnd int64) (string, []interface{}) {
+func (pom *PayOrderModel) GenerateCondition(idList []uint32, uid, cartID uint32, statusList []int8, timeStart, timeEnd int64) (string, []interface{}) {
 	condition := " WHERE 1=1 "
 	params := make([]interface{}, 0)
 	if len(idList) > 0 {
@@ -89,6 +90,10 @@ func (pom *PayOrderModel) GenerateCondition(idList []uint32, uid uint32, statusL
 	if uid > 0 {
 		condition += " AND `uid` = ? "
 		params = append(params, uid)
+	}
+	if cartID > 0 {
+		condition += " AND `cart_id` = ? "
+		params = append(params, cartID)
 	}
 	if len(statusList) > 0 {
 		statusStr := ""
@@ -114,7 +119,7 @@ func (pom *PayOrderModel) GetPayOrderList(idList []uint32, uid uint32, page, pag
 	if status != -1 {
 		statusList = append(statusList, status)
 	}
-	condition, params := pom.GenerateCondition(idList, uid, statusList, 0, 0)
+	condition, params := pom.GenerateCondition(idList, uid, 0, statusList, 0, 0)
 	condition += " ORDER BY `id` ASC LIMIT ?,? "
 	params = append(params, (page-1)*pageSize, pageSize)
 	retList, err := utils.SqlQuery(pom.sqlCli, payOrderTable, &PayOrderDao{}, condition, params...)
@@ -128,7 +133,7 @@ func (pom *PayOrderModel) GetPayOrderList(idList []uint32, uid uint32, page, pag
 
 func (pom *PayOrderModel) GetAllPayOrderList(idList []uint32, uid uint32, statusList []int8,
 	timeStart, timeEnd int64) ([]*PayOrderDao, error) {
-	condition, params := pom.GenerateCondition(idList, uid, statusList, timeStart, timeEnd)
+	condition, params := pom.GenerateCondition(idList, uid, 0, statusList, timeStart, timeEnd)
 	retList, err := utils.SqlQueryWithLock(pom.sqlCli, payOrderTable, &PayOrderDao{}, condition, params...)
 	if err != nil {
 		logger.Warn(payOrderLogTag, "GetPayOrderList Failed|ID:%v|Uid:%v|Status:%v|Err:%v", idList, uid, statusList, err)
@@ -143,7 +148,7 @@ func (pom *PayOrderModel) GetPayOrderListWithLock(tx *sql.Tx, idList []uint32, u
 	if tx == nil {
 		return nil, fmt.Errorf("tx can not be null")
 	}
-	condition, params := pom.GenerateCondition(idList, uid, statusList, timeStart, timeEnd)
+	condition, params := pom.GenerateCondition(idList, uid, 0, statusList, timeStart, timeEnd)
 	retList, err := utils.SqlQueryWithLock(tx, payOrderTable, &PayOrderDao{}, condition, params...)
 	if err != nil {
 		logger.Warn(payOrderLogTag, "GetPayOrderListWithLock Failed|ID:%v|Uid:%v|Status:%v|Err:%v",
@@ -159,7 +164,7 @@ func (pom *PayOrderModel) GetPayOrderListCount(idList []uint32, uid uint32, stat
 	if status != -1 {
 		statusList = append(statusList, status)
 	}
-	condition, params := pom.GenerateCondition(idList, uid, statusList, 0, 0)
+	condition, params := pom.GenerateCondition(idList, uid, 0, statusList, 0, 0)
 	sqlStr := fmt.Sprintf("SELECT COUNT(*) FROM %v %v", payOrderTable, condition)
 	row := pom.sqlCli.QueryRow(sqlStr, params...)
 	var count int32 = 0
@@ -171,19 +176,22 @@ func (pom *PayOrderModel) GetPayOrderListCount(idList []uint32, uid uint32, stat
 	return count, nil
 }
 
-func (pom *PayOrderModel) GetPayOrder(id uint32) (*PayOrderDao, error) {
-	condition := " WHERE 1=1 "
-	params := make([]interface{}, 0)
-	if id > 0 {
-		condition += " AND `id` = ? "
-		params = append(params, id)
+func (pom *PayOrderModel) GetPayOrderByCondition(tx *sql.Tx, condition string, params ...interface{}) (*PayOrderDao, error) {
+	retInfo, err := &PayOrderDao{}, error(nil)
+	if tx != nil {
+		err = utils.SqlQueryRowWithLock(tx, payOrderTable, retInfo, condition, params...)
+	} else {
+		err = utils.SqlQueryRow(pom.sqlCli, payOrderTable, retInfo, condition, params...)
 	}
-	retInfo := &PayOrderDao{}
-	err := utils.SqlQueryRow(pom.sqlCli, payOrderTable, retInfo, condition, params...)
 	if err != nil {
-		logger.Warn(payOrderLogTag, "GetOrder Failed|ID:%v|Err:%v", id, err)
+		logger.Warn(payOrderLogTag, "GetPayOrderByCondition Failed|Condition:%v|params:%v|Err:%v",
+			condition, params, err)
 		return nil, err
 	}
 
 	return retInfo, nil
+}
+
+func (pom *PayOrderModel) GetPayOrder(id uint32) (*PayOrderDao, error) {
+	return pom.GetPayOrderByCondition(nil, " WHERE `id` = ? ", id)
 }

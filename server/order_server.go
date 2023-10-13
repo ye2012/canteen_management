@@ -77,12 +77,15 @@ func (os *OrderServer) RequestOrderMenu(ctx *gin.Context, rawReq interface{}, re
 		res.Code = enum.SystemError
 		return
 	}
-	dishQuantityMap, totalCost, totalGoods := make(map[string]float64), 0.0, 0.0
+	dishQuantityMap, totalCost, totalGoods, cartID := make(map[string]float64), 0.0, 0.0, uint32(0)
 	if uid != 0 {
-		_, cartDetails, err := os.cartService.GetCart(uid, enum.CartTypeOrder)
+		cart, cartDetails, err := os.cartService.GetCart(uid, enum.CartTypeOrder)
 		if err != nil {
 			res.Code = enum.SystemError
 			return
+		}
+		if cart != nil {
+			cartID = cart.ID
 		}
 		for _, detail := range cartDetails {
 			dishQuantityMap[detail.ItemID] = detail.Quantity
@@ -101,6 +104,7 @@ func (os *OrderServer) RequestOrderMenu(ctx *gin.Context, rawReq interface{}, re
 		GoodsMap:   dishQuantityMap,
 		TotalGoods: totalGoods,
 		TotalCost:  totalCost,
+		CartID:     cartID,
 	}
 	res.Data = resData
 }
@@ -170,8 +174,14 @@ func (os *OrderServer) ProcessApplyOrder(uid uint32, req *dto.ApplyPayOrderReq, 
 		return "", enum.ParamsError, "ID不合法"
 	}
 
+	err = os.cartService.CheckCart(req.CartID, req.Uid, enum.CartTypeOrder)
+	if err != nil {
+		logger.Warn(orderServerLogTag, "CheckCart Failed|Err:%v", err)
+		return "", enum.SystemError, err.Error()
+	}
+
 	applyPay.PayOrder.MealTime = applyPay.OrderList[0].Order.OrderDate
-	prepareID, totalAmount, payAmount, err := os.orderService.ApplyPayOrder(applyPay, dishMap, discountLevel)
+	prepareID, totalAmount, payAmount, err := os.orderService.ApplyPayOrder(applyPay, dishMap, discountLevel, req.CartID)
 	if err != nil {
 		logger.Warn(orderServerLogTag, "ApplyPayOrder Failed|Err:%v", err)
 		return "", enum.SqlError, err.Error()
@@ -481,7 +491,7 @@ func (os *OrderServer) RequestModifyCart(ctx *gin.Context, rawReq interface{}, r
 		return
 	}
 
-	_, cartDetails, err := os.cartService.ModifyCart(uid, req.ItemID, req.Quantity, req.CartType)
+	cart, cartDetails, err := os.cartService.ModifyCart(uid, req.ItemID, req.Quantity, req.CartType)
 	if err != nil {
 		res.Code = enum.SqlError
 		res.Msg = err.Error()
@@ -492,6 +502,10 @@ func (os *OrderServer) RequestModifyCart(ctx *gin.Context, rawReq interface{}, r
 		GoodsMap:   make(map[string]float64),
 		TotalCost:  0.0,
 		TotalGoods: 0,
+		CartID:     0,
+	}
+	if cart != nil {
+		retData.CartID = cart.ID
 	}
 	for _, detail := range cartDetails {
 		retData.GoodsMap[detail.ItemID] = detail.Quantity

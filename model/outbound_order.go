@@ -118,20 +118,3 @@ func (oom *OutboundOrderModel) GetOutboundOrderCount(id uint32, creator uint32, 
 	}
 	return count, nil
 }
-
-func (oom *OutboundOrderModel) UpdatePurchaseWithTx(tx *sql.Tx, dao *OutboundOrder, updateTags ...string) (err error) {
-	if tx != nil {
-		err = utils.SqlUpdateWithUpdateTags(tx, outboundOrderTable, dao, "id", updateTags...)
-	} else {
-		err = utils.SqlUpdateWithUpdateTags(oom.sqlCli, outboundOrderTable, dao, "id", updateTags...)
-	}
-	if err != nil {
-		logger.Warn(outboundOrderLogTag, "UpdatePurchase Failed|Err:%v", err)
-		return err
-	}
-	return nil
-}
-
-func (oom *OutboundOrderModel) UpdatePurchase(dao *OutboundOrder, updateTags ...string) error {
-	return oom.UpdatePurchaseWithTx(nil, dao, updateTags...)
-}

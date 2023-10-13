@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/canteen_management/enum"
@@ -49,7 +50,7 @@ func NewOrderService(sqlCli *sql.DB) *OrderService {
 }
 
 func (os *OrderService) ApplyPayOrder(applyInfo *ApplyPayOrderInfo, dishMap map[uint32]*model.Dish,
-	discountType uint8) (prepareID string, totalAmount, payAmount float64, err error) {
+	discountType uint8, cartID uint32) (prepareID string, totalAmount, payAmount float64, err error) {
 	discountAmount := 0.0
 	if discountType > 0 {
 		discountInfo := &model.OrderDiscount{}
@@ -67,6 +68,16 @@ func (os *OrderService) ApplyPayOrder(applyInfo *ApplyPayOrderInfo, dishMap map[
 		return
 	}
 	defer utils.End(tx, err)
+
+	prePayOrder, err := os.payOrderModel.GetPayOrderByCondition(tx, " WHERE `cart_id` = ?", cartID)
+	if err != nil && err != sql.ErrNoRows {
+		logger.Warn(orderServiceLogTag, "ApplyPayOrder GetPayOrderByCartID Failed|Err:%v", err)
+		return
+	}
+	if prePayOrder != nil {
+		logger.Warn(orderServiceLogTag, "ApplyPayOrder Cart Already Processed|CartID:%v", cartID)
+		return "", 0, 0, fmt.Errorf("订单已经提交了")
+	}
 
 	timeStart, timeEnd := utils.GetDayTimeRange(applyInfo.OrderList[0].Order.OrderDate.Unix())
 	prePayOrders, err := os.payOrderModel.GetPayOrderListWithLock(tx, []uint32{}, applyInfo.PayOrder.Uid,

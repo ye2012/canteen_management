@@ -202,7 +202,7 @@ func (ps *PurchaseServer) RequestReceivePurchase(ctx *gin.Context, rawReq interf
 
 func (ps *PurchaseServer) RequestApplyOutbound(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.ApplyOutboundReq)
-	uid := uint32(0)
+	uid := req.Uid
 
 	goodsMap, err := ps.storeService.GetGoodsMap()
 	if err != nil {
@@ -232,7 +232,7 @@ func (ps *PurchaseServer) RequestOutboundOrderList(ctx *gin.Context, rawReq inte
 		return
 	}
 
-	outboundList, totalNumber, detailMap, err := ps.storeService.GetOutboundList(req.Uid, req.PurchaseID,
+	outboundList, totalNumber, detailMap, err := ps.storeService.GetOutboundList(req.Uid, req.OutboundID,
 		req.StartTime, req.EndTime, req.Page, req.PageSize)
 	if err != nil {
 		logger.Warn(purchaseServerLogTag, "GetOutboundList Failed|Err:%v", err)
@@ -251,5 +251,4 @@ func (ps *PurchaseServer) RequestOutboundOrderList(ctx *gin.Context, rawReq inte
 		},
 	}
 	res.Data = resData
-
 }

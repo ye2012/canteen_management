@@ -76,6 +76,18 @@ func (scm *ShoppingCartModel) GetCart(cartType uint8, uid uint32) ([]*ShoppingCa
 	return retList.([]*ShoppingCart), nil
 }
 
+func (scm *ShoppingCartModel) GetCartByID(cartID uint32) (*ShoppingCart, error) {
+	condition, params := scm.GenerateCondition(0, 0, cartID)
+	cart := &ShoppingCart{}
+	err := utils.SqlQueryRow(scm.sqlCli, shoppingCartTable, cart, condition, params...)
+	if err != nil {
+		logger.Warn(shoppingCartLogTag, "GetCartByID Failed|Err:%v", err)
+		return nil, err
+	}
+
+	return cart, nil
+}
+
 func (scm *ShoppingCartModel) GetCartByTxWithLock(tx *sql.Tx, cartType uint8, uid uint32) ([]*ShoppingCart, error) {
 	condition, params := scm.GenerateCondition(cartType, uid, 0)
 	condition += " ORDER BY `created_at` DESC "

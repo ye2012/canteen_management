@@ -15,9 +15,11 @@ type OrderMenuRes struct {
 	GoodsMap   map[string]float64 `json:"goods_map"`
 	TotalCost  float64            `json:"total_cost"`
 	TotalGoods float64            `json:"total_goods"`
+	CartID     uint32             `json:"cart_id"`
 }
 
 type ApplyItem struct {
+	ID       string  `json:"id"`
 	DishID   uint32  `json:"dish_id"`
 	DishName string  `json:"dish_name"`
 	Price    float64 `json:"price"`
@@ -33,6 +35,9 @@ func (apo *ApplyPayOrderReq) CheckParams() error {
 	name := enum.GetBuildingName(apo.BuildingID)
 	if name == "" {
 		return fmt.Errorf("请输入所在楼号信息")
+	}
+	if apo.CartID == 0 {
+		return fmt.Errorf("请添加购物车")
 	}
 	return nil
 }
@@ -57,6 +62,7 @@ type DeliverOrderReq struct {
 type PayOrderInfo struct {
 	ID             uint32       `json:"id"`
 	Uid            uint32       `json:"uid"`
+	CartID         uint32       `json:"cart_id"`
 	OrderList      []*OrderInfo `json:"order_list"`
 	BuildingID     uint32       `json:"building_id"`
 	Floor          uint32       `json:"floor"`
@@ -215,6 +221,7 @@ type ModifyCartRes struct {
 	GoodsMap   map[string]float64 `json:"goods_map"`
 	TotalCost  float64            `json:"total_cost"`
 	TotalGoods float64            `json:"total_goods"`
+	CartID     uint32             `json:"cart_id"`
 }
 
 type GetOrderCardReq struct {

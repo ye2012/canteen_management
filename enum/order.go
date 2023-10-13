@@ -55,3 +55,19 @@ const (
 	OutboundNew OutboundStatus = iota
 	OutboundReviewed
 )
+
+type InventoryOrderStatus = int8
+
+const (
+	InventoryOrderNew InventoryOrderStatus = iota
+	InventoryOrderFinish
+	InventoryOrderReviewed
+)
+
+type InventoryStatus = int8
+
+const (
+	InventoryNew InventoryStatus = iota
+	InventoryMatch
+	InventoryNeedFix
+)
