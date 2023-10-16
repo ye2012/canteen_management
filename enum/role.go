@@ -11,5 +11,6 @@ const (
 	RoleReviewer
 	RoleReceiver
 	RoleApplier
+	RoleInventory
 	RoleMax
 )

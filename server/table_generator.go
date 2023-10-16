@@ -164,12 +164,12 @@ func GenerateStaffDetailTableData(menu *model.Menu, dishIDMap map[uint32]*model.
 	return rows
 }
 
-func ParseStaffMenuDetailData(rowList []*dto.TableRowInfo, menuID, menuTypeID uint32, menuDate int64) *model.Menu {
+func ParseStaffMenuDetailData(rowList []dto.TableRowInfo, menuID, menuTypeID uint32, menuDate int64) *model.Menu {
 	menu := &model.Menu{ID: menuID, MenuTypeID: menuTypeID, MenuDate: time.Unix(menuDate, 0)}
 	menuConf := make(map[uint8][]uint32)
 	mealDishMap := make(map[uint8]map[uint32]bool)
 	for _, row := range rowList {
-		for key, value := range *row {
+		for key, value := range row {
 			keys := strings.Split(key, IndexDelimiter)
 			if len(keys) <= 1 {
 				continue
@@ -311,7 +311,7 @@ func GenerateWeekMenuListTableHead() []*dto.TableColumnInfo {
 	head = append(head, &dto.TableColumnInfo{Name: "菜单日期", DataIndex: IndexMenuDate, Hide: false})
 	for index, dayName := range weekDays {
 		for i := enum.MealUnknown + 1; i < enum.MealALL; i++ {
-			head = append(head, &dto.TableColumnInfo{Name: enum.GetMealName(i) + dayName,
+			head = append(head, &dto.TableColumnInfo{Name: dayName + enum.GetMealName(i),
 				DataIndex: GenerateDayMealIndex(i, index), Hide: false})
 		}
 	}

@@ -93,6 +93,7 @@ func (mm *MenuModel) GetMenus(menuType uint32, startTime, endTime int64) ([]*Men
 		condition += " AND `menu_date` <= ? "
 		params = append(params, end)
 	}
+	condition += " ORDER BY `menu_date` DESC "
 
 	retList, err := utils.SqlQuery(mm.sqlCli, menuTable, &Menu{}, condition, params...)
 	if err != nil {

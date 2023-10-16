@@ -296,17 +296,20 @@ func (us *UserService) DeleteAdminUser(id uint32) error {
 }
 
 func (us *UserService) BindAdminUser(userID uint32, openID string) error {
-	wxUser, err := us.wxUserModel.GetWxUserByOpenID(openID)
-	if err != nil {
-		logger.Warn(userServiceLogTag, "GetWxUserByOpenID Failed|Err:%v", err)
-		return err
+	if openID != "" {
+		wxUser, err := us.wxUserModel.GetWxUserByOpenID(openID)
+		if err != nil {
+			logger.Warn(userServiceLogTag, "GetWxUserByOpenID Failed|Err:%v", err)
+			return err
+		}
+		if wxUser == nil {
+			logger.Warn(userServiceLogTag, "WxUser NotExist|OpenID:%v", openID)
+			return fmt.Errorf("要绑定的用户不存在，请确认OpenID是否正确")
+		}
 	}
-	if wxUser == nil {
-		logger.Warn(userServiceLogTag, "WxUser NotExist|OpenID:%v", openID)
-		return fmt.Errorf("要绑定的用户不存在，请确认OpenID是否正确")
-	}
+
 	adminUser := &model.AdminUser{ID: userID, OpenID: openID}
-	err = us.adminUserModel.UpdateAdminUserByCondition(adminUser, "id", "open_id")
+	err := us.adminUserModel.UpdateAdminUserByCondition(adminUser, "id", "open_id")
 	if err != nil {
 		logger.Warn(userServiceLogTag, "BindAdminUser Failed|Err:%v", err)
 		return err

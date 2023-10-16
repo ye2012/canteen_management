@@ -118,7 +118,7 @@ type ModifyStaffMenuDetailReq struct {
 	StaffMenuID   uint32           `json:"staff_menu_id"`
 	MenuTypeID    uint32           `json:"menu_type_id"`
 	MenuDate      int64            `json:"menu_date"`
-	StaffMenuRows []*TableRowInfo  `json:"staff_menu_rows"`
+	StaffMenuRows []TableRowInfo   `json:"staff_menu_rows"`
 }
 
 type MenuTypeListHeadReq struct {

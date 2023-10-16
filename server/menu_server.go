@@ -171,7 +171,7 @@ func (ms *MenuServer) RequestWeekMenuListData(ctx *gin.Context, rawReq interface
 
 	menuList, err := ms.menuService.GetWeekMenuList(req.MenuType, req.TimeStart, req.TimeStart)
 	if err != nil {
-		logger.Warn(menuServerLogTag, "RequestStaffMenuListData GetMenuList Failed|Err:%v", err)
+		logger.Warn(menuServerLogTag, "RequestWeekMenuListData GetMenuList Failed|Err:%v", err)
 		res.Code = enum.SqlError
 		return
 	}

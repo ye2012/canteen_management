@@ -97,6 +97,7 @@ func (wmm *WeekMenuModel) GetWeekMenus(menuID, menuType uint32, startTime, endTi
 		condition += "AND `menu_start_date` <= ? "
 		params = append(params, end)
 	}
+	condition += " ORDER BY `menu_start_date` DESC "
 
 	retList, err := utils.SqlQuery(wmm.sqlCli, weekMenuTable, &WeekMenu{}, condition, params...)
 	if err != nil {
