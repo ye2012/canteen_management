@@ -140,7 +140,7 @@ func (ms *MenuServer) RequestModifyDish(ctx *gin.Context, rawReq interface{}, re
 func (ms *MenuServer) RequestWeekMenuList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.WeekMenuListReq)
 
-	menuList, err := ms.menuService.GetWeekMenuList(req.MenuType, req.TimeStart, req.TimeEnd)
+	menuList, err := ms.menuService.GetWeekMenuList(req.MenuType, req.TimeStart, req.TimeEnd, req.Page, req.PageSize)
 	if err != nil {
 		res.Code = enum.SqlError
 		return
@@ -169,7 +169,7 @@ func (ms *MenuServer) RequestWeekMenuListData(ctx *gin.Context, rawReq interface
 		return
 	}
 
-	menuList, err := ms.menuService.GetWeekMenuList(req.MenuType, req.TimeStart, req.TimeStart)
+	menuList, err := ms.menuService.GetWeekMenuList(req.MenuType, req.TimeStart, req.TimeStart, req.Page, req.PageSize)
 	if err != nil {
 		logger.Warn(menuServerLogTag, "RequestWeekMenuListData GetMenuList Failed|Err:%v", err)
 		res.Code = enum.SqlError
@@ -240,6 +240,7 @@ func (ms *MenuServer) RequestModifyWeekMenu(ctx *gin.Context, rawReq interface{}
 		err := ms.menuService.AddWeekMenu(weekMenuDao)
 		if err != nil {
 			res.Code = enum.SqlError
+			res.Msg = err.Error()
 			return
 		}
 	case enum.OperateTypeModify:
@@ -400,7 +401,7 @@ func (ms *MenuServer) RequestStaffMenuListData(ctx *gin.Context, rawReq interfac
 		return
 	}
 
-	menuList, err := ms.menuService.GetMenuList(2, req.TimeStart, req.TimeStart)
+	menuList, err := ms.menuService.GetMenuList(2, req.TimeStart, req.TimeStart, req.Page, req.PageSize)
 	if err != nil {
 		logger.Warn(menuServerLogTag, "RequestStaffMenuListData GetMenuList Failed|Err:%v", err)
 		res.Code = enum.SqlError
@@ -451,6 +452,7 @@ func (ms *MenuServer) RequestModifyStaffMenuDetail(ctx *gin.Context, rawReq inte
 		err := ms.menuService.AddMenu(staffMenuDao)
 		if err != nil {
 			res.Code = enum.SqlError
+			res.Msg = err.Error()
 			return
 		}
 	case enum.OperateTypeModify:

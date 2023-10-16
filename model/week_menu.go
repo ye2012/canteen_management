@@ -16,7 +16,11 @@ const (
 	weekMenuLogTag = "WeekMenu"
 )
 
-var weekMenuUpdateTags = []string{"menu_content"}
+var (
+	weekMenuUpdateTags = []string{"menu_content"}
+
+	ErrWeekMenuNotFound = fmt.Errorf("week menu not found")
+)
 
 type WeekMenu struct {
 	ID            uint32    `json:"id"`
@@ -76,7 +80,7 @@ func (wmm *WeekMenuModel) BatchInsert(menuList []*WeekMenu) error {
 	return nil
 }
 
-func (wmm *WeekMenuModel) GetWeekMenus(menuID, menuType uint32, startTime, endTime int64) ([]*WeekMenu, error) {
+func (wmm *WeekMenuModel) GetWeekMenus(menuID, menuType uint32, startTime, endTime int64, page, pageSize int32) ([]*WeekMenu, error) {
 	var params []interface{}
 	condition := " WHERE 1=1 "
 	if menuID > 0 {
@@ -97,7 +101,8 @@ func (wmm *WeekMenuModel) GetWeekMenus(menuID, menuType uint32, startTime, endTi
 		condition += "AND `menu_start_date` <= ? "
 		params = append(params, end)
 	}
-	condition += " ORDER BY `menu_start_date` DESC "
+	condition += " ORDER BY `menu_start_date` DESC LIMIT ?,? "
+	params = append(params, (page-1)*pageSize, pageSize)
 
 	retList, err := utils.SqlQuery(wmm.sqlCli, weekMenuTable, &WeekMenu{}, condition, params...)
 	if err != nil {
@@ -128,7 +133,7 @@ func (wmm *WeekMenuModel) GetWeekMenuByDate(menuDate int64, menuType uint32) (*W
 	menuList := retList.([]*WeekMenu)
 	if len(menuList) == 0 {
 		logger.Warn(weekMenuLogTag, "WeekMenu Not Found|Date:%v|Type:%v", time.Unix(menuDate, 0), menuType)
-		return nil, fmt.Errorf("week menu not found")
+		return nil, ErrWeekMenuNotFound
 	}
 
 	return menuList[0], nil

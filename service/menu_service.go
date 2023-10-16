@@ -90,8 +90,8 @@ func (ms *MenuService) UpdateMenuType(dao *model.MenuType) error {
 	return nil
 }
 
-func (ms *MenuService) GetMenuList(menuType uint32, startTime, endTime int64) ([]*model.Menu, error) {
-	menuList, err := ms.menuModel.GetMenus(menuType, startTime, endTime)
+func (ms *MenuService) GetMenuList(menuType uint32, startTime, endTime int64, page, pageSize int32) ([]*model.Menu, error) {
+	menuList, err := ms.menuModel.GetMenus(menuType, startTime, endTime, page, pageSize)
 	if err != nil {
 		logger.Warn(menuServiceLogTag, "GetMenuList Failed|Err:%v", err)
 		return nil, err
@@ -111,7 +111,16 @@ func (ms *MenuService) GetMenu(menuID uint32) (*model.Menu, error) {
 }
 
 func (ms *MenuService) AddMenu(menu *model.Menu) error {
-	err := ms.menuModel.Insert(menu)
+	condition := " WHERE `menu_date` = ? "
+	menuList, err := ms.menuModel.GetMenuByCondition(condition, menu.MenuDate)
+	if err != nil {
+		logger.Warn(menuServiceLogTag, "GetMenuByDate Failed|Date:%v|Err:%v", menu.MenuDate, err)
+		return err
+	}
+	if len(menuList) > 0 {
+		return fmt.Errorf("重复的菜单日期")
+	}
+	err = ms.menuModel.Insert(menu)
 	if err != nil {
 		logger.Warn(menuServiceLogTag, "Insert Menu Failed|Err:%v", err)
 		return err
@@ -137,8 +146,8 @@ func (ms *MenuService) UpdateMenu(menu *model.Menu) error {
 	return nil
 }
 
-func (ms *MenuService) GetWeekMenuList(menuType uint32, startTime, endTime int64) ([]*model.WeekMenu, error) {
-	menuList, err := ms.weekMenuModel.GetWeekMenus(0, menuType, startTime, endTime)
+func (ms *MenuService) GetWeekMenuList(menuType uint32, startTime, endTime int64, page, pageSize int32) ([]*model.WeekMenu, error) {
+	menuList, err := ms.weekMenuModel.GetWeekMenus(0, menuType, startTime, endTime, page, pageSize)
 	if err != nil {
 		logger.Warn(menuServiceLogTag, "GetWeekMenuList Failed|Err:%v", err)
 		return nil, err
@@ -148,7 +157,7 @@ func (ms *MenuService) GetWeekMenuList(menuType uint32, startTime, endTime int64
 }
 
 func (ms *MenuService) GetWeekMenu(menuID uint32) (*model.WeekMenu, error) {
-	menuList, err := ms.weekMenuModel.GetWeekMenus(menuID, 0, 0, 0)
+	menuList, err := ms.weekMenuModel.GetWeekMenus(menuID, 0, 0, 0, 0, 0)
 	if err != nil {
 		logger.Warn(menuServiceLogTag, "GetWeekMenu Failed|Err:%v", err)
 		return nil, err
@@ -163,7 +172,15 @@ func (ms *MenuService) GetWeekMenu(menuID uint32) (*model.WeekMenu, error) {
 }
 
 func (ms *MenuService) AddWeekMenu(weekMenu *model.WeekMenu) error {
-	err := ms.weekMenuModel.Insert(weekMenu)
+	preMenu, err := ms.weekMenuModel.GetWeekMenuByDate(weekMenu.MenuStartDate.Unix(), weekMenu.MenuTypeID)
+	if err != nil && err != model.ErrWeekMenuNotFound {
+		logger.Warn(menuServiceLogTag, "GetWeekMenuByDate Failed|Err:%v", err)
+		return err
+	}
+	if preMenu != nil {
+		return fmt.Errorf("重复的菜谱日期")
+	}
+	err = ms.weekMenuModel.Insert(weekMenu)
 	if err != nil {
 		logger.Warn(menuServiceLogTag, "Insert WeekMenu Failed|Err:%v", err)
 		return err

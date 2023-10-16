@@ -76,7 +76,7 @@ func (mm *MenuModel) BatchInsert(menuList []*Menu) error {
 	return nil
 }
 
-func (mm *MenuModel) GetMenus(menuType uint32, startTime, endTime int64) ([]*Menu, error) {
+func (mm *MenuModel) GetMenus(menuType uint32, startTime, endTime int64, page, pageSize int32) ([]*Menu, error) {
 	var params []interface{}
 	condition := " WHERE 1=1 "
 	if menuType > 0 {
@@ -93,7 +93,8 @@ func (mm *MenuModel) GetMenus(menuType uint32, startTime, endTime int64) ([]*Men
 		condition += " AND `menu_date` <= ? "
 		params = append(params, end)
 	}
-	condition += " ORDER BY `menu_date` DESC "
+	condition += " ORDER BY `menu_date` DESC LIMIT ?,? "
+	params = append(params, (page-1)*pageSize, pageSize)
 
 	retList, err := utils.SqlQuery(mm.sqlCli, menuTable, &Menu{}, condition, params...)
 	if err != nil {
@@ -119,6 +120,16 @@ func (mm *MenuModel) GetMenu(menuID uint32) (*Menu, error) {
 	}
 
 	return menuList[0], nil
+}
+
+func (mm *MenuModel) GetMenuByCondition(condition string, params ...interface{}) ([]*Menu, error) {
+	retList, err := utils.SqlQuery(mm.sqlCli, menuTable, &Menu{}, condition, params...)
+	if err != nil {
+		logger.Warn(menuLogTag, "GetMenuByCondition Failed|Err:%v", err)
+		return nil, err
+	}
+
+	return retList.([]*Menu), nil
 }
 
 func (mm *MenuModel) UpdateMenu(dao *Menu) error {
