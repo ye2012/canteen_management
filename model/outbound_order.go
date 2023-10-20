@@ -95,7 +95,7 @@ func (oom *OutboundOrderModel) GetOutboundOrder(id uint32) (*OutboundOrder, erro
 func (oom *OutboundOrderModel) GetOutboundOrderList(id uint32, creator uint32, startTime, endTime int64,
 	page, pageSize int32) ([]*OutboundOrder, error) {
 	condition, params := oom.GenerateCondition(id, creator, startTime, endTime)
-	condition += " ORDER BY `id` ASC LIMIT ?,? "
+	condition += " ORDER BY `id` DESC LIMIT ?,? "
 	params = append(params, (page-1)*pageSize, pageSize)
 	retList, err := utils.SqlQuery(oom.sqlCli, outboundOrderTable, &OutboundOrder{}, condition, params...)
 	if err != nil {

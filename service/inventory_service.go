@@ -33,17 +33,17 @@ func NewInventoryService(sqlCli *sql.DB) *InventoryService {
 	}
 }
 
-func (is *InventoryService) StartInventory(creator uint32) error {
+func (is *InventoryService) StartInventory(creator uint32) (*model.InventoryOrder, []*model.InventoryDetail, error) {
 	goodsList, err := is.goodsModel.GetAllGoods()
 	if err != nil {
 		logger.Warn(inventoryServiceLogTag, "StartInventory GetAllGoods Failed|Err:%v", err)
-		return err
+		return nil, nil, err
 	}
 
 	tx, err := is.sqlCli.Begin()
 	if err != nil {
 		logger.Warn(inventoryServiceLogTag, "StartInventory Begin Failed|Err:%v", err)
-		return err
+		return nil, nil, err
 	}
 	defer utils.End(tx, err)
 
@@ -51,7 +51,7 @@ func (is *InventoryService) StartInventory(creator uint32) error {
 	err = is.inventoryOrderModel.InsertWithTx(tx, inventory)
 	if err != nil {
 		logger.Warn(inventoryServiceLogTag, "StartInventory InsertInventoryOrder Failed|Err:%v", err)
-		return err
+		return nil, nil, err
 	}
 
 	detailList := make([]*model.InventoryDetail, 0, len(goodsList))
@@ -67,9 +67,9 @@ func (is *InventoryService) StartInventory(creator uint32) error {
 	err = is.inventoryDetailModel.BatchInsert(detailList)
 	if err != nil {
 		logger.Warn(inventoryServiceLogTag, "StartInventory InsertInventoryDetail Failed|Err:%v", err)
-		return err
+		return nil, nil, err
 	}
-	return nil
+	return inventory, detailList, nil
 }
 
 func (is *InventoryService) UpdateInventory(detail *model.InventoryDetail) error {

@@ -156,7 +156,7 @@ func (ms *MenuServer) RequestWeekMenuList(ctx *gin.Context, rawReq interface{}, 
 }
 
 func (ms *MenuServer) RequestWeekMenuListHead(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
-	head := GenerateWeekMenuListTableHead()
+	head := conv.GenerateWeekMenuListTableHead()
 	res.Data = head
 }
 
@@ -175,7 +175,7 @@ func (ms *MenuServer) RequestWeekMenuListData(ctx *gin.Context, rawReq interface
 		res.Code = enum.SqlError
 		return
 	}
-	res.Data = GenerateWeekMenuListTableData(menuList, dishMap)
+	res.Data = conv.GenerateWeekMenuListTableData(menuList, dishMap)
 }
 
 func (ms *MenuServer) RequestWeekMenuDetailTable(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
@@ -201,7 +201,7 @@ func (ms *MenuServer) RequestWeekMenuDetailTable(ctx *gin.Context, rawReq interf
 	}
 
 	retData := &dto.WeekMenuDetailTableRes{}
-	retData.Head, retData.Data = GenerateWeekMenuDetailTable(menu, dishMap, dishTypeMap)
+	retData.Head, retData.Data = conv.GenerateWeekMenuDetailTable(menu, dishMap, dishTypeMap)
 	res.Data = retData
 }
 
@@ -234,7 +234,7 @@ func (ms *MenuServer) RequestWeekMenuDetail(ctx *gin.Context, rawReq interface{}
 
 func (ms *MenuServer) RequestModifyWeekMenu(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.ModifyWeekMenuDetailReq)
-	weekMenuDao := ParseWeekMenuDetail(req.WeekMenuRows, req.WeekMenuID, req.MenuTypeID, req.MenuDate)
+	weekMenuDao := conv.ParseWeekMenuDetail(req.WeekMenuRows, req.WeekMenuID, req.MenuTypeID, req.MenuDate)
 	switch req.Operate {
 	case enum.OperateTypeAdd:
 		err := ms.menuService.AddWeekMenu(weekMenuDao)
@@ -262,7 +262,7 @@ func (ms *MenuServer) RequestModifyMenuType(ctx *gin.Context, rawReq interface{}
 		res.Code = enum.ParamsError
 		return
 	}
-	menuTypeDao := ParseMenuTypeDetailData(req.MenuTypeRows[0], req.MenuTypeID, req.MenuTypeName)
+	menuTypeDao := conv.ParseMenuTypeDetailData(req.MenuTypeRows[0], req.MenuTypeID, req.MenuTypeName)
 	logger.Info(menuServerLogTag, "ModifyMenuType:%#v", menuTypeDao)
 
 	switch req.Operate {
@@ -324,8 +324,8 @@ func (ms *MenuServer) RequestGenerateStaffMenu(ctx *gin.Context, rawReq interfac
 	menu.FromMenuConfig(menuDishMap)
 
 	resData := &dto.GenerateStaffMenuRes{
-		Head: GenerateStaffDetailTableHead(),
-		Data: GenerateStaffDetailTableData(menu, dishMap, dishTypeMap),
+		Head: conv.GenerateStaffDetailTableHead(),
+		Data: conv.GenerateStaffDetailTableData(menu, dishMap, dishTypeMap),
 	}
 	res.Data = resData
 }
@@ -383,12 +383,12 @@ func (ms *MenuServer) RequestGenerateWeekMenu(ctx *gin.Context, rawReq interface
 	menu.FromWeekMenuConfig(menuList)
 
 	retData := &dto.GenerateWeekMenuRes{}
-	retData.Head, retData.Data = GenerateWeekMenuDetailTable(menu, dishMap, dishTypeMap)
+	retData.Head, retData.Data = conv.GenerateWeekMenuDetailTable(menu, dishMap, dishTypeMap)
 	res.Data = retData
 }
 
 func (ms *MenuServer) RequestStaffMenuListHead(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
-	head := GenerateStaffMenuListTableHead()
+	head := conv.GenerateStaffMenuListTableHead()
 	res.Data = head
 }
 
@@ -407,12 +407,12 @@ func (ms *MenuServer) RequestStaffMenuListData(ctx *gin.Context, rawReq interfac
 		res.Code = enum.SqlError
 		return
 	}
-	data := GenerateStaffMenuListTableData(menuList, dishMap)
+	data := conv.GenerateStaffMenuListTableData(menuList, dishMap)
 	res.Data = data
 }
 
 func (ms *MenuServer) RequestStaffMenuDetailHead(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
-	head := GenerateStaffDetailTableHead()
+	head := conv.GenerateStaffDetailTableHead()
 	res.Data = head
 }
 
@@ -438,13 +438,13 @@ func (ms *MenuServer) RequestStaffMenuDetailData(ctx *gin.Context, rawReq interf
 		return
 	}
 
-	data := GenerateStaffDetailTableData(menu, dishMap, dishTypeMap)
+	data := conv.GenerateStaffDetailTableData(menu, dishMap, dishTypeMap)
 	res.Data = data
 }
 
 func (ms *MenuServer) RequestModifyStaffMenuDetail(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.ModifyStaffMenuDetailReq)
-	staffMenuDao := ParseStaffMenuDetailData(req.StaffMenuRows, req.StaffMenuID, req.MenuTypeID, req.MenuDate)
+	staffMenuDao := conv.ParseStaffMenuDetailData(req.StaffMenuRows, req.StaffMenuID, req.MenuTypeID, req.MenuDate)
 	logger.Info(menuServerLogTag, "ModifyMenuDetail:%#v", staffMenuDao)
 
 	switch req.Operate {
@@ -468,7 +468,7 @@ func (ms *MenuServer) RequestModifyStaffMenuDetail(ctx *gin.Context, rawReq inte
 }
 
 func (ms *MenuServer) RequestMenuTypeListHead(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
-	head := GenerateMenuTypeListTableHead()
+	head := conv.GenerateMenuTypeListTableHead()
 	res.Data = head
 }
 
@@ -485,7 +485,7 @@ func (ms *MenuServer) RequestMenuTypeListData(ctx *gin.Context, rawReq interface
 		res.Code = enum.SqlError
 		return
 	}
-	data := GenerateMenuTypeListTableData(menuTypeList, dishTypeMap)
+	data := conv.GenerateMenuTypeListTableData(menuTypeList, dishTypeMap)
 	res.Data = data
 }
 
@@ -502,7 +502,7 @@ func (ms *MenuServer) RequestMenuTypeDetailHead(ctx *gin.Context, rawReq interfa
 		res.Code = enum.SystemError
 		return
 	}
-	head := GenerateMenuTypeDetailTableHead(menuType, dishTypeMap)
+	head := conv.GenerateMenuTypeDetailTableHead(menuType, dishTypeMap)
 	res.Data = head
 }
 
@@ -521,6 +521,6 @@ func (ms *MenuServer) RequestMenuTypeDetailData(ctx *gin.Context, rawReq interfa
 		return
 	}
 
-	data := GenerateMenuTypeDetailTableData(menuType, dishTypeMap)
+	data := conv.GenerateMenuTypeDetailTableData(menuType, dishTypeMap)
 	res.Data = data
 }

@@ -97,7 +97,7 @@ func (iom *InventoryOrderModel) GetInventoryOrder(id uint32) (*InventoryOrder, e
 func (iom *InventoryOrderModel) GetInventoryOrderList(id, creator uint32, status int8, startTime, endTime int64,
 	page, pageSize int32) ([]*InventoryOrder, error) {
 	condition, params := iom.GenerateCondition(id, creator, status, startTime, endTime)
-	condition += " ORDER BY `id` ASC LIMIT ?,? "
+	condition += " ORDER BY `id` DESC LIMIT ?,? "
 	params = append(params, (page-1)*pageSize, pageSize)
 	retList, err := utils.SqlQuery(iom.sqlCli, inventoryOrderTable, &InventoryOrder{}, condition, params...)
 	if err != nil {

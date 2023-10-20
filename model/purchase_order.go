@@ -111,7 +111,7 @@ func (pom *PurchaseOrderModel) GetPurchaseOrder(id uint32) (*PurchaseOrder, erro
 func (pom *PurchaseOrderModel) GetPurchaseOrderList(id uint32, status int8, supplier, creator uint32, startTime,
 	endTime int64, page, pageSize int32) ([]*PurchaseOrder, error) {
 	condition, params := pom.GenerateCondition(id, status, supplier, creator, startTime, endTime)
-	condition += " ORDER BY `id` ASC LIMIT ?,? "
+	condition += " ORDER BY `id` DESC LIMIT ?,? "
 	params = append(params, (page-1)*pageSize, pageSize)
 	retList, err := utils.SqlQuery(pom.sqlCli, purchaseOrderTable, &PurchaseOrder{}, condition, params...)
 	if err != nil {

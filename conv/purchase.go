@@ -115,6 +115,7 @@ func ConvertToOutboundInfoList(outboundList []*model.OutboundOrder, detailMap ma
 		if !ok {
 			continue
 		}
+		totalTypeMap, totalCount, totalWeight := make(map[uint32]bool), int32(0), float64(0)
 		for _, detail := range details {
 			purchaseGoods := &dto.OutboundGoodsInfo{
 				PurchaseGoodsBase: dto.PurchaseGoodsBase{
@@ -125,8 +126,16 @@ func ConvertToOutboundInfoList(outboundList []*model.OutboundOrder, detailMap ma
 					ExpectNumber: detail.OutNumber,
 				},
 			}
+			totalTypeMap[goodsMap[detail.GoodsID].GoodsTypeID] = true
+			totalCount++
+			if goodsMap[detail.GoodsID].BatchUnit != "" {
+				totalWeight += goodsMap[detail.GoodsID].BatchSize * detail.OutNumber
+			}
 			retInfo.GoodsList = append(retInfo.GoodsList, purchaseGoods)
 		}
+		retInfo.TotalGoodsType = int32(len(totalTypeMap))
+		retInfo.TotalGoodsNumber = totalCount
+		retInfo.TotalWeight = totalWeight
 		retList = append(retList, retInfo)
 	}
 	return retList

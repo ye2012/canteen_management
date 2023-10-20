@@ -52,9 +52,12 @@ type OutboundListReq struct {
 }
 
 type OutboundOrderInfo struct {
-	ID          uint32               `json:"id"`
-	GoodsList   []*OutboundGoodsInfo `json:"goods_list"`
-	TotalAmount float64              `json:"total_amount"`
+	ID               uint32               `json:"id"`
+	TotalGoodsNumber int32                `json:"total_goods_number"`
+	TotalGoodsType   int32                `json:"total_goods_type"`
+	TotalWeight      float64              `json:"total_weight"`
+	GoodsList        []*OutboundGoodsInfo `json:"goods_list"`
+	TotalAmount      float64              `json:"total_amount"`
 }
 
 type OutboundListRes struct {
@@ -71,17 +74,23 @@ type InventoryListReq struct {
 	EndTime     int64  `json:"end_time"`
 }
 
-type InventoryGoodsInfo struct {
+type InventoryGoodsNode struct {
 	PurchaseGoodsBase
-	RealNumber float64 `json:"real_number"`
-	Tag        string  `json:"tag"`
-	Status     int8    `json:"status"`
+	BatchSize  float64               `json:"batch_size"`
+	BatchUnit  string                `json:"batch_unit"`
+	RealNumber float64               `json:"real_number"`
+	Tag        string                `json:"tag"`
+	Status     int8                  `json:"status"`
+	Children   []*InventoryGoodsNode `json:"children,omitempty"`
 }
 
 type InventoryOrderInfo struct {
-	ID        uint32                `json:"id"`
-	Status    int8                  `json:"status"`
-	GoodsList []*InventoryGoodsInfo `json:"goods_list"`
+	ID              uint32                `json:"id"`
+	TotalCount      int32                 `json:"total_count"`
+	ExceptionCount  int32                 `json:"exception_count"`
+	ExceptionAmount float64               `json:"exception_amount"`
+	Status          int8                  `json:"status"`
+	GoodsList       []*InventoryGoodsNode `json:"goods_list"`
 }
 
 type InventoryListRes struct {
@@ -91,7 +100,7 @@ type InventoryListRes struct {
 
 type InventoryReq struct {
 	InventoryID        uint32              `json:"inventory_id"`
-	InventoryGoodsInfo *InventoryGoodsInfo `json:"inventory_goods_info"`
+	InventoryGoodsInfo *InventoryGoodsNode `json:"inventory_goods_info"`
 }
 
 type ApplyInventoryReq struct {
@@ -105,4 +114,9 @@ type ReviewInventoryReq struct {
 
 type StartInventoryReq struct {
 	Uid uint32 `json:"uid"`
+	New bool   `json:"new"`
+}
+
+type StartInventoryRes struct {
+	InventoryOrder *InventoryOrderInfo `json:"inventory_order"`
 }

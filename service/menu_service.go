@@ -157,7 +157,7 @@ func (ms *MenuService) GetWeekMenuList(menuType uint32, startTime, endTime int64
 }
 
 func (ms *MenuService) GetWeekMenu(menuID uint32) (*model.WeekMenu, error) {
-	menuList, err := ms.weekMenuModel.GetWeekMenus(menuID, 0, 0, 0, 0, 0)
+	menuList, err := ms.weekMenuModel.GetWeekMenus(menuID, 0, 0, 0, 1, 10)
 	if err != nil {
 		logger.Warn(menuServiceLogTag, "GetWeekMenu Failed|Err:%v", err)
 		return nil, err
