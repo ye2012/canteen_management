@@ -77,6 +77,17 @@ func HandleUserApi(router *gin.Engine) error {
 		logger.Warn(serverLogTag, "NewUserServer Failed|Err:%v", err)
 		return err
 	}
+	userRouter.POST("/adminLogin", NewHandler(userServer.RequestAdminLogin,
+		func() interface{} { return new(dto.AdminLoginReq) }))
+	userRouter.POST("/routerTypeList", NewHandler(userServer.RequestRouterTypeList,
+		func() interface{} { return new(dto.RouterTypeListReq) }))
+	userRouter.POST("/modifyRouterType", NewHandler(userServer.RequestModifyRouterType,
+		func() interface{} { return new(dto.ModifyRouterTypeReq) }))
+	userRouter.POST("/routerList", NewHandler(userServer.RequestRouterList,
+		func() interface{} { return new(dto.RouterListReq) }))
+	userRouter.POST("/modifyRouter", NewHandler(userServer.RequestModifyRouter,
+		func() interface{} { return new(dto.ModifyRouterReq) }))
+
 	userRouter.POST("/canteenLogin", NewHandler(userServer.RequestCanteenLogin,
 		func() interface{} { return new(dto.CanteenLoginReq) }))
 	userRouter.POST("/kitchenLogin", NewHandler(userServer.RequestKitchenLogin,

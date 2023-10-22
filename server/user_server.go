@@ -296,3 +296,101 @@ func (us *UserServer) RequestBindAdminUser(ctx *gin.Context, rawReq interface{},
 		return
 	}
 }
+
+func (us *UserServer) RequestAdminLogin(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.AdminLoginReq)
+	routerTypeList, err := us.userService.GetRouterTypeList()
+	if err != nil {
+		res.Code = enum.SystemError
+		res.Msg = err.Error()
+		return
+	}
+	routerList, err := us.userService.GetRouterList(0)
+	if err != nil {
+		res.Code = enum.SystemError
+		res.Msg = err.Error()
+		return
+	}
+
+	user, err := us.userService.AdminLogin(req.UserName, req.Password)
+	if err != nil {
+		res.Code = enum.SystemError
+		res.Msg = err.Error()
+		return
+	}
+
+	res.Data = &dto.AdminLoginRes{
+		Router: conv.ConvertToRouterNode(routerList, routerTypeList, user.Role),
+	}
+}
+
+func (us *UserServer) RequestRouterTypeList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	list, err := us.userService.GetRouterTypeList()
+	if err != nil {
+		res.Code = enum.SqlError
+		return
+	}
+
+	res.Data = &dto.RouterTypeListRes{
+		RouterTypeList: conv.ConvertToRouterTypeInfoList(list),
+	}
+}
+
+func (us *UserServer) RequestModifyRouterType(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.ModifyRouterTypeReq)
+	routerType := conv.ConvertFromRouterTypeInfo(req.RouterType)
+	switch req.Operate {
+	case enum.OperateTypeAdd:
+		err := us.userService.AddRouterType(routerType)
+		if err != nil {
+			res.Code = enum.SqlError
+			res.Msg = err.Error()
+			return
+		}
+	case enum.OperateTypeModify:
+		err := us.userService.UpdateRouterType(routerType)
+		if err != nil {
+			res.Code = enum.SqlError
+			return
+		}
+	default:
+		logger.Warn(userServerLogTag, "RequestModifyRouterType Unknown OperateType|Type:%v", req.Operate)
+		res.Code = enum.SystemError
+	}
+}
+
+func (us *UserServer) RequestRouterList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.RouterListReq)
+	list, err := us.userService.GetRouterList(req.RouterType)
+	if err != nil {
+		res.Code = enum.SqlError
+		return
+	}
+
+	res.Data = &dto.RouterListRes{
+		RouterList: conv.ConvertToRouterInfoList(list),
+	}
+}
+
+func (us *UserServer) RequestModifyRouter(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.ModifyRouterReq)
+	router := conv.ConvertFromRouterInfo(req.Router)
+	switch req.Operate {
+	case enum.OperateTypeAdd:
+		err := us.userService.AddRouter(router)
+		if err != nil {
+			res.Code = enum.SqlError
+			res.Msg = err.Error()
+			return
+		}
+	case enum.OperateTypeModify:
+		err := us.userService.UpdateRouter(router)
+		if err != nil {
+			res.Code = enum.SqlError
+			return
+		}
+	default:
+		logger.Warn(userServerLogTag, "RequestModifyRouter Unknown OperateType|Type:%v", req.Operate)
+		res.Code = enum.SystemError
+	}
+}

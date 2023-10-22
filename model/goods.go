@@ -50,18 +50,24 @@ func (g *Goods) FromGoodsPrice(priceConf map[uint8]float64) error {
 	return nil
 }
 
-func (g *Goods) ToGoodsPrice() map[uint8]float64 {
+func (g *Goods) ToGoodsPrice() (map[uint8]float64, float64) {
 	contentMap := make(map[uint8]uint64)
 	err := json.Unmarshal([]byte(g.PriceContent), &contentMap)
 	if err != nil {
 		logger.Warn(goodsLogTag, "ToGoodsPrice Failed|Err:%v", err)
-		return nil
+		return nil, 0
 	}
 	retMap := make(map[uint8]float64)
+	total, count, average := uint64(0), 0, float64(0)
 	for id, price := range contentMap {
 		retMap[id] = float64(price) / 100
+		total += price
+		count++
 	}
-	return retMap
+	if count > 0 {
+		average = float64(total/uint64(count)) / 100
+	}
+	return retMap, average
 }
 
 type GoodsModel struct {

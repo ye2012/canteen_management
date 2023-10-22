@@ -47,11 +47,13 @@ func ConvertToGoodsInfoList(daoList []*model.Goods) []*dto.GoodsInfo {
 	return retList
 }
 
-func ConvertToGoodsPriceList(daoList []*model.Goods) []*dto.GoodsPriceInfo {
+func ConvertToGoodsPriceList(daoList []*model.Goods, goodsTypeMap map[uint32]*model.GoodsType) []*dto.GoodsPriceInfo {
 	retList := make([]*dto.GoodsPriceInfo, 0, len(daoList))
 	for _, dao := range daoList {
+		goodsType := goodsTypeMap[dao.GoodsTypeID]
+		priceList, average := dao.ToGoodsPrice()
 		retList = append(retList, &dto.GoodsPriceInfo{GoodsID: dao.ID, GoodsName: dao.Name,
-			PriceList: dao.ToGoodsPrice(), AveragePrice: dao.Price})
+			PriceList: priceList, AveragePrice: average, Discount: goodsType.Discount, FinalPrice: dao.Price})
 	}
 	return retList
 }

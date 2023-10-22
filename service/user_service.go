@@ -3,8 +3,8 @@ package service
 import (
 	"database/sql"
 	"fmt"
-	"github.com/canteen_management/enum"
 
+	"github.com/canteen_management/enum"
 	"github.com/canteen_management/logger"
 	"github.com/canteen_management/model"
 	"github.com/canteen_management/utils"
@@ -15,11 +15,13 @@ const (
 )
 
 type UserService struct {
-	sqlCli         *sql.DB
-	adminUserModel *model.AdminUserModel
-	wxUserModel    *model.WxUserModel
-	orderUserModel *model.OrderUserModel
-	supplierModel  *model.SupplierModel
+	sqlCli            *sql.DB
+	adminUserModel    *model.AdminUserModel
+	wxUserModel       *model.WxUserModel
+	orderUserModel    *model.OrderUserModel
+	supplierModel     *model.SupplierModel
+	routerTypeModel   *model.RouterTypeModel
+	routerDetailModel *model.RouterDetailModel
 }
 
 func NewUserService(sqlCli *sql.DB) *UserService {
@@ -27,12 +29,16 @@ func NewUserService(sqlCli *sql.DB) *UserService {
 	orderUserModel := model.NewOrderUserModel(sqlCli)
 	adminUserModel := model.NewAdminUserModelWithDB(sqlCli)
 	supplierModel := model.NewSupplierModelWithDB(sqlCli)
+	routerTypeModel := model.NewRouterTypeModel(sqlCli)
+	routerDetailModel := model.NewRouterDetailModel(sqlCli)
 	return &UserService{
-		sqlCli:         sqlCli,
-		wxUserModel:    wxUserModel,
-		orderUserModel: orderUserModel,
-		adminUserModel: adminUserModel,
-		supplierModel:  supplierModel,
+		sqlCli:            sqlCli,
+		wxUserModel:       wxUserModel,
+		orderUserModel:    orderUserModel,
+		adminUserModel:    adminUserModel,
+		supplierModel:     supplierModel,
+		routerTypeModel:   routerTypeModel,
+		routerDetailModel: routerDetailModel,
 	}
 }
 
@@ -101,6 +107,25 @@ func (us *UserService) WxUserLogin(openID string) (*model.WxUser, error) {
 		return nil, err
 	}
 	return wxUser, nil
+}
+
+func (us *UserService) AdminLogin(userName, password string) (*model.AdminUser, error) {
+	condition := " WHERE `user_name` = ? "
+	users, err := us.adminUserModel.GetAdminUserByCondition(condition, userName)
+	if err != nil {
+		logger.Warn(userServiceLogTag, "GetAdminUserByCondition Failed|UserName:%v|Err:%v", userName, err)
+		return nil, err
+	}
+
+	if len(users) == 0 {
+		return nil, fmt.Errorf("用户不存在")
+	}
+	user := users[0]
+	passOk := utils.ComparePass(user.Password, password)
+	if passOk == false {
+		return nil, fmt.Errorf("密码错误")
+	}
+	return user, nil
 }
 
 func (us *UserService) BindPhoneNumber(uid uint32, phoneNumber string) error {
@@ -312,6 +337,60 @@ func (us *UserService) BindAdminUser(userID uint32, openID string) error {
 	err := us.adminUserModel.UpdateAdminUserByCondition(adminUser, "id", "open_id")
 	if err != nil {
 		logger.Warn(userServiceLogTag, "BindAdminUser Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
+func (us *UserService) GetRouterTypeList() ([]*model.RouterType, error) {
+	typeList, err := us.routerTypeModel.GetRouterTypes()
+	if err != nil {
+		logger.Warn(userServiceLogTag, "GetGoodsTypeList Failed|Err:%v", err)
+		return nil, err
+	}
+	return typeList, nil
+}
+
+func (us *UserService) GetRouterList(routerType uint32) ([]*model.RouterDetail, error) {
+	routerList, err := us.routerDetailModel.GetRouterDetail(routerType)
+	if err != nil {
+		logger.Warn(userServiceLogTag, "GetRouterList Failed|Err:%v", err)
+		return nil, err
+	}
+	return routerList, nil
+}
+
+func (us *UserService) AddRouterType(routerType *model.RouterType) error {
+	err := us.routerTypeModel.Insert(routerType)
+	if err != nil {
+		logger.Warn(userServiceLogTag, "AddRouterType Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
+func (us *UserService) UpdateRouterType(routerType *model.RouterType) error {
+	err := us.routerTypeModel.UpdateRouterType(routerType)
+	if err != nil {
+		logger.Warn(userServiceLogTag, "UpdateRouterType Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
+func (us *UserService) AddRouter(router *model.RouterDetail) error {
+	err := us.routerDetailModel.Insert(router)
+	if err != nil {
+		logger.Warn(userServiceLogTag, "AddRouter Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
+func (us *UserService) UpdateRouter(router *model.RouterDetail) error {
+	err := us.routerDetailModel.UpdateDetail(router)
+	if err != nil {
+		logger.Warn(userServiceLogTag, "UpdateRouter Failed|Err:%v", err)
 		return err
 	}
 	return nil

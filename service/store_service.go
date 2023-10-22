@@ -87,6 +87,19 @@ func (ss *StoreService) GetGoodsTypeList() ([]*model.GoodsType, error) {
 	return typeList, nil
 }
 
+func (ss *StoreService) GetGoodsTypeMap() (map[uint32]*model.GoodsType, error) {
+	retMap := make(map[uint32]*model.GoodsType)
+	typeList, err := ss.goodsTypeModel.GetGoodsTypes()
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "GetGoodsTypeList Failed|Err:%v", err)
+		return nil, err
+	}
+	for _, typeInfo := range typeList {
+		retMap[typeInfo.ID] = typeInfo
+	}
+	return retMap, nil
+}
+
 func (ss *StoreService) AddGoodsType(goodsType *model.GoodsType) error {
 	err := ss.goodsTypeModel.Insert(goodsType)
 	if err != nil {
@@ -97,7 +110,17 @@ func (ss *StoreService) AddGoodsType(goodsType *model.GoodsType) error {
 }
 
 func (ss *StoreService) UpdateGoodsType(goodsType *model.GoodsType) error {
-	err := ss.goodsTypeModel.UpdateGoodsType(goodsType)
+	preType, err := ss.goodsTypeModel.GetGoodsTypesByID(goodsType.ID)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "GetGoodsTypesByID Failed|Err:%v", err)
+		return err
+	}
+
+	if preType.Discount != goodsType.Discount {
+
+	}
+
+	err = ss.goodsTypeModel.UpdateGoodsType(goodsType)
 	if err != nil {
 		logger.Warn(storeServiceLogTag, "UpdateGoodsType Failed|Err:%v", err)
 		return err

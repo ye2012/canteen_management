@@ -6,6 +6,28 @@ import (
 	"github.com/canteen_management/enum"
 )
 
+type AdminLoginReq struct {
+	UserName string `json:"user_name"`
+	Password string `json:"password"`
+}
+
+func (alr *AdminLoginReq) CheckParams() error {
+	if len(alr.Password) > 20 {
+		return fmt.Errorf("密码长度不合法")
+	}
+	return nil
+}
+
+type RouterNode struct {
+	Name     string        `json:"name"`
+	Path     string        `json:"path,omitempty"`
+	Children []*RouterNode `json:"children,omitempty"`
+}
+
+type AdminLoginRes struct {
+	Router []*RouterNode `json:"router"`
+}
+
 type CanteenLoginReq struct {
 	Code string `json:"code"`
 }
@@ -93,4 +115,56 @@ type ModifyAdminUserReq struct {
 
 type BindAdminReq struct {
 	User *UserInfo `json:"user"`
+}
+
+type RouterTypeListReq struct {
+}
+
+type RouterTypeInfo struct {
+	RouterTypeID   uint32 `json:"router_type_id"`
+	RouterTypeName string `json:"router_type_name"`
+	SortID         uint32 `json:"sort_id"`
+}
+
+type RouterTypeListRes struct {
+	RouterTypeList []*RouterTypeInfo `json:"router_type_list"`
+}
+
+type ModifyRouterTypeReq struct {
+	Operate    enum.OperateType `json:"operate"`
+	RouterType *RouterTypeInfo  `json:"router_type"`
+}
+
+type RouterListReq struct {
+	RouterType uint32 `json:"router_type"`
+}
+
+type RouterInfo struct {
+	RouterID   uint32   `json:"router_id"`
+	RouterType uint32   `json:"router_type"`
+	RouterName string   `json:"router_name"`
+	RouterPath string   `json:"router_path"`
+	RoleList   []uint32 `json:"role_list"`
+}
+
+func (ri *RouterInfo) CheckParams() error {
+	if ri.RouterPath == "" {
+		return fmt.Errorf("路由Path必须设置")
+	}
+	if ri.RouterName == "" {
+		return fmt.Errorf("路由名字必须设置")
+	}
+	if ri.RouterID == 0 {
+		return fmt.Errorf("路由类型必须设置")
+	}
+	return nil
+}
+
+type RouterListRes struct {
+	RouterList []*RouterInfo `json:"router_list"`
+}
+
+type ModifyRouterReq struct {
+	Operate enum.OperateType `json:"operate"`
+	Router  *RouterInfo      `json:"router"`
 }

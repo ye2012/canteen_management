@@ -69,7 +69,9 @@ type GoodsPriceInfo struct {
 	GoodsID      uint32            `json:"goods_id"`
 	GoodsName    string            `json:"goods_name"`
 	PriceList    map[uint8]float64 `json:"price_list"`
+	Discount     float64           `json:"discount"`
 	AveragePrice float64           `json:"average_price"`
+	FinalPrice   float64           `json:"final_price"`
 }
 
 type GoodsPriceListRes struct {

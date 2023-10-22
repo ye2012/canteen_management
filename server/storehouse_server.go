@@ -103,27 +103,6 @@ func (ss *StorehouseServer) RequestGoodsList(ctx *gin.Context, rawReq interface{
 
 func (ss *StorehouseServer) RequestModifyGoods(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.ModifyGoodsInfoReq)
-	//ctx.Request.ParseMultipartForm(1024)
-	//imgFile, _, err := ctx.Request.FormFile("img")
-	//if err != nil {
-	//	logger.Warn(storeServerLogTag, "ReadFrom File Failed|Err:%v", err)
-	//	return
-	//}
-	//defer imgFile.Close()
-	//
-	//imgFilePath := config.Config.FileStorePath + "/Goods/" + req.Goods.GoodsName + ".jpg"
-	//image, err := os.Create(imgFilePath)
-	//if err != nil {
-	//	logger.Warn(storeServerLogTag, "ReadFrom File Failed|Err:%v", err)
-	//	return
-	//}
-	//defer image.Close()
-	//
-	//_, err = io.Copy(image, imgFile)
-	//if err != nil {
-	//	logger.Warn(storeServerLogTag, "Copy File Failed|Err:%v", err)
-	//	return
-	//}
 
 	switch req.Operate {
 	case enum.OperateTypeAdd:
@@ -146,6 +125,13 @@ func (ss *StorehouseServer) RequestModifyGoods(ctx *gin.Context, rawReq interfac
 
 func (ss *StorehouseServer) RequestGoodsPriceList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.GoodsPriceListReq)
+	goodsTypeMap, err := ss.storeService.GetGoodsTypeMap()
+	if err != nil {
+		res.Code = enum.SqlError
+		res.Msg = err.Error()
+		return
+	}
+
 	goodsList, goodsCount, err := ss.storeService.GoodsList(req.GoodsTypeID, req.StoreTypeID, req.Page, req.PageSize)
 	if err != nil {
 		res.Code = enum.SqlError
@@ -153,7 +139,7 @@ func (ss *StorehouseServer) RequestGoodsPriceList(ctx *gin.Context, rawReq inter
 	}
 
 	res.Data = &dto.GoodsPriceListRes{
-		GoodsPriceList: conv.ConvertToGoodsPriceList(goodsList),
+		GoodsPriceList: conv.ConvertToGoodsPriceList(goodsList, goodsTypeMap),
 		PaginationRes: dto.PaginationRes{
 			Page:        req.Page,
 			PageSize:    req.PageSize,
