@@ -11,6 +11,7 @@ import (
 	"github.com/canteen_management/enum"
 	"github.com/canteen_management/logger"
 	"github.com/canteen_management/model"
+	"github.com/canteen_management/utils"
 )
 
 const (
@@ -485,7 +486,7 @@ func GenerateWeekMenuDetailTable(menu *model.WeekMenu, dishIDMap map[uint32]*mod
 }
 
 func ParseWeekMenuDetail(rowList []*dto.TableRowInfo, menuID, menuTypeID uint32, menuDate int64) *model.WeekMenu {
-	weekMenu := &model.WeekMenu{ID: menuID, MenuTypeID: menuTypeID, MenuStartDate: time.Unix(menuDate, 0)}
+	weekMenu := &model.WeekMenu{ID: menuID, MenuTypeID: menuTypeID, MenuStartDate: time.Unix(utils.GetFirstDateOfWeek(menuDate), 0)}
 	menuConf := make([]map[uint8][]uint32, 7)
 	for rowIndex, row := range rowList {
 		for key, value := range *row {

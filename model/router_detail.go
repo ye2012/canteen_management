@@ -16,17 +16,18 @@ const (
 )
 
 var (
-	routerDetailUpdateTags = []string{"router_type", "router_name", "router_path", "role"}
+	routerDetailUpdateTags = []string{"router_sort_id", "router_type", "router_name", "router_path", "role"}
 )
 
 type RouterDetail struct {
-	ID         uint32    `json:"id"`
-	RouterType uint32    `json:"router_type"`
-	RouterName string    `json:"router_name"`
-	RouterPath string    `json:"router_path"`
-	Role       uint32    `json:"role"`
-	CreateAt   time.Time `json:"created_at"`
-	UpdateAt   time.Time `json:"updated_at"`
+	ID           uint32    `json:"id"`
+	RouterType   uint32    `json:"router_type"`
+	RouterName   string    `json:"router_name"`
+	RouterPath   string    `json:"router_path"`
+	RouterSortID uint32    `json:"router_sort_id"`
+	Role         uint32    `json:"role"`
+	CreateAt     time.Time `json:"created_at"`
+	UpdateAt     time.Time `json:"updated_at"`
 }
 
 type RouterDetailModel struct {
@@ -78,6 +79,7 @@ func (rdm *RouterDetailModel) GetRouterDetail(routerType uint32) ([]*RouterDetai
 		condition = " WHERE `router_type` = ? "
 		params = append(params, routerType)
 	}
+	condition += " ORDER BY `router_sort_id` ASC "
 
 	retList, err := utils.SqlQuery(rdm.sqlCli, routerDetailTable, &RouterDetail{}, condition, params...)
 	if err != nil {

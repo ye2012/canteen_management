@@ -140,11 +140,12 @@ type RouterListReq struct {
 }
 
 type RouterInfo struct {
-	RouterID   uint32   `json:"router_id"`
-	RouterType uint32   `json:"router_type"`
-	RouterName string   `json:"router_name"`
-	RouterPath string   `json:"router_path"`
-	RoleList   []uint32 `json:"role_list"`
+	RouterID     uint32   `json:"router_id"`
+	RouterType   uint32   `json:"router_type"`
+	RouterName   string   `json:"router_name"`
+	RouterPath   string   `json:"router_path"`
+	RouterSortID uint32   `json:"router_sort_id"`
+	RoleList     []uint32 `json:"role_list"`
 }
 
 func (ri *RouterInfo) CheckParams() error {

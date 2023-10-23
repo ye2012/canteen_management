@@ -53,18 +53,18 @@ func ConvertToRouterInfoList(daoList []*model.RouterDetail) []*dto.RouterInfo {
 	retList := make([]*dto.RouterInfo, 0, len(daoList))
 	for _, dao := range daoList {
 		retList = append(retList, &dto.RouterInfo{RouterID: dao.ID, RouterType: dao.RouterType, RouterName: dao.RouterName,
-			RouterPath: dao.RouterPath, RoleList: ConvertToRoleList(dao.Role)})
+			RouterPath: dao.RouterPath, RouterSortID: dao.RouterSortID, RoleList: ConvertToRoleList(dao.Role)})
 	}
 	return retList
 }
 
 func ConvertFromRouterInfo(info *dto.RouterInfo) *model.RouterDetail {
-	finalRole := uint32(0)
+	finalRole := uint32(2)
 	for _, role := range info.RoleList {
-		finalRole += 1 << role
+		finalRole |= 1 << role
 	}
 	return &model.RouterDetail{ID: info.RouterID, RouterType: info.RouterType, RouterName: info.RouterName,
-		RouterPath: info.RouterPath, Role: finalRole}
+		RouterPath: info.RouterPath, RouterSortID: info.RouterSortID, Role: finalRole}
 }
 
 func ConvertToRouterNode(routerList []*model.RouterDetail, routerTypeList []*model.RouterType, role uint32) []*dto.RouterNode {
