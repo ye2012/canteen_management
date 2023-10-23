@@ -8,6 +8,9 @@ import (
 	"github.com/gorilla/sessions"
 )
 
+type Request struct {
+}
+
 type Response struct {
 	Code    enum.ErrorCode `json:"code"` // status code
 	Success bool           `json:"success"`

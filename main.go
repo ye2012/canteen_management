@@ -299,18 +299,15 @@ func HandleOrderApi(router *gin.Engine) error {
 }
 
 func HandleUploadApi(router *gin.Engine) {
-	_ = router.Group("/api/")
+	uploadRouter := router.Group("/api/")
 
+	uploadServer := server.NewUploadServer()
+	uploadRouter.POST("upload", NewHandler(uploadServer.RequestUpload,
+		func() interface{} { return new(dto.Request) }))
 }
 
 type RequestDealFunc func(*gin.Context, interface{}, *dto.Response)
 type ReqGenerateFunc func() interface{}
-
-func NewUploadHandler(uploadHandler func(w http.ResponseWriter, r *http.Request)) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		uploadHandler(ctx.Writer, ctx.Request)
-	}
-}
 
 func NewHandler(dealFunc RequestDealFunc, reqGen ReqGenerateFunc) gin.HandlerFunc {
 	handleFunc := func(ctx *gin.Context) {
