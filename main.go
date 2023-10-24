@@ -176,6 +176,8 @@ func HandleStorehouseApi(router *gin.Engine) error {
 		func() interface{} { return new(dto.GoodsNodeListReq) }))
 	storeRouter.POST("/modifyGoods", NewHandler(storeServer.RequestModifyGoods,
 		func() interface{} { return new(dto.ModifyGoodsInfoReq) }))
+	storeRouter.POST("/goodsHistory", NewHandler(storeServer.RequestGoodsHistory,
+		func() interface{} { return new(dto.GoodsHistoryReq) }))
 
 	storeRouter.POST("/goodsPriceList", NewHandler(storeServer.RequestGoodsPriceList,
 		func() interface{} { return new(dto.GoodsPriceListReq) }))

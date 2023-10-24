@@ -21,6 +21,7 @@ type StoreService struct {
 	storeTypeModel      *model.StorehouseTypeModel
 	goodsModel          *model.GoodsModel
 	goodsTypeModel      *model.GoodsTypeModel
+	goodsHistoryModel   *model.GoodsHistoryModel
 	shoppingCartModel   *model.ShoppingCartModel
 	cartDetailModel     *model.CartDetailModel
 	outboundModel       *model.OutboundOrderModel
@@ -31,6 +32,7 @@ func NewStoreService(sqlCli *sql.DB) *StoreService {
 	storeTypeModel := model.NewStorehouseTypeModelWithDB(sqlCli)
 	goodsModel := model.NewGoodsModelWithDB(sqlCli)
 	goodsTypeModel := model.NewGoodsTypeModelWithDB(sqlCli)
+	goodsHistoryModel := model.NewGoodsHistoryModel(sqlCli)
 	shoppingCartModel := model.NewShoppingCartModel(sqlCli)
 	cartDetailModel := model.NewCartDetailModel(sqlCli)
 	outboundModel := model.NewOutboundOrderModelWithDB(sqlCli)
@@ -40,6 +42,7 @@ func NewStoreService(sqlCli *sql.DB) *StoreService {
 		storeTypeModel:      storeTypeModel,
 		goodsModel:          goodsModel,
 		goodsTypeModel:      goodsTypeModel,
+		goodsHistoryModel:   goodsHistoryModel,
 		shoppingCartModel:   shoppingCartModel,
 		cartDetailModel:     cartDetailModel,
 		outboundModel:       outboundModel,
@@ -164,6 +167,10 @@ func (ss *StoreService) AddGoods(goods *model.Goods) error {
 		logger.Warn(storeServiceLogTag, "Insert Goods Failed|Err:%v", err)
 		return err
 	}
+	if goods.Quantity > 0 {
+		err = ss.goodsHistoryModel.BatchInsert(nil, []*model.GoodsHistory{model.GenerateInitGoodsHistory(goods)})
+		logger.Warn(storeServiceLogTag, "Insert GoodsHistory Failed|Err:%v", err)
+	}
 	return nil
 }
 
@@ -267,6 +274,7 @@ func (ss *StoreService) ApplyOutboundOrder(outbound *model.OutboundOrder, detail
 		logger.Warn(storeServiceLogTag, "GetGoodsByIDListWithLock Failed|Err:%v", err)
 		return err
 	}
+	updateMap, historyList := make(map[uint32]float64), make([]*model.GoodsHistory, 0, len(details))
 	for _, goods := range goodsList {
 		outNumber, ok := outMap[goods.ID]
 		if !ok {
@@ -277,6 +285,7 @@ func (ss *StoreService) ApplyOutboundOrder(outbound *model.OutboundOrder, detail
 				goods.ID, outNumber, goods.Quantity)
 			return fmt.Errorf("%v出库数量超出库存数量", goods.Name)
 		}
+		updateMap[goods.ID] = outNumber
 	}
 	outbound.TotalAmount = totalAmount
 	err = ss.outboundModel.InsertWithTx(tx, outbound)
@@ -295,9 +304,20 @@ func (ss *StoreService) ApplyOutboundOrder(outbound *model.OutboundOrder, detail
 		return err
 	}
 
-	err = ss.goodsModel.BatchAddQuantityWithTx(tx, goodsUpdateList)
+	for _, goods := range goodsList {
+		historyList = append(historyList,
+			model.GenerateOutboundGoodsHistory(goods, updateMap[goods.ID], outbound.ID))
+		goods.Quantity = goods.Quantity + updateMap[goods.ID]
+	}
+
+	err = ss.goodsModel.BatchUpdateQuantityWithTx(tx, goodsList)
 	if err != nil {
-		logger.Warn(storeServiceLogTag, "BatchDelQuantity Failed|Err:%v", err)
+		logger.Warn(storeServiceLogTag, "ApplyOutboundOrder BatchAddQuantity Failed|Err:%v", err)
+		return err
+	}
+	err = ss.goodsHistoryModel.BatchInsert(tx, historyList)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "ApplyOutboundOrder BatchInsertHistory Failed|Err:%v", err)
 		return err
 	}
 	return nil
@@ -307,12 +327,12 @@ func (ss *StoreService) GetOutboundList(uid, outboundID uint32, startTime, endTi
 	page, pageSize int32) ([]*model.OutboundOrder, int32, map[uint32][]*model.OutboundDetail, error) {
 	outboundList, err := ss.outboundModel.GetOutboundOrderList(outboundID, uid, startTime, endTime, page, pageSize)
 	if err != nil {
-		logger.Warn(purchaseServiceLogTag, "GetOutboundOrderList Failed|Err:%v", err)
+		logger.Warn(storeServiceLogTag, "GetOutboundOrderList Failed|Err:%v", err)
 		return nil, 0, nil, err
 	}
-	purchaseCount, err := ss.outboundModel.GetOutboundOrderCount(outboundID, uid, startTime, endTime)
+	outboundCount, err := ss.outboundModel.GetOutboundOrderCount(outboundID, uid, startTime, endTime)
 	if err != nil {
-		logger.Warn(orderServiceLogTag, "GetOutboundOrderCount Failed|Err:%v", err)
+		logger.Warn(storeServiceLogTag, "GetOutboundOrderCount Failed|Err:%v", err)
 		return nil, 0, nil, err
 	}
 
@@ -326,7 +346,7 @@ func (ss *StoreService) GetOutboundList(uid, outboundID uint32, startTime, endTi
 	}
 	details, err := ss.outboundDetailModel.GetOutboundDetailByOrderList(orderIDList, 0)
 	if err != nil {
-		logger.Warn(orderServiceLogTag, "GetOutboundDetailByOrderList Failed|Err:%v", err)
+		logger.Warn(storeServiceLogTag, "GetOutboundDetailByOrderList Failed|Err:%v", err)
 		return nil, 0, nil, err
 	}
 
@@ -337,5 +357,20 @@ func (ss *StoreService) GetOutboundList(uid, outboundID uint32, startTime, endTi
 		}
 		detailMap[detail.OutboundID] = append(detailMap[detail.OutboundID], detail)
 	}
-	return outboundList, purchaseCount, detailMap, nil
+	return outboundList, outboundCount, detailMap, nil
+}
+
+func (ss *StoreService) GetGoodsHistoryList(goodsID, changeType uint32, startTime, endTime int64,
+	page, pageSize int32) ([]*model.GoodsHistory, int32, error) {
+	history, err := ss.goodsHistoryModel.GetGoodsHistory(goodsID, changeType, startTime, endTime, page, pageSize)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "GetGoodsHistoryList Failed|Err:%v", err)
+		return nil, 0, err
+	}
+	count, err := ss.goodsHistoryModel.GetGoodsHistoryCount(goodsID, changeType, startTime, endTime)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "GetGoodsHistoryCount Failed|Err:%v", err)
+		return nil, 0, err
+	}
+	return history, count, nil
 }

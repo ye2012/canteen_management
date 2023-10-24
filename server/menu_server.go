@@ -116,7 +116,6 @@ func (ms *MenuServer) RequestModifyDish(ctx *gin.Context, rawReq interface{}, re
 
 	logger.Info(menuServerLogTag, "RequestModifyDish Req:%#v", req)
 
-	// todo 校验type
 	switch req.Operate {
 	case enum.OperateTypeAdd:
 		err := ms.dishService.AddDish(conv.ConvertFromDishInfo(&req.DishInfo))

@@ -37,6 +37,7 @@ type DishInfo struct {
 	DishTypeID     uint32  `json:"dish_type_id"`
 	DishTypeName   string  `json:"dish_type_name"`
 	MasterTypeName string  `json:"master_type_name"`
+	Picture        string  `json:"picture"`
 	Material       string  `json:"material"`
 	Price          float64 `json:"price"`
 }

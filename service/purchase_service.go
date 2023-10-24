@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"fmt"
+
 	"github.com/canteen_management/enum"
 	"github.com/canteen_management/logger"
 	"github.com/canteen_management/model"
@@ -20,6 +21,7 @@ type PurchaseService struct {
 	purchaseOrderModel  *model.PurchaseOrderModel
 	purchaseDetailModel *model.PurchaseDetailModel
 	goodsModel          *model.GoodsModel
+	goodsHistoryModel   *model.GoodsHistoryModel
 
 	menuTypeMap map[uint32]*model.MenuType
 }
@@ -30,6 +32,7 @@ func NewPurchaseService(sqlCli *sql.DB) *PurchaseService {
 	purchaseDetailModel := model.NewPurchaseDetailModelWithDB(sqlCli)
 	wxUserModel := model.NewWxUserModelWithDB(sqlCli)
 	goodsModel := model.NewGoodsModelWithDB(sqlCli)
+	goodsHistoryModel := model.NewGoodsHistoryModel(sqlCli)
 	return &PurchaseService{
 		sqlCli:              sqlCli,
 		supplierModel:       supplierModel,
@@ -37,6 +40,7 @@ func NewPurchaseService(sqlCli *sql.DB) *PurchaseService {
 		purchaseDetailModel: purchaseDetailModel,
 		wxUserModel:         wxUserModel,
 		goodsModel:          goodsModel,
+		goodsHistoryModel:   goodsHistoryModel,
 	}
 }
 
@@ -265,10 +269,8 @@ func (ps *PurchaseService) ReceivePurchaseOrder(purchaseID uint32, details []*mo
 	}
 
 	payAmount := 0.0
-	goodsList := make([]*model.Goods, 0, len(details))
 	for _, item := range details {
 		payAmount += item.Price * item.ReceiveNumber
-		goodsList = append(goodsList, &model.Goods{ID: item.GoodsID, Quantity: item.ReceiveNumber})
 	}
 
 	tx, err := ps.sqlCli.Begin()
@@ -292,12 +294,33 @@ func (ps *PurchaseService) ReceivePurchaseOrder(purchaseID uint32, details []*mo
 		return err
 	}
 
-	logger.Info(purchaseServiceLogTag, "BatchAddQuantity|List:%#v", goodsList)
-	err = ps.goodsModel.BatchAddQuantityWithTx(tx, goodsList)
+	goodsIDList, goodsList := make([]uint32, 0, len(details)), make([]*model.Goods, 0, len(details))
+	updateMap, historyList := make(map[uint32]float64), make([]*model.GoodsHistory, 0, len(details))
+	for _, detail := range details {
+		goodsIDList = append(goodsIDList, detail.GoodsID)
+		updateMap[detail.GoodsID] = detail.ReceiveNumber
+	}
+	goodsList, err = ps.goodsModel.GetGoodsByIDListWithLock(tx, goodsIDList)
 	if err != nil {
-		logger.Warn(purchaseServiceLogTag, "BatchAddQuantityWithTx Failed|Err:%v", err)
+		logger.Warn(purchaseServiceLogTag, "ReceivePurchaseOrder GetGoodsByIDListWithLock Failed|Err:%v", err)
 		return err
 	}
 
+	for _, goods := range goodsList {
+		historyList = append(historyList,
+			model.GeneratePurchaseGoodsHistory(goods, updateMap[goods.ID], purchaseID))
+		goods.Quantity = goods.Quantity + updateMap[goods.ID]
+	}
+
+	err = ps.goodsModel.BatchUpdateQuantityWithTx(tx, goodsList)
+	if err != nil {
+		logger.Warn(purchaseServiceLogTag, "ReceivePurchaseOrder BatchAddQuantity Failed|Err:%v", err)
+		return err
+	}
+	err = ps.goodsHistoryModel.BatchInsert(tx, historyList)
+	if err != nil {
+		logger.Warn(purchaseServiceLogTag, "ReceivePurchaseOrder BatchInsertHistory Failed|Err:%v", err)
+		return err
+	}
 	return nil
 }

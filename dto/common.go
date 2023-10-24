@@ -80,6 +80,7 @@ type OrderNode struct {
 	Price          float64      `json:"price,omitempty"`
 	Name           string       `json:"name"`
 	DishID         uint32       `json:"dish_id,omitempty"`
+	Picture        string       `json:"picture,omitempty"`
 	SelectedNumber int32        `json:"selected_number"`
 	Children       []*OrderNode `json:"children,omitempty"`
 }
@@ -88,6 +89,7 @@ type GoodsNode struct {
 	ID             string       `json:"id"`
 	Price          float64      `json:"price,omitempty"`
 	Name           string       `json:"name"`
+	Picture        string       `json:"picture"`
 	GoodsID        uint32       `json:"goods_id,omitempty"`
 	SelectedNumber int32        `json:"selected_number"`
 	Left           float64      `json:"left"`
@@ -118,6 +120,7 @@ type PurchaseGoodsBase struct {
 	ID           uint32  `json:"id"`
 	GoodsID      uint32  `json:"goods_id"`
 	Name         string  `json:"name"`
+	Picture      string  `json:"picture"`
 	GoodsTypeID  uint32  `json:"goods_type_id"`
 	ExpectNumber float64 `json:"expect_number"`
 }

@@ -1,6 +1,8 @@
 package dto
 
-import "github.com/canteen_management/enum"
+import (
+	"github.com/canteen_management/enum"
+)
 
 type StoreTypeListReq struct {
 }
@@ -119,4 +121,28 @@ type StartInventoryReq struct {
 
 type StartInventoryRes struct {
 	InventoryOrder *InventoryOrderInfo `json:"inventory_order"`
+}
+
+type GoodsHistoryReq struct {
+	PaginationReq
+	GoodsID    uint32 `json:"goods_id"`
+	ChangeType uint32 `json:"change_type"`
+	StartTime  int64  `json:"start_time"`
+	EndTime    int64  `json:"end_time"`
+}
+
+type GoodsHistoryInfo struct {
+	ID             uint32  `json:"id"`
+	GoodsID        uint32  `json:"goods_id"`
+	ChangeQuantity float64 `json:"change_quantity"`
+	BeforeQuantity float64 `json:"before_quantity"`
+	AfterQuantity  float64 `json:"after_quantity"`
+	ChangeType     uint32  `json:"change_type"`
+	RefID          uint32  `json:"ref_id"`
+	CreateAt       int64   `json:"created_at"`
+}
+
+type GoodsHistoryRes struct {
+	PaginationRes
+	History []*GoodsHistoryInfo `json:"history"`
 }

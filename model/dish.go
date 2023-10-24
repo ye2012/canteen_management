@@ -15,13 +15,14 @@ const (
 )
 
 var (
-	dishUpdateTags = []string{"dish_name", "dish_type", "price", "material"}
+	dishUpdateTags = []string{"picture", "dish_name", "dish_type", "price", "material"}
 )
 
 type Dish struct {
 	ID       uint32    `json:"id"`
 	DishName string    `json:"dish_name"`
 	DishType uint32    `json:"dish_type"`
+	Picture  string    `json:"picture"`
 	Price    float64   `json:"price"`
 	Material string    `json:"material"`
 	CreateAt time.Time `json:"created_at"`

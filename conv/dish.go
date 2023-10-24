@@ -36,7 +36,8 @@ func ConvertToDishInfoList(daoList []*model.Dish, dishTypeMap map[uint32]*model.
 }
 
 func ConvertToDishInfo(dao *model.Dish, dishTypeMap map[uint32]*model.DishType) *dto.DishInfo {
-	dishInfo := &dto.DishInfo{DishID: dao.ID, DishName: dao.DishName, Material: dao.Material, Price: dao.Price}
+	dishInfo := &dto.DishInfo{DishID: dao.ID, DishName: dao.DishName, Picture: dao.Picture,
+		Material: dao.Material, Price: dao.Price}
 	typeInfo, ok := dishTypeMap[dao.DishType]
 	if ok {
 		dishInfo.DishTypeID = typeInfo.ID
@@ -53,7 +54,7 @@ func ConvertToDishInfo(dao *model.Dish, dishTypeMap map[uint32]*model.DishType) 
 
 func ConvertFromDishInfo(info *dto.DishInfo) *model.Dish {
 	return &model.Dish{ID: info.DishID, DishName: info.DishName, DishType: info.DishTypeID,
-		Price: info.Price, Material: info.Material}
+		Picture: info.Picture, Price: info.Price, Material: info.Material}
 }
 
 func ConvertFromWeekMenuInfo(weekMenu *dto.WeekMenuDetailInfo) (*model.WeekMenu, error) {

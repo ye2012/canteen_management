@@ -3,11 +3,11 @@ package service
 import (
 	"database/sql"
 	"fmt"
+
 	"github.com/canteen_management/enum"
 	"github.com/canteen_management/logger"
-	"github.com/canteen_management/utils"
-
 	"github.com/canteen_management/model"
+	"github.com/canteen_management/utils"
 )
 
 const (
@@ -19,17 +19,20 @@ type InventoryService struct {
 	inventoryOrderModel  *model.InventoryOrderModel
 	inventoryDetailModel *model.InventoryDetailModel
 	goodsModel           *model.GoodsModel
+	goodsHistoryModel    *model.GoodsHistoryModel
 }
 
 func NewInventoryService(sqlCli *sql.DB) *InventoryService {
 	inventoryOrderModel := model.NewInventoryOrderModel(sqlCli)
 	inventoryDetailModel := model.NewInventoryDetailModelWithDB(sqlCli)
 	goodsModel := model.NewGoodsModelWithDB(sqlCli)
+	goodsHistoryModel := model.NewGoodsHistoryModel(sqlCli)
 	return &InventoryService{
 		sqlCli:               sqlCli,
 		inventoryOrderModel:  inventoryOrderModel,
 		inventoryDetailModel: inventoryDetailModel,
 		goodsModel:           goodsModel,
+		goodsHistoryModel:    goodsHistoryModel,
 	}
 }
 
@@ -122,13 +125,32 @@ func (is *InventoryService) ReviewInventory(inventoryID uint32) error {
 	}
 
 	if len(details) > 0 {
-		updateList := make([]*model.Goods, 0)
+		goodsIDList, goodsList := make([]uint32, 0, len(details)), make([]*model.Goods, 0, len(details))
+		updateMap, historyList := make(map[uint32]float64), make([]*model.GoodsHistory, 0, len(details))
 		for _, detail := range details {
-			updateList = append(updateList, &model.Goods{ID: detail.GoodsID, Quantity: detail.RealNumber - detail.ExpectNumber})
+			goodsIDList = append(goodsIDList, detail.GoodsID)
+			updateMap[detail.GoodsID] = detail.RealNumber - detail.ExpectNumber
 		}
-		err = is.goodsModel.BatchAddQuantityWithTx(tx, updateList)
+		goodsList, err = is.goodsModel.GetGoodsByIDListWithLock(tx, goodsIDList)
+		if err != nil {
+			logger.Warn(inventoryServiceLogTag, "ReviewInventory GetGoodsByIDListWithLock Failed|Err:%v", err)
+			return err
+		}
+
+		for _, goods := range goodsList {
+			historyList = append(historyList,
+				model.GenerateInventoryGoodsHistory(goods, updateMap[goods.ID], inventoryID))
+			goods.Quantity = goods.Quantity + updateMap[goods.ID]
+		}
+
+		err = is.goodsModel.BatchUpdateQuantityWithTx(tx, goodsList)
 		if err != nil {
 			logger.Warn(inventoryServiceLogTag, "ReviewInventory BatchAddQuantity Failed|Err:%v", err)
+			return err
+		}
+		err = is.goodsHistoryModel.BatchInsert(tx, historyList)
+		if err != nil {
+			logger.Warn(inventoryServiceLogTag, "ReviewInventory BatchInsertHistory Failed|Err:%v", err)
 			return err
 		}
 	}

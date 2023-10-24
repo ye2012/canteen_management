@@ -354,3 +354,25 @@ func (ss *StorehouseServer) RequestReviewInventory(ctx *gin.Context, rawReq inte
 		return
 	}
 }
+
+func (ss *StorehouseServer) RequestGoodsHistory(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.GoodsHistoryReq)
+	history, count, err := ss.storeService.GetGoodsHistoryList(req.GoodsID, req.ChangeType, req.StartTime, req.EndTime,
+		req.Page, req.PageSize)
+	if err != nil {
+		logger.Warn(storeServerLogTag, "RequestGoodsHistory Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		res.Msg = err.Error()
+		return
+	}
+
+	retData := &dto.GoodsHistoryRes{
+		History: conv.ConvertToGoodsHistoryInfoList(history),
+		PaginationRes: dto.PaginationRes{
+			Page:        req.Page,
+			PageSize:    req.PageSize,
+			TotalNumber: count,
+		},
+	}
+	res.Data = retData
+}

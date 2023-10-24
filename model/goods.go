@@ -18,7 +18,7 @@ const (
 
 var (
 	goodsUpdateTags = []string{"name", "goods_type_id", "store_type_id", "picture",
-		"batch_size", "batch_unit", "quantity"}
+		"batch_size", "batch_unit"}
 )
 
 type Goods struct {
@@ -179,19 +179,20 @@ func (gm *GoodsModel) GetGoodsByID(id uint32) (*Goods, error) {
 
 	return goods, nil
 }
-func (gm *GoodsModel) BatchAddQuantity(updateList []*Goods) (err error) {
-	return gm.BatchAddQuantityWithTx(nil, updateList)
+
+func (gm *GoodsModel) BatchUpdateQuantity(updateList []*Goods) (err error) {
+	return gm.BatchUpdateQuantityWithTx(nil, updateList)
 }
 
-func (gm *GoodsModel) BatchAddQuantityWithTx(tx *sql.Tx, updateList []*Goods) (err error) {
+func (gm *GoodsModel) BatchUpdateQuantityWithTx(tx *sql.Tx, updateList []*Goods) (err error) {
 	daoList := make([]interface{}, 0)
 	for _, updateInfo := range updateList {
 		daoList = append(daoList, updateInfo)
 	}
 	if tx != nil {
-		err = utils.SqlBatchAdd(tx, goodsTable, daoList, "id", "quantity")
+		err = utils.SqlBatchUpdateTag(tx, goodsTable, daoList, "id", "quantity")
 	} else {
-		err = utils.SqlBatchAdd(gm.sqlCli, goodsTable, daoList, "id", "quantity")
+		err = utils.SqlBatchUpdateTag(gm.sqlCli, goodsTable, daoList, "id", "quantity")
 	}
 	if err != nil {
 		logger.Warn(goodsLogTag, "BatchUpdateQuantity Failed|Err:%v", err)

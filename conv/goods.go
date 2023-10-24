@@ -95,6 +95,7 @@ func ConvertGoodsListToGoodsNode(goodsMap map[uint32]*model.Goods, goodsTypes []
 				ID:        fmt.Sprintf("%v_%v", goodsType.ID, goods.ID),
 				Price:     goods.Price,
 				Name:      goods.Name,
+				Picture:   goods.Picture,
 				GoodsID:   goods.ID,
 				Left:      goods.Quantity,
 				BatchSize: goods.BatchSize,
@@ -109,4 +110,22 @@ func ConvertGoodsListToGoodsNode(goodsMap map[uint32]*model.Goods, goodsTypes []
 		retData = append(retData, typeNode)
 	}
 	return retData
+}
+
+func ConvertToGoodsHistoryInfoList(historyList []*model.GoodsHistory) []*dto.GoodsHistoryInfo {
+	retList := make([]*dto.GoodsHistoryInfo, 0, len(historyList))
+	for _, history := range historyList {
+		retInfo := &dto.GoodsHistoryInfo{
+			ID:             history.ID,
+			GoodsID:        history.GoodsID,
+			ChangeQuantity: history.ChangeQuantity,
+			BeforeQuantity: history.BeforeQuantity,
+			AfterQuantity:  history.AfterQuantity,
+			ChangeType:     history.ChangeType,
+			RefID:          history.RefID,
+			CreateAt:       history.CreateAt.Unix(),
+		}
+		retList = append(retList, retInfo)
+	}
+	return retList
 }
