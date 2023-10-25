@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/canteen_management/logger"
@@ -67,11 +68,31 @@ func (gtm *GoodsTypeModel) GetGoodsTypesByID(id uint32) (*GoodsType, error) {
 	return goodsType, nil
 }
 
+func (gtm *GoodsTypeModel) UpdateGoodsTypeWithTx(tx *sql.Tx, dao *GoodsType) error {
+	err := utils.SqlUpdateWithUpdateTags(tx, goodsTypeTable, dao, "id", goodsTypeUpdateTags...)
+	if err != nil {
+		logger.Warn(goodsTypeLogTag, "UpdateGoodsType Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
 func (gtm *GoodsTypeModel) UpdateGoodsType(dao *GoodsType) error {
 	err := utils.SqlUpdateWithUpdateTags(gtm.sqlCli, goodsTypeTable, dao, "id", goodsTypeUpdateTags...)
 	if err != nil {
 		logger.Warn(goodsTypeLogTag, "UpdateGoodsType Failed|Err:%v", err)
 		return err
 	}
+	return nil
+}
+
+func (gtm *GoodsTypeModel) DeleteGoodsType(id uint32) error {
+	sqlStr := fmt.Sprintf(" DELETE FROM %v WHERE `id` = ? ", goodsTypeTable)
+	_, err := gtm.sqlCli.Exec(sqlStr, id)
+	if err != nil {
+		logger.Warn(goodsTypeLogTag, "DeleteGoodsType Failed|Err:%v", err)
+		return err
+	}
+
 	return nil
 }

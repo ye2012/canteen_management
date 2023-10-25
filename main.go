@@ -138,6 +138,8 @@ func HandlePurchaseApi(router *gin.Engine) error {
 
 	purchaseRouter.POST("/applyOutbound", NewHandler(purchaseServer.RequestApplyOutbound,
 		func() interface{} { return new(dto.ApplyOutboundReq) }))
+	purchaseRouter.POST("/reviewOutbound", NewHandler(purchaseServer.RequestApplyOutbound,
+		func() interface{} { return new(dto.ReviewOutboundReq) }))
 	purchaseRouter.POST("/outboundList", NewHandler(purchaseServer.RequestOutboundOrderList,
 		func() interface{} { return new(dto.OutboundListReq) }))
 
@@ -192,6 +194,8 @@ func HandleStorehouseApi(router *gin.Engine) error {
 		func() interface{} { return new(dto.InventoryReq) }))
 	storeRouter.POST("/applyInventory", NewHandler(storeServer.RequestApplyInventory,
 		func() interface{} { return new(dto.ApplyInventoryReq) }))
+	storeRouter.POST("/confirmInventory", NewHandler(storeServer.RequestApplyInventory,
+		func() interface{} { return new(dto.ConfirmInventoryReq) }))
 	storeRouter.POST("/reviewInventory", NewHandler(storeServer.RequestReviewInventory,
 		func() interface{} { return new(dto.ReviewInventoryReq) }))
 	return nil

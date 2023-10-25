@@ -19,6 +19,7 @@ type PurchaseServer struct {
 	storeService    *service.StoreService
 	purchaseService *service.PurchaseService
 	cartService     *service.CartService
+	userService     *service.UserService
 }
 
 func NewPurchaseServer(dbConf utils.Config) (*PurchaseServer, error) {
@@ -30,10 +31,12 @@ func NewPurchaseServer(dbConf utils.Config) (*PurchaseServer, error) {
 	purchaseService := service.NewPurchaseService(sqlCli)
 	storeService := service.NewStoreService(sqlCli)
 	cartService := service.NewCartService(sqlCli)
+	userService := service.NewUserService(sqlCli)
 	return &PurchaseServer{
 		purchaseService: purchaseService,
 		storeService:    storeService,
 		cartService:     cartService,
+		userService:     userService,
 	}, nil
 }
 
@@ -112,6 +115,12 @@ func (ps *PurchaseServer) RequestPurchaseList(ctx *gin.Context, rawReq interface
 		res.Code = enum.SystemError
 		return
 	}
+	adminMap, err := ps.userService.GetAdminMap()
+	if err != nil {
+		logger.Warn(purchaseServerLogTag, "GetAdminMap Failed|Err:%v", err)
+		res.Code = enum.SystemError
+		return
+	}
 
 	purchaseList, totalNumber, detailMap, err := ps.purchaseService.GetPurchaseList(req.Status, req.Uid, req.PurchaseID,
 		req.StartTime, req.EndTime, req.Page, req.PageSize)
@@ -123,7 +132,7 @@ func (ps *PurchaseServer) RequestPurchaseList(ctx *gin.Context, rawReq interface
 	}
 
 	logger.Debug(purchaseServerLogTag, "PurchaseListLen:%v", len(purchaseList))
-	orderInfoList := conv.ConvertToPurchaseInfoList(purchaseList, detailMap, goodsMap, supplierMap)
+	orderInfoList := conv.ConvertToPurchaseInfoList(purchaseList, detailMap, goodsMap, supplierMap, adminMap)
 	resData := &dto.PurchaseListRes{
 		PurchaseList: orderInfoList,
 		PaginationRes: dto.PaginationRes{
@@ -182,6 +191,7 @@ func (ps *PurchaseServer) RequestConfirmPurchase(ctx *gin.Context, rawReq interf
 
 func (ps *PurchaseServer) RequestReceivePurchase(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.ReceivePurchaseReq)
+	uid := req.Uid
 	goodsMap, err := ps.storeService.GetGoodsMap()
 	if err != nil {
 		res.Code = enum.SystemError
@@ -190,7 +200,7 @@ func (ps *PurchaseServer) RequestReceivePurchase(ctx *gin.Context, rawReq interf
 	}
 
 	details := conv.ConvertFromApplyPurchase(req.GoodsList, goodsMap)
-	err = ps.purchaseService.ReceivePurchaseOrder(req.PurchaseID, details)
+	err = ps.purchaseService.ReceivePurchaseOrder(req.PurchaseID, uid, details)
 	if err != nil {
 		res.Code = enum.SqlError
 		res.Msg = err.Error()
@@ -223,11 +233,28 @@ func (ps *PurchaseServer) RequestApplyOutbound(ctx *gin.Context, rawReq interfac
 	ps.cartService.ClearCart(uid, enum.CartTypeOutbound)
 }
 
+func (ps *PurchaseServer) RequestReviewOutbound(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.ReviewOutboundReq)
+
+	err := ps.storeService.ReviewOutboundOrder(req.OutboundID)
+	if err != nil {
+		res.Code = enum.SqlError
+		res.Msg = err.Error()
+		return
+	}
+}
+
 func (ps *PurchaseServer) RequestOutboundOrderList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.OutboundListReq)
 	goodsMap, err := ps.storeService.GetGoodsMap()
 	if err != nil {
 		logger.Warn(purchaseServerLogTag, "GetGoodsMap Failed|Err:%v", err)
+		res.Code = enum.SystemError
+		return
+	}
+	adminMap, err := ps.userService.GetAdminMap()
+	if err != nil {
+		logger.Warn(purchaseServerLogTag, "GetAdminMap Failed|Err:%v", err)
 		res.Code = enum.SystemError
 		return
 	}
@@ -241,7 +268,7 @@ func (ps *PurchaseServer) RequestOutboundOrderList(ctx *gin.Context, rawReq inte
 		return
 	}
 
-	orderInfoList := conv.ConvertToOutboundInfoList(outboundList, detailMap, goodsMap)
+	orderInfoList := conv.ConvertToOutboundInfoList(outboundList, detailMap, goodsMap, adminMap)
 	resData := &dto.OutboundListRes{
 		OutboundList: orderInfoList,
 		PaginationRes: dto.PaginationRes{

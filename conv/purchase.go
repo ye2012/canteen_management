@@ -48,7 +48,7 @@ func ConvertFromApplyPurchase(goodsList []*dto.PurchaseGoodsInfo, goodsMap map[u
 }
 
 func ConvertToPurchaseInfoList(purchaseList []*model.PurchaseOrder, detailMap map[uint32][]*model.PurchaseDetail,
-	goodsMap map[uint32]*model.Goods, supplierMap map[uint32]*model.Supplier) []*dto.PurchaseOrderInfo {
+	goodsMap map[uint32]*model.Goods, supplierMap map[uint32]*model.Supplier, adminMap map[uint32]*model.AdminUser) []*dto.PurchaseOrderInfo {
 	retList := make([]*dto.PurchaseOrderInfo, 0, len(purchaseList))
 	for _, purchase := range purchaseList {
 		retInfo := &dto.PurchaseOrderInfo{
@@ -59,7 +59,19 @@ func ConvertToPurchaseInfoList(purchaseList []*model.PurchaseOrder, detailMap ma
 			TotalAmount:   purchase.TotalAmount,
 			PaymentAmount: purchase.PayAmount,
 			Status:        uint8(purchase.Status),
+			CreateTime:    purchase.CreateAt.Unix(),
+			ReceiveTime:   purchase.ReceiveAt.Unix(),
 		}
+		receivers, receiverNames := purchase.GetReceiver(), ""
+		for _, receiver := range receivers {
+			if receiverAdmin, ok := adminMap[receiver]; ok {
+				receiverNames += "," + receiverAdmin.NickName
+			}
+		}
+		if len(receiverNames) > 0 {
+			retInfo.Receiver = receiverNames[1:]
+		}
+
 		details, ok := detailMap[purchase.ID]
 		if !ok {
 			continue
@@ -104,13 +116,17 @@ func ConvertFromApplyOutbound(goodsList []*dto.OutboundGoodsInfo, goodsMap map[u
 }
 
 func ConvertToOutboundInfoList(outboundList []*model.OutboundOrder, detailMap map[uint32][]*model.OutboundDetail,
-	goodsMap map[uint32]*model.Goods) []*dto.OutboundOrderInfo {
+	goodsMap map[uint32]*model.Goods, adminMap map[uint32]*model.AdminUser) []*dto.OutboundOrderInfo {
 	retList := make([]*dto.OutboundOrderInfo, 0, len(outboundList))
 	for _, outbound := range outboundList {
 		retInfo := &dto.OutboundOrderInfo{
-			ID:          outbound.ID,
-			GoodsList:   make([]*dto.OutboundGoodsInfo, 0),
-			TotalAmount: outbound.TotalAmount,
+			ID:           outbound.ID,
+			GoodsList:    make([]*dto.OutboundGoodsInfo, 0),
+			TotalAmount:  outbound.TotalAmount,
+			OutboundTime: outbound.UpdateAt.Unix(),
+		}
+		if sender, ok := adminMap[outbound.Creator]; ok {
+			retInfo.Sender = sender.NickName
 		}
 		details, ok := detailMap[outbound.ID]
 		if !ok {

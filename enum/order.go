@@ -61,6 +61,7 @@ type InventoryOrderStatus = int8
 const (
 	InventoryOrderNew InventoryOrderStatus = iota
 	InventoryOrderFinish
+	InventoryOrderConfirmed
 	InventoryOrderReviewed
 )
 

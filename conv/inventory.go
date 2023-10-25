@@ -7,13 +7,21 @@ import (
 )
 
 func ConvertToInventoryInfoList(inventoryList []*model.InventoryOrder, detailMap map[uint32][]*model.InventoryDetail,
-	goodsMap map[uint32]*model.Goods, goodsTypes []*model.GoodsType) []*dto.InventoryOrderInfo {
+	goodsMap map[uint32]*model.Goods, adminMap map[uint32]*model.AdminUser) []*dto.InventoryOrderInfo {
 	retList := make([]*dto.InventoryOrderInfo, 0, len(inventoryList))
 	for _, inventory := range inventoryList {
 		retInfo := &dto.InventoryOrderInfo{
 			ID:        inventory.ID,
 			GoodsList: make([]*dto.InventoryGoodsNode, 0),
 			Status:    inventory.Status,
+			StartTime: inventory.CreateAt.Unix(),
+			EndTime:   inventory.FinishAt.Unix(),
+		}
+		if creator, ok := adminMap[inventory.Creator]; ok {
+			retInfo.Creator = creator.NickName
+		}
+		if partner, ok := adminMap[inventory.Partner]; ok {
+			retInfo.Partner = partner.NickName
 		}
 		details, ok := detailMap[inventory.ID]
 		if !ok {

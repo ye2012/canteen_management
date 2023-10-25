@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -27,8 +28,44 @@ type PurchaseOrder struct {
 	PayAmount   float64   `json:"pay_amount"`
 	Creator     uint32    `json:"creator"`
 	Status      int8      `json:"status"`
+	Receiver    string    `json:"receiver"`
 	CreateAt    time.Time `json:"created_at"`
+	ReceiveAt   time.Time `json:"receive_at"`
 	UpdateAt    time.Time `json:"updated_at"`
+}
+
+func (po *PurchaseOrder) GetReceiver() []uint32 {
+	retList := make([]uint32, 0)
+	if po.Receiver == "" {
+		return retList
+	}
+	err := json.Unmarshal([]byte(po.Receiver), &retList)
+	if err != nil {
+		logger.Warn(purchaseOrderLogTag, "GetReceiver Failed|Err:%v", err)
+		return make([]uint32, 0)
+	}
+	return retList
+}
+
+func (po *PurchaseOrder) AddReceiver(receiver uint32) error {
+	receiverList := make([]uint32, 0)
+	if po.Receiver != "" {
+		err := json.Unmarshal([]byte(po.Receiver), &receiverList)
+		if err != nil {
+			logger.Warn(purchaseOrderLogTag, "AddReceiver Unmarshal Failed|Err:%v", err)
+			return err
+		}
+	}
+	receiverList = append(receiverList, receiver)
+
+	receiverStr, err := json.Marshal(receiverList)
+	if err != nil {
+		logger.Warn(purchaseOrderLogTag, "AddReceiver Failed|Err:%v", err)
+		return err
+	}
+
+	po.Receiver = string(receiverStr)
+	return nil
 }
 
 type PurchaseOrderModel struct {
@@ -48,9 +85,9 @@ func (pom *PurchaseOrderModel) Insert(dao *PurchaseOrder) error {
 func (pom *PurchaseOrderModel) InsertWithTx(tx *sql.Tx, dao *PurchaseOrder) error {
 	id, err := int64(0), error(nil)
 	if tx != nil {
-		id, err = utils.SqlInsert(tx, purchaseOrderTable, dao, "id", "created_at", "updated_at")
+		id, err = utils.SqlInsert(tx, purchaseOrderTable, dao, "id", "created_at", "updated_at", "receive_at")
 	} else {
-		id, err = utils.SqlInsert(pom.sqlCli, purchaseOrderTable, dao, "id", "created_at", "updated_at")
+		id, err = utils.SqlInsert(pom.sqlCli, purchaseOrderTable, dao, "id", "created_at", "updated_at", "receive_at")
 	}
 	if err != nil {
 		logger.Warn(purchaseOrderLogTag, "Insert Failed|Dao:%+v|Err:%v", dao, err)

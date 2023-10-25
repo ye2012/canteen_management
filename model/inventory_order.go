@@ -17,8 +17,10 @@ const (
 type InventoryOrder struct {
 	ID       uint32    `json:"id"`
 	Creator  uint32    `json:"creator"`
+	Partner  uint32    `json:"partner"`
 	Status   int8      `json:"status"`
 	CreateAt time.Time `json:"created_at"`
+	FinishAt time.Time `json:"finish_at"`
 	UpdateAt time.Time `json:"updated_at"`
 }
 
@@ -39,9 +41,9 @@ func (iom *InventoryOrderModel) Insert(dao *InventoryOrder) error {
 func (iom *InventoryOrderModel) InsertWithTx(tx *sql.Tx, dao *InventoryOrder) error {
 	id, err := int64(0), error(nil)
 	if tx != nil {
-		id, err = utils.SqlInsert(tx, inventoryOrderTable, dao, "id", "created_at", "updated_at")
+		id, err = utils.SqlInsert(tx, inventoryOrderTable, dao, "id", "created_at", "updated_at", "finish_at")
 	} else {
-		id, err = utils.SqlInsert(iom.sqlCli, inventoryOrderTable, dao, "id", "created_at", "updated_at")
+		id, err = utils.SqlInsert(iom.sqlCli, inventoryOrderTable, dao, "id", "created_at", "updated_at", "finish_at")
 	}
 	if err != nil {
 		logger.Warn(inventoryModelLogTag, "Insert Failed|Dao:%+v|Err:%v", dao, err)

@@ -45,6 +45,10 @@ type ApplyOutboundReq struct {
 	GoodsList []*OutboundGoodsInfo `json:"goods_list"`
 }
 
+type ReviewOutboundReq struct {
+	OutboundID uint32 `json:"outbound_id"`
+}
+
 type OutboundListReq struct {
 	PaginationReq
 	Uid        uint32 `json:"uid"`
@@ -60,6 +64,8 @@ type OutboundOrderInfo struct {
 	TotalWeight      float64              `json:"total_weight"`
 	GoodsList        []*OutboundGoodsInfo `json:"goods_list"`
 	TotalAmount      float64              `json:"total_amount"`
+	OutboundTime     int64                `json:"outbound_time"`
+	Sender           string               `json:"sender"`
 }
 
 type OutboundListRes struct {
@@ -93,6 +99,10 @@ type InventoryOrderInfo struct {
 	ExceptionAmount float64               `json:"exception_amount"`
 	Status          int8                  `json:"status"`
 	GoodsList       []*InventoryGoodsNode `json:"goods_list"`
+	StartTime       int64                 `json:"start_time"`
+	EndTime         int64                 `json:"end_time"`
+	Creator         string                `json:"creator"`
+	Partner         string                `json:"partner"`
 }
 
 type InventoryListRes struct {
@@ -106,6 +116,11 @@ type InventoryReq struct {
 }
 
 type ApplyInventoryReq struct {
+	Uid         uint32 `json:"uid"`
+	InventoryID uint32 `json:"inventory_id"`
+}
+
+type ConfirmInventoryReq struct {
 	Uid         uint32 `json:"uid"`
 	InventoryID uint32 `json:"inventory_id"`
 }

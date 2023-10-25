@@ -34,7 +34,8 @@ func ConvertToGoodsTypeInfoList(daoList []*model.GoodsType) []*dto.GoodsTypeInfo
 
 func ConvertFromGoodsInfo(info *dto.GoodsInfo) *model.Goods {
 	return &model.Goods{ID: info.GoodsID, Name: info.GoodsName, GoodsTypeID: info.GoodsType, StoreTypeID: info.StoreType,
-		Picture: info.Picture, BatchSize: info.BatchSize, BatchUnit: info.BatchUnit, Price: info.Price, Quantity: info.Quantity}
+		Picture: info.Picture, BatchSize: info.BatchSize, BatchUnit: info.BatchUnit, AveragePrice: info.Price,
+		Price: info.Price, Quantity: info.Quantity}
 }
 
 func ConvertToGoodsInfoList(daoList []*model.Goods) []*dto.GoodsInfo {

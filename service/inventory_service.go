@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/canteen_management/enum"
 	"github.com/canteen_management/logger"
@@ -94,8 +95,31 @@ func (is *InventoryService) ApplyInventory(inventoryID uint32) error {
 		return fmt.Errorf("还有未盘点的库存商品哦")
 	}
 
-	inventoryOrder := &model.InventoryOrder{ID: inventoryID, Status: enum.InventoryOrderFinish}
-	err = is.inventoryOrderModel.UpdateInventoryOrderByCondition(inventoryOrder, "id", "status")
+	inventoryOrder := &model.InventoryOrder{ID: inventoryID, Status: enum.InventoryOrderFinish,
+		FinishAt: time.Now()}
+	err = is.inventoryOrderModel.UpdateInventoryOrderByCondition(inventoryOrder, "id", "status", "finish_at")
+	if err != nil {
+		logger.Warn(inventoryServiceLogTag, "UpdateInventoryOrderByCondition Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
+func (is *InventoryService) ConfirmInventory(inventoryID, uid uint32) error {
+	order, err := is.inventoryOrderModel.GetInventoryOrder(inventoryID)
+	if err != nil {
+		logger.Warn(inventoryServiceLogTag, "ConfirmInventory GetInventoryOrder Failed|Err:%v", err)
+		return err
+	}
+	if order == nil {
+		return fmt.Errorf("盘点订单不存在")
+	}
+	if order.Status != enum.InventoryOrderFinish {
+		return fmt.Errorf("盘点未完成")
+	}
+
+	inventoryOrder := &model.InventoryOrder{ID: inventoryID, Status: enum.InventoryOrderConfirmed, Partner: uid}
+	err = is.inventoryOrderModel.UpdateInventoryOrderByCondition(inventoryOrder, "id", "status", "partner")
 	if err != nil {
 		logger.Warn(inventoryServiceLogTag, "UpdateInventoryOrderByCondition Failed|Err:%v", err)
 		return err

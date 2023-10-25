@@ -27,7 +27,6 @@ type ModifySupplierReq struct {
 	Supplier *SupplierInfo    `json:"supplier"`
 }
 
-// todo open_id校验
 type BindSupplierReq struct {
 	SupplierID uint32 `json:"supplier_id"`
 	OpenID     string `json:"open_id"`
@@ -52,6 +51,9 @@ type PurchaseOrderInfo struct {
 	TotalAmount   float64              `json:"total_amount"`
 	PaymentAmount float64              `json:"payment_amount"`
 	Status        uint8                `json:"status"`
+	CreateTime    int64                `json:"create_time"`
+	ReceiveTime   int64                `json:"receive_time"`
+	Receiver      string               `json:"receiver"`
 }
 
 type PurchaseListReq struct {
@@ -83,5 +85,6 @@ type ConfirmPurchaseReq struct {
 
 type ReceivePurchaseReq struct {
 	PurchaseID uint32               `json:"purchase_id"`
+	Uid        uint32               `json:"uid"`
 	GoodsList  []*PurchaseGoodsInfo `json:"goods_list"`
 }

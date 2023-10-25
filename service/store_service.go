@@ -81,6 +81,23 @@ func (ss *StoreService) UpdateStoreType(storeType *model.StorehouseType) error {
 	return nil
 }
 
+func (ss *StoreService) DeleteStoreType(storeTypeID uint32) error {
+	count, err := ss.goodsModel.GetGoodsCount(0, storeTypeID)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "DeleteStoreType GetGoodsCount Failed|Err:%v", err)
+		return err
+	}
+	if count > 0 {
+		return fmt.Errorf("该仓库下还有商品，无法删除")
+	}
+	err = ss.storeTypeModel.DeleteStorehouseType(storeTypeID)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "UpdateStoreType Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
 func (ss *StoreService) GetGoodsTypeList() ([]*model.GoodsType, error) {
 	typeList, err := ss.goodsTypeModel.GetGoodsTypes()
 	if err != nil {
@@ -113,6 +130,13 @@ func (ss *StoreService) AddGoodsType(goodsType *model.GoodsType) error {
 }
 
 func (ss *StoreService) UpdateGoodsType(goodsType *model.GoodsType) error {
+	tx, err := ss.sqlCli.Begin()
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "UpdateGoodsType Begin Failed|Err:%v", err)
+		return err
+	}
+	defer utils.End(tx, err)
+
 	preType, err := ss.goodsTypeModel.GetGoodsTypesByID(goodsType.ID)
 	if err != nil {
 		logger.Warn(storeServiceLogTag, "GetGoodsTypesByID Failed|Err:%v", err)
@@ -120,12 +144,37 @@ func (ss *StoreService) UpdateGoodsType(goodsType *model.GoodsType) error {
 	}
 
 	if preType.Discount != goodsType.Discount {
-
+		goodsList, err := ss.goodsModel.GetGoods(goodsType.ID, 0, 1, 10000)
+		if err != nil {
+			logger.Warn(storeServiceLogTag, "UpdateGoodsType GetGoods Failed|Err:%v", err)
+			return err
+		}
+		for _, goods := range goodsList {
+			goods.Price = goods.AveragePrice * goodsType.Discount
+		}
+		ss.goodsModel.BatchUpdateByTagWithTx(tx, goodsList, "price")
 	}
 
-	err = ss.goodsTypeModel.UpdateGoodsType(goodsType)
+	err = ss.goodsTypeModel.UpdateGoodsTypeWithTx(tx, goodsType)
 	if err != nil {
 		logger.Warn(storeServiceLogTag, "UpdateGoodsType Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
+func (ss *StoreService) DeleteGoodsType(goodsTypeID uint32) error {
+	count, err := ss.goodsModel.GetGoodsCount(goodsTypeID, 0)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "DeleteGoodsType GetGoodsCount Failed|Err:%v", err)
+		return err
+	}
+	if count > 0 {
+		return fmt.Errorf("该商品类型下还有商品，无法删除")
+	}
+	err = ss.goodsTypeModel.DeleteGoodsType(goodsTypeID)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "GetGoodsTypesByID Failed|Err:%v", err)
 		return err
 	}
 	return nil
@@ -183,6 +232,15 @@ func (ss *StoreService) UpdateGoods(goods *model.Goods) error {
 	return nil
 }
 
+func (ss *StoreService) DeleteGoods(goodsID uint32) error {
+	err := ss.goodsModel.DeleteGoods(goodsID)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "DeleteGoods Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
 func (ss *StoreService) UpdateGoodsPrice(goodsID uint32, priceMap map[uint8]float64) error {
 	averagePrice, count := 0.0, 0
 	for _, price := range priceMap {
@@ -209,8 +267,8 @@ func (ss *StoreService) UpdateGoodsPrice(goodsID uint32, priceMap map[uint8]floa
 		return err
 	}
 
-	averagePrice = averagePrice * goodsType.Discount
-	err = ss.goodsModel.UpdateGoodsPriceInfo(goodsID, averagePrice, priceMap)
+	finalPrice := averagePrice * goodsType.Discount
+	err = ss.goodsModel.UpdateGoodsPriceInfo(goodsID, averagePrice, finalPrice, priceMap)
 	if err != nil {
 		logger.Warn(storeServiceLogTag, "UpdateGoodsPrice Failed|Err:%v", err)
 		return err
@@ -262,13 +320,72 @@ func (ss *StoreService) ApplyOutboundOrder(outbound *model.OutboundOrder, detail
 	}
 	defer utils.End(tx, err)
 
-	totalAmount, goodsIDList, outMap := 0.0, make([]uint32, 0, len(details)), make(map[uint32]float64)
+	totalAmount := 0.0
 	for _, item := range details {
 		totalAmount += item.Price * item.OutNumber
+	}
+	outbound.TotalAmount = totalAmount
+	err = ss.outboundModel.InsertWithTx(tx, outbound)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "Insert Outbound Failed|Err:%v", err)
+		return err
+	}
+	for _, item := range details {
+		item.OutboundID = outbound.ID
+	}
+	err = ss.outboundDetailModel.BatchInsertWithTx(tx, details)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "BatchInsert OutboundDetail Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
+func (ss *StoreService) ReviewOutboundOrder(outboundID uint32) error {
+	tx, err := ss.sqlCli.Begin()
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "FinishOutboundOrder Begin Failed|Err:%v", err)
+		return err
+	}
+	defer utils.End(tx, err)
+
+	order, err := ss.outboundModel.GetOutboundOrderWithLock(tx, outboundID)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "GetOutboundOrderWithLock Failed|Err:%v", err)
+		return err
+	}
+	if order == nil {
+		logger.Warn(storeServiceLogTag, "ReviewOutboundOrder Not Found|ID:%v|Err:%v", outboundID, err)
+		return fmt.Errorf("订单未找到")
+	}
+	if order.Status != enum.OutboundNew {
+		return fmt.Errorf("订单状态异常")
+	}
+
+	details, err := ss.outboundDetailModel.GetDetail(outboundID)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "GetOutboundOrder Detail Failed|Err:%v", err)
+		return err
+	}
+
+	err = ss.FinishOutboundOrder(tx, order, details)
+	if err == nil {
+		order.Status = enum.OutboundReviewed
+		err = ss.outboundModel.UpdateOutboundWithTx(tx, order, "status")
+		if err != nil {
+			logger.Warn(storeServiceLogTag, "UpdateOutboundStatus Failed|Err:%v", err)
+			return err
+		}
+	}
+	return err
+}
+
+func (ss *StoreService) FinishOutboundOrder(tx *sql.Tx, outbound *model.OutboundOrder, details []*model.OutboundDetail) (err error) {
+	goodsIDList, outMap := make([]uint32, 0, len(details)), make(map[uint32]float64)
+	for _, item := range details {
 		goodsIDList = append(goodsIDList, item.GoodsID)
 		outMap[item.GoodsID] = item.OutNumber
 	}
-
 	goodsList, err := ss.goodsModel.GetGoodsByIDListWithLock(tx, goodsIDList)
 	if err != nil {
 		logger.Warn(storeServiceLogTag, "GetGoodsByIDListWithLock Failed|Err:%v", err)
@@ -287,21 +404,10 @@ func (ss *StoreService) ApplyOutboundOrder(outbound *model.OutboundOrder, detail
 		}
 		updateMap[goods.ID] = outNumber
 	}
-	outbound.TotalAmount = totalAmount
-	err = ss.outboundModel.InsertWithTx(tx, outbound)
-	if err != nil {
-		logger.Warn(storeServiceLogTag, "Insert Outbound Failed|Err:%v", err)
-		return err
-	}
 	goodsUpdateList := make([]*model.Goods, 0, len(details))
 	for _, item := range details {
 		item.OutboundID = outbound.ID
 		goodsUpdateList = append(goodsUpdateList, &model.Goods{ID: item.GoodsID, Quantity: -item.OutNumber})
-	}
-	err = ss.outboundDetailModel.BatchInsertWithTx(tx, details)
-	if err != nil {
-		logger.Warn(storeServiceLogTag, "BatchInsert OutboundDetail Failed|Err:%v", err)
-		return err
 	}
 
 	for _, goods := range goodsList {

@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/canteen_management/logger"
@@ -61,5 +62,16 @@ func (stm *StorehouseTypeModel) UpdateStorehouseType(dao *StorehouseType) error 
 		logger.Warn(storehouseTypeLogTag, "UpdateStorehouseType Failed|Err:%v", err)
 		return err
 	}
+	return nil
+}
+
+func (stm *StorehouseTypeModel) DeleteStorehouseType(id uint32) error {
+	sqlStr := fmt.Sprintf(" DELETE FROM %v WHERE `id` = ? ", storehouseTypeTable)
+	_, err := stm.sqlCli.Exec(sqlStr, id)
+	if err != nil {
+		logger.Warn(storehouseTypeLogTag, "DeleteStorehouseType Failed|Err:%v", err)
+		return err
+	}
+
 	return nil
 }

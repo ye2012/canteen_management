@@ -18,6 +18,7 @@ const (
 type StorehouseServer struct {
 	storeService     *service.StoreService
 	inventoryService *service.InventoryService
+	userService      *service.UserService
 }
 
 func NewStorehouseServer(dbConf utils.Config) (*StorehouseServer, error) {
@@ -28,9 +29,11 @@ func NewStorehouseServer(dbConf utils.Config) (*StorehouseServer, error) {
 	}
 	storeService := service.NewStoreService(sqlCli)
 	inventoryService := service.NewInventoryService(sqlCli)
+	userService := service.NewUserService(sqlCli)
 	return &StorehouseServer{
 		storeService:     storeService,
 		inventoryService: inventoryService,
+		userService:      userService,
 	}, nil
 }
 
@@ -77,6 +80,12 @@ func (ss *StorehouseServer) RequestModifyGoodsType(ctx *gin.Context, rawReq inte
 			res.Code = enum.SqlError
 			return
 		}
+	case enum.OperateTypeDel:
+		err := ss.storeService.DeleteGoodsType(req.GoodsType.GoodsTypeID)
+		if err != nil {
+			res.Code = enum.SqlError
+			return
+		}
 	default:
 		logger.Warn(storeServerLogTag, "RequestModifyGoodsType Unknown OperateType|Type:%v", req.Operate)
 		res.Code = enum.SystemError
@@ -113,6 +122,12 @@ func (ss *StorehouseServer) RequestModifyGoods(ctx *gin.Context, rawReq interfac
 		}
 	case enum.OperateTypeModify:
 		err := ss.storeService.UpdateGoods(conv.ConvertFromGoodsInfo(req.Goods))
+		if err != nil {
+			res.Code = enum.SqlError
+			return
+		}
+	case enum.OperateTypeDel:
+		err := ss.storeService.DeleteGoods(req.Goods.GoodsID)
 		if err != nil {
 			res.Code = enum.SqlError
 			return
@@ -186,6 +201,13 @@ func (ss *StorehouseServer) RequestModifyStoreType(ctx *gin.Context, rawReq inte
 			res.Code = enum.SqlError
 			return
 		}
+	case enum.OperateTypeDel:
+		err := ss.storeService.DeleteStoreType(req.StoreType.StoreTypeID)
+		if err != nil {
+			res.Code = enum.SqlError
+			res.Msg = err.Error()
+			return
+		}
 	default:
 		logger.Warn(storeServerLogTag, "RequestModifyStoreType Unknown OperateType|Type:%v", req.Operate)
 		res.Code = enum.SystemError
@@ -249,9 +271,9 @@ func (ss *StorehouseServer) RequestInventoryOrderList(ctx *gin.Context, rawReq i
 		res.Code = enum.SystemError
 		return
 	}
-	goodsTypeMap, err := ss.storeService.GetGoodsTypeList()
+	adminMap, err := ss.userService.GetAdminMap()
 	if err != nil {
-		logger.Warn(storeServerLogTag, "GetGoodsTypeList Failed|Err:%v", err)
+		logger.Warn(storeServerLogTag, "GetAdminMap Failed|Err:%v", err)
 		res.Code = enum.SystemError
 		return
 	}
@@ -265,7 +287,7 @@ func (ss *StorehouseServer) RequestInventoryOrderList(ctx *gin.Context, rawReq i
 		return
 	}
 
-	orderInfoList := conv.ConvertToInventoryInfoList(orderList, detailMap, goodsMap, goodsTypeMap)
+	orderInfoList := conv.ConvertToInventoryInfoList(orderList, detailMap, goodsMap, adminMap)
 	resData := &dto.InventoryListRes{
 		InventoryList: orderInfoList,
 		PaginationRes: dto.PaginationRes{
@@ -338,6 +360,18 @@ func (ss *StorehouseServer) RequestApplyInventory(ctx *gin.Context, rawReq inter
 	err := ss.inventoryService.ApplyInventory(req.InventoryID)
 	if err != nil {
 		logger.Warn(storeServerLogTag, "ApplyInventory Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		res.Msg = err.Error()
+		return
+	}
+}
+
+func (ss *StorehouseServer) RequestConfirmInventory(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.ApplyInventoryReq)
+
+	err := ss.inventoryService.ConfirmInventory(req.InventoryID, req.Uid)
+	if err != nil {
+		logger.Warn(storeServerLogTag, "ConfirmInventory Failed|Err:%v", err)
 		res.Code = enum.SqlError
 		res.Msg = err.Error()
 		return

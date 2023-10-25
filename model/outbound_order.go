@@ -92,6 +92,21 @@ func (oom *OutboundOrderModel) GetOutboundOrder(id uint32) (*OutboundOrder, erro
 	return retInfo, nil
 }
 
+func (oom *OutboundOrderModel) GetOutboundOrderWithLock(tx *sql.Tx, id uint32) (*OutboundOrder, error) {
+	if tx == nil {
+		return nil, fmt.Errorf("tx is nil")
+	}
+	condition := " WHERE `id` = ? "
+	retInfo := &OutboundOrder{}
+	err := utils.SqlQueryRowWithLock(oom.sqlCli, outboundOrderTable, retInfo, condition, id)
+	if err != nil {
+		logger.Warn(outboundOrderLogTag, "GetOrderWithLock Failed|ID:%v|Err:%v", id, err)
+		return nil, err
+	}
+
+	return retInfo, nil
+}
+
 func (oom *OutboundOrderModel) GetOutboundOrderList(id uint32, creator uint32, startTime, endTime int64,
 	page, pageSize int32) ([]*OutboundOrder, error) {
 	condition, params := oom.GenerateCondition(id, creator, startTime, endTime)
@@ -117,4 +132,17 @@ func (oom *OutboundOrderModel) GetOutboundOrderCount(id uint32, creator uint32, 
 		return 0, err
 	}
 	return count, nil
+}
+
+func (oom *OutboundOrderModel) UpdateOutboundWithTx(tx *sql.Tx, dao *OutboundOrder, updateTags ...string) (err error) {
+	if tx != nil {
+		err = utils.SqlUpdateWithUpdateTags(tx, outboundOrderTable, dao, "id", updateTags...)
+	} else {
+		err = utils.SqlUpdateWithUpdateTags(oom.sqlCli, outboundOrderTable, dao, "id", updateTags...)
+	}
+	if err != nil {
+		logger.Warn(outboundOrderLogTag, "UpdateOutboundWithTx Failed|Err:%v", err)
+		return err
+	}
+	return nil
 }

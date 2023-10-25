@@ -253,6 +253,19 @@ func (us *UserService) UpdateOrderUser(updateInfo *model.OrderUser) error {
 	return nil
 }
 
+func (us UserService) GetAdminMap() (map[uint32]*model.AdminUser, error) {
+	adminList, err := us.adminUserModel.GetAdminUserByCondition(" ORDER BY `id` ASC ")
+	if err != nil {
+		logger.Warn(userServiceLogTag, "GetAdminMap Failed|Err:%v", err)
+		return nil, err
+	}
+	retMap := make(map[uint32]*model.AdminUser)
+	for _, admin := range adminList {
+		retMap[admin.ID] = admin
+	}
+	return retMap, nil
+}
+
 func (us UserService) GetAdminUserList(roleType uint8, page, pageSize int32) ([]*model.AdminUser, int32, error) {
 	adminList, err := us.adminUserModel.GetAdminUserByCondition(" ORDER BY `id` ASC ")
 	if err != nil {

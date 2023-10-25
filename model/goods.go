@@ -30,6 +30,7 @@ type Goods struct {
 	BatchSize    float64   `json:"batch_size"`
 	BatchUnit    string    `json:"batch_unit"`
 	Price        float64   `json:"price"`
+	AveragePrice float64   `json:"average_price"`
 	PriceContent string    `json:"price_content"`
 	Quantity     float64   `json:"quantity"`
 	CreateAt     time.Time `json:"created_at"`
@@ -185,14 +186,18 @@ func (gm *GoodsModel) BatchUpdateQuantity(updateList []*Goods) (err error) {
 }
 
 func (gm *GoodsModel) BatchUpdateQuantityWithTx(tx *sql.Tx, updateList []*Goods) (err error) {
+	return gm.BatchUpdateByTagWithTx(tx, updateList, "quantity")
+}
+
+func (gm *GoodsModel) BatchUpdateByTagWithTx(tx *sql.Tx, updateList []*Goods, updateTag string) (err error) {
 	daoList := make([]interface{}, 0)
 	for _, updateInfo := range updateList {
 		daoList = append(daoList, updateInfo)
 	}
 	if tx != nil {
-		err = utils.SqlBatchUpdateTag(tx, goodsTable, daoList, "id", "quantity")
+		err = utils.SqlBatchUpdateTag(tx, goodsTable, daoList, "id", updateTag)
 	} else {
-		err = utils.SqlBatchUpdateTag(gm.sqlCli, goodsTable, daoList, "id", "quantity")
+		err = utils.SqlBatchUpdateTag(gm.sqlCli, goodsTable, daoList, "id", updateTag)
 	}
 	if err != nil {
 		logger.Warn(goodsLogTag, "BatchUpdateQuantity Failed|Err:%v", err)
@@ -210,14 +215,24 @@ func (gm *GoodsModel) UpdateGoodsInfo(dao *Goods) error {
 	return nil
 }
 
-func (gm *GoodsModel) UpdateGoodsPriceInfo(id uint32, price float64, priceMap map[uint8]float64) error {
-	dao := &Goods{ID: id, Price: price}
+func (gm *GoodsModel) DeleteGoods(id uint32) error {
+	sqlStr := fmt.Sprintf(" DELETE FROM %v WHERE `id` = ? ", goodsTable)
+	_, err := gm.sqlCli.Exec(sqlStr, id)
+	if err != nil {
+		logger.Warn(goodsLogTag, "DeleteGoods Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
+func (gm *GoodsModel) UpdateGoodsPriceInfo(id uint32, averagePrice, price float64, priceMap map[uint8]float64) error {
+	dao := &Goods{ID: id, AveragePrice: averagePrice, Price: price}
 	err := dao.FromGoodsPrice(priceMap)
 	if err != nil {
 		logger.Warn(goodsLogTag, "UpdatePriceInfo FromGoodsPrice  Failed|Err:%v", err)
 		return err
 	}
-	err = utils.SqlUpdateWithUpdateTags(gm.sqlCli, goodsTable, dao, "id", "price", "price_content")
+	err = utils.SqlUpdateWithUpdateTags(gm.sqlCli, goodsTable, dao, "id", "price", "average_price", "price_content")
 	if err != nil {
 		logger.Warn(goodsLogTag, "UpdateGoodsPriceInfo Failed|Err:%v", err)
 		return err
