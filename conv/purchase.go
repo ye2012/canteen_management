@@ -2,6 +2,7 @@ package conv
 
 import (
 	"github.com/canteen_management/dto"
+	"github.com/canteen_management/enum"
 	"github.com/canteen_management/model"
 )
 
@@ -123,10 +124,14 @@ func ConvertToOutboundInfoList(outboundList []*model.OutboundOrder, detailMap ma
 	retList := make([]*dto.OutboundOrderInfo, 0, len(outboundList))
 	for _, outbound := range outboundList {
 		retInfo := &dto.OutboundOrderInfo{
-			ID:           outbound.ID,
-			GoodsList:    make([]*dto.OutboundGoodsInfo, 0),
-			TotalAmount:  outbound.TotalAmount,
-			OutboundTime: outbound.UpdateAt.Unix(),
+			ID:          outbound.ID,
+			GoodsList:   make([]*dto.OutboundGoodsInfo, 0),
+			TotalAmount: outbound.TotalAmount,
+			CreateTime:  outbound.CreateAt.Unix(),
+			Status:      outbound.Status,
+		}
+		if retInfo.Status == enum.OutboundFinish {
+			retInfo.OutboundTime = outbound.UpdateAt.Unix()
 		}
 		if sender, ok := adminMap[outbound.Creator]; ok {
 			retInfo.Sender = sender.NickName

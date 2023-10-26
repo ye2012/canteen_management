@@ -69,8 +69,10 @@ type OutboundOrderInfo struct {
 	TotalWeight      float64              `json:"total_weight"`
 	GoodsList        []*OutboundGoodsInfo `json:"goods_list"`
 	TotalAmount      float64              `json:"total_amount"`
+	CreateTime       int64                `json:"create_time"`
 	OutboundTime     int64                `json:"outbound_time"`
 	Sender           string               `json:"sender"`
+	Status           int8                 `json:"status"`
 }
 
 type OutboundListRes struct {
