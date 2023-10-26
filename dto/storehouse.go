@@ -49,12 +49,17 @@ type ReviewOutboundReq struct {
 	OutboundID uint32 `json:"outbound_id"`
 }
 
+type FinishOutboundReq struct {
+	OutboundID uint32 `json:"outbound_id"`
+}
+
 type OutboundListReq struct {
 	PaginationReq
 	Uid        uint32 `json:"uid"`
 	OutboundID uint32 `json:"outbound_id"`
 	StartTime  int64  `json:"start_time"`
 	EndTime    int64  `json:"end_time"`
+	Status     int8   `json:"status"`
 }
 
 type OutboundOrderInfo struct {

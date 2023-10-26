@@ -140,6 +140,8 @@ func HandlePurchaseApi(router *gin.Engine) error {
 		func() interface{} { return new(dto.ApplyOutboundReq) }))
 	purchaseRouter.POST("/reviewOutbound", NewHandler(purchaseServer.RequestReviewOutbound,
 		func() interface{} { return new(dto.ReviewOutboundReq) }))
+	purchaseRouter.POST("/finishOutbound", NewHandler(purchaseServer.RequestFinishOutbound,
+		func() interface{} { return new(dto.FinishOutboundReq) }))
 	purchaseRouter.POST("/outboundList", NewHandler(purchaseServer.RequestOutboundOrderList,
 		func() interface{} { return new(dto.OutboundListReq) }))
 

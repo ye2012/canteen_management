@@ -244,6 +244,17 @@ func (ps *PurchaseServer) RequestReviewOutbound(ctx *gin.Context, rawReq interfa
 	}
 }
 
+func (ps *PurchaseServer) RequestFinishOutbound(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.FinishOutboundReq)
+
+	err := ps.storeService.FinishOutboundOrder(req.OutboundID)
+	if err != nil {
+		res.Code = enum.SqlError
+		res.Msg = err.Error()
+		return
+	}
+}
+
 func (ps *PurchaseServer) RequestOutboundOrderList(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.OutboundListReq)
 	goodsMap, err := ps.storeService.GetGoodsMap()
@@ -260,7 +271,7 @@ func (ps *PurchaseServer) RequestOutboundOrderList(ctx *gin.Context, rawReq inte
 	}
 
 	outboundList, totalNumber, detailMap, err := ps.storeService.GetOutboundList(req.Uid, req.OutboundID,
-		req.StartTime, req.EndTime, req.Page, req.PageSize)
+		req.StartTime, req.EndTime, req.Status, req.Page, req.PageSize)
 	if err != nil {
 		logger.Warn(purchaseServerLogTag, "GetOutboundList Failed|Err:%v", err)
 		res.Code = enum.SqlError

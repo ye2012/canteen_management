@@ -362,15 +362,45 @@ func (ss *StoreService) ReviewOutboundOrder(outboundID uint32) error {
 		return fmt.Errorf("订单状态异常")
 	}
 
+	order.Status = enum.OutboundReviewed
+	err = ss.outboundModel.UpdateOutboundWithTx(tx, order, "status")
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "Review UpdateOutboundWithTx Failed|Err:%v", err)
+		return err
+	}
+	return err
+}
+
+func (ss *StoreService) FinishOutboundOrder(outboundID uint32) error {
+	tx, err := ss.sqlCli.Begin()
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "FinishOutboundOrder Begin Failed|Err:%v", err)
+		return err
+	}
+	defer utils.End(tx, err)
+
+	order, err := ss.outboundModel.GetOutboundOrderWithLock(tx, outboundID)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "GetOutboundOrderWithLock Failed|Err:%v", err)
+		return err
+	}
+	if order == nil {
+		logger.Warn(storeServiceLogTag, "ReviewOutboundOrder Not Found|ID:%v|Err:%v", outboundID, err)
+		return fmt.Errorf("订单未找到")
+	}
+	if order.Status != enum.OutboundReviewed {
+		return fmt.Errorf("订单状态异常")
+	}
+
 	details, err := ss.outboundDetailModel.GetDetail(outboundID)
 	if err != nil {
 		logger.Warn(storeServiceLogTag, "GetOutboundOrder Detail Failed|Err:%v", err)
 		return err
 	}
 
-	err = ss.FinishOutboundOrder(tx, order, details)
+	err = ss.finishOutboundOrder(tx, order, details)
 	if err == nil {
-		order.Status = enum.OutboundReviewed
+		order.Status = enum.OutboundFinish
 		err = ss.outboundModel.UpdateOutboundWithTx(tx, order, "status")
 		if err != nil {
 			logger.Warn(storeServiceLogTag, "UpdateOutboundStatus Failed|Err:%v", err)
@@ -380,7 +410,7 @@ func (ss *StoreService) ReviewOutboundOrder(outboundID uint32) error {
 	return err
 }
 
-func (ss *StoreService) FinishOutboundOrder(tx *sql.Tx, outbound *model.OutboundOrder, details []*model.OutboundDetail) (err error) {
+func (ss *StoreService) finishOutboundOrder(tx *sql.Tx, outbound *model.OutboundOrder, details []*model.OutboundDetail) (err error) {
 	goodsIDList, outMap := make([]uint32, 0, len(details)), make(map[uint32]float64)
 	for _, item := range details {
 		goodsIDList = append(goodsIDList, item.GoodsID)
@@ -429,14 +459,14 @@ func (ss *StoreService) FinishOutboundOrder(tx *sql.Tx, outbound *model.Outbound
 	return nil
 }
 
-func (ss *StoreService) GetOutboundList(uid, outboundID uint32, startTime, endTime int64,
+func (ss *StoreService) GetOutboundList(uid, outboundID uint32, startTime, endTime int64, status int8,
 	page, pageSize int32) ([]*model.OutboundOrder, int32, map[uint32][]*model.OutboundDetail, error) {
-	outboundList, err := ss.outboundModel.GetOutboundOrderList(outboundID, uid, startTime, endTime, page, pageSize)
+	outboundList, err := ss.outboundModel.GetOutboundOrderList(outboundID, uid, startTime, endTime, status, page, pageSize)
 	if err != nil {
 		logger.Warn(storeServiceLogTag, "GetOutboundOrderList Failed|Err:%v", err)
 		return nil, 0, nil, err
 	}
-	outboundCount, err := ss.outboundModel.GetOutboundOrderCount(outboundID, uid, startTime, endTime)
+	outboundCount, err := ss.outboundModel.GetOutboundOrderCount(outboundID, uid, startTime, endTime, status)
 	if err != nil {
 		logger.Warn(storeServiceLogTag, "GetOutboundOrderCount Failed|Err:%v", err)
 		return nil, 0, nil, err

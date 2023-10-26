@@ -53,7 +53,7 @@ func (oom *OutboundOrderModel) InsertWithTx(tx *sql.Tx, dao *OutboundOrder) erro
 	return nil
 }
 
-func (oom *OutboundOrderModel) GenerateCondition(id, creator uint32, startTime, endTime int64) (string, []interface{}) {
+func (oom *OutboundOrderModel) GenerateCondition(id, creator uint32, startTime, endTime int64, status int8) (string, []interface{}) {
 	var params []interface{}
 	condition := " WHERE 1=1 "
 	if id > 0 {
@@ -71,6 +71,10 @@ func (oom *OutboundOrderModel) GenerateCondition(id, creator uint32, startTime, 
 	if endTime > startTime {
 		condition += " AND `created_at` <= ? "
 		params = append(params, time.Unix(endTime, 0))
+	}
+	if status != -1 {
+		condition += " AND `status` = ? "
+		params = append(params, status)
 	}
 	return condition, params
 }
@@ -107,9 +111,9 @@ func (oom *OutboundOrderModel) GetOutboundOrderWithLock(tx *sql.Tx, id uint32) (
 	return retInfo, nil
 }
 
-func (oom *OutboundOrderModel) GetOutboundOrderList(id uint32, creator uint32, startTime, endTime int64,
+func (oom *OutboundOrderModel) GetOutboundOrderList(id uint32, creator uint32, startTime, endTime int64, status int8,
 	page, pageSize int32) ([]*OutboundOrder, error) {
-	condition, params := oom.GenerateCondition(id, creator, startTime, endTime)
+	condition, params := oom.GenerateCondition(id, creator, startTime, endTime, status)
 	condition += " ORDER BY `id` DESC LIMIT ?,? "
 	params = append(params, (page-1)*pageSize, pageSize)
 	retList, err := utils.SqlQuery(oom.sqlCli, outboundOrderTable, &OutboundOrder{}, condition, params...)
@@ -122,8 +126,8 @@ func (oom *OutboundOrderModel) GetOutboundOrderList(id uint32, creator uint32, s
 }
 
 func (oom *OutboundOrderModel) GetOutboundOrderCount(id uint32, creator uint32, startTime,
-	endTime int64) (int32, error) {
-	condition, params := oom.GenerateCondition(id, creator, startTime, endTime)
+	endTime int64, status int8) (int32, error) {
+	condition, params := oom.GenerateCondition(id, creator, startTime, endTime, status)
 	sqlStr := fmt.Sprintf("SELECT COUNT(*) FROM `%v` %v", outboundOrderTable, condition)
 	row := oom.sqlCli.QueryRow(sqlStr, params...)
 	var count int32 = 0

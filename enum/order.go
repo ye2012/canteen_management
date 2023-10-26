@@ -54,6 +54,7 @@ type OutboundStatus = int8
 const (
 	OutboundNew OutboundStatus = iota
 	OutboundReviewed
+	OutboundFinish
 )
 
 type InventoryOrderStatus = int8
