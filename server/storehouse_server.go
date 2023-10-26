@@ -367,7 +367,7 @@ func (ss *StorehouseServer) RequestApplyInventory(ctx *gin.Context, rawReq inter
 }
 
 func (ss *StorehouseServer) RequestConfirmInventory(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
-	req := rawReq.(*dto.ApplyInventoryReq)
+	req := rawReq.(*dto.ConfirmInventoryReq)
 
 	err := ss.inventoryService.ConfirmInventory(req.InventoryID, req.Uid)
 	if err != nil {

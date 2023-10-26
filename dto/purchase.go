@@ -51,6 +51,7 @@ type PurchaseOrderInfo struct {
 	TotalAmount   float64              `json:"total_amount"`
 	PaymentAmount float64              `json:"payment_amount"`
 	Status        uint8                `json:"status"`
+	Creator       string               `json:"creator"`
 	CreateTime    int64                `json:"create_time"`
 	ReceiveTime   int64                `json:"receive_time"`
 	Receiver      string               `json:"receiver"`
