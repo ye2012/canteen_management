@@ -29,6 +29,7 @@ type PurchaseOrder struct {
 	Creator     uint32    `json:"creator"`
 	Status      int8      `json:"status"`
 	Receiver    string    `json:"receiver"`
+	SignPicture string    `json:"sign_picture"`
 	CreateAt    time.Time `json:"created_at"`
 	ReceiveAt   time.Time `json:"receive_at"`
 	UpdateAt    time.Time `json:"updated_at"`

@@ -78,12 +78,14 @@ func (ss *StorehouseServer) RequestModifyGoodsType(ctx *gin.Context, rawReq inte
 		err := ss.storeService.UpdateGoodsType(conv.ConvertFromGoodsTypeInfo(req.GoodsType))
 		if err != nil {
 			res.Code = enum.SqlError
+			res.Msg = err.Error()
 			return
 		}
 	case enum.OperateTypeDel:
 		err := ss.storeService.DeleteGoodsType(req.GoodsType.GoodsTypeID)
 		if err != nil {
 			res.Code = enum.SqlError
+			res.Msg = err.Error()
 			return
 		}
 	default:

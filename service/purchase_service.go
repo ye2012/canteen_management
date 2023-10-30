@@ -262,7 +262,7 @@ func (ps *PurchaseService) ConfirmPurchaseOrder(purchaseID uint32) error {
 	return nil
 }
 
-func (ps *PurchaseService) ReceivePurchaseOrder(purchaseID, uid uint32, details []*model.PurchaseDetail) error {
+func (ps *PurchaseService) ReceivePurchaseOrder(purchaseID, uid uint32, signPicture string, details []*model.PurchaseDetail) error {
 	purchase, err := ps.purchaseOrderModel.GetPurchaseOrder(purchaseID)
 	if err != nil || purchase == nil {
 		logger.Warn(purchaseServiceLogTag, "ReceivePurchase GetOrder Failed|Err:%v", err)
@@ -290,8 +290,9 @@ func (ps *PurchaseService) ReceivePurchaseOrder(purchaseID, uid uint32, details 
 	purchase.AddReceiver(uid)
 	purchase.ReceiveAt = time.Now()
 	purchase.Status = enum.PurchaseReceived
+	purchase.SignPicture = signPicture
 	purchase.PayAmount = payAmount
-	err = ps.purchaseOrderModel.UpdatePurchaseWithTx(tx, purchase, "status", "pay_amount", "receiver", "receive_at")
+	err = ps.purchaseOrderModel.UpdatePurchaseWithTx(tx, purchase, "status", "pay_amount", "receiver", "receive_at", "sign_picture")
 	if err != nil {
 		logger.Warn(purchaseServiceLogTag, "ReceivePurchaseOrder Failed|Err:%v", err)
 		return err

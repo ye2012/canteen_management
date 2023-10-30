@@ -15,13 +15,6 @@ const (
 	tokenTableName   = "token"
 
 	md5TokenString = "canteen@2023"
-
-	tokenUID      = "`uid`"
-	tokenToken    = "`token`"
-	tokenPlatform = "`platform`"
-	tokenCTime    = "`ctime`"
-	tokenMTime    = "`mtime`"
-	tokenID       = "`id`"
 )
 
 type TokenModel struct {
@@ -35,36 +28,17 @@ func NewTokenModelWithDB(mysql *sql.DB) *TokenModel {
 }
 
 type TokenDAO struct {
-	ID       int64
-	UID      int64
-	Token    string
-	Platform int
-	CTime    time.Time
-	MTime    time.Time
+	ID       uint32    `json:"id"`
+	UID      uint32    `json:"uid"`
+	AdminUid uint32    `json:"admin_uid"`
+	Role     uint32    `json:"role"`
+	Token    string    `json:"token"`
+	CreateAt time.Time `json:"created_at"`
+	UpdateAt time.Time `json:"updated_at"`
 }
 
-func (tm *TokenModel) Remove(uid int64, platform int) error {
-	sqlStr := fmt.Sprintf("DELETE FROM %v WHERE %v=? AND %v=?", tokenTableName, tokenUID, tokenPlatform)
-
-	_, err := tm.mysql.Exec(sqlStr, uid, platform)
-	if err != nil {
-		logger.Warn(tokenModelLogTag, "delete token failed, err: %v", err)
-	}
-	return err
-}
-
-func (tm *TokenModel) RemoveOtherPlatform(uid int64, platform int) error {
-	sqlStr := fmt.Sprintf("DELETE FROM %v WHERE %v=? AND %v!=?", tokenTableName, tokenUID, tokenPlatform)
-
-	_, err := tm.mysql.Exec(sqlStr, uid, platform)
-	if err != nil {
-		logger.Warn(tokenModelLogTag, "delete token failed, err: %v", err)
-	}
-	return err
-}
-
-func (tm *TokenModel) RemoveUser(uid int64) error {
-	sqlStr := fmt.Sprintf("DELETE FROM %v WHERE %v=?", tokenTableName, tokenUID)
+func (tm *TokenModel) RemoveUser(uid uint32) error {
+	sqlStr := fmt.Sprintf("DELETE FROM `%v` WHERE `uid`=?", tokenTableName)
 
 	_, err := tm.mysql.Exec(sqlStr, uid)
 	if err != nil {
@@ -73,45 +47,29 @@ func (tm *TokenModel) RemoveUser(uid int64) error {
 	return err
 }
 
-func (tm *TokenModel) Add(dao *TokenDAO) error {
-	sqlStr := fmt.Sprintf("INSERT INTO %v (%v, %v, %v, %v, %v) VALUES(?, ?, ?, ?, ?)", tokenTableName,
-		tokenUID, tokenToken, tokenPlatform, tokenCTime, tokenMTime)
-	res, err := tm.mysql.Exec(sqlStr, dao.UID, dao.Token, dao.Platform, dao.CTime, dao.MTime)
+func (tm *TokenModel) RemoveAdminUser(adminUid uint32) error {
+	sqlStr := fmt.Sprintf("DELETE FROM `%v` WHERE `admin_uid`=?", tokenTableName)
+
+	_, err := tm.mysql.Exec(sqlStr, adminUid)
 	if err != nil {
-		logger.Warn(tokenModelLogTag, "insert token failed, err: %v", err)
-		return err
+		logger.Warn(tokenModelLogTag, "delete token failed, err: %v", err)
 	}
-	dao.ID, err = res.LastInsertId()
-	if err != nil {
-		logger.Warn(tokenModelLogTag, "get new token ID failed, err: %v", err)
-		return err
-	}
-	return nil
+	return err
 }
 
 func (tm *TokenModel) Replace(dao *TokenDAO) error {
-	sqlStr := fmt.Sprintf("REPLACE INTO %v (%v, %v, %v, %v, %v) VALUES(?, ?, ?, ?, ?)", tokenTableName,
-		tokenUID, tokenToken, tokenPlatform, tokenCTime, tokenMTime)
-	res, err := tm.mysql.Exec(sqlStr, dao.UID, dao.Token, dao.Platform, dao.CTime, dao.MTime)
-	if err != nil {
-		logger.Warn(tokenModelLogTag, "replace token failed, err: %v", err)
-		return err
-	}
-	dao.ID, err = res.LastInsertId()
+	id, err := utils.SqlUpsert(tm.mysql, tokenTableName, dao, "id", "created_at", "updated_at")
 	if err != nil {
 		logger.Warn(tokenModelLogTag, "get new token ID failed, err: %v", err)
 		return err
 	}
+	dao.ID = uint32(id)
 	return nil
 }
 
 func (tm *TokenModel) Get(token string) *TokenDAO {
-	sqlStr := fmt.Sprintf("SELECT %v, %v, %v, %v, %v, %v FROM %v WHERE %v=?",
-		tokenID, tokenUID, tokenToken, tokenPlatform, tokenCTime, tokenMTime,
-		tokenTableName, tokenToken)
-	row := tm.mysql.QueryRow(sqlStr, token)
 	ret := &TokenDAO{}
-	err := row.Scan(&ret.ID, &ret.UID, &ret.Token, &ret.Platform, &ret.CTime, &ret.MTime)
+	err := utils.SqlQueryRow(tm.mysql, tokenTableName, ret, " WHERE `token` = ? ", token)
 	if err != nil {
 		logger.Warn(tokenModelLogTag, "get token failed: %v", err)
 		return nil
@@ -119,45 +77,37 @@ func (tm *TokenModel) Get(token string) *TokenDAO {
 	return ret
 }
 
-func (tm *TokenModel) GetByUidPlatform(uid int64, platform int) *TokenDAO {
-	sqlStr := fmt.Sprintf("SELECT %v, %v, %v, %v, %v, %v FROM %v WHERE %v=? AND %v = ?",
-		tokenID, tokenUID, tokenToken, tokenPlatform, tokenCTime, tokenMTime,
-		tokenTableName, tokenUID, tokenPlatform)
-	row := tm.mysql.QueryRow(sqlStr, uid, platform)
-	ret := &TokenDAO{}
-	err := row.Scan(&ret.ID, &ret.UID, &ret.Token, &ret.Platform, &ret.CTime, &ret.MTime)
-	if err != nil {
-		logger.Warn(tokenModelLogTag, "get token failed: %v", err)
-		return nil
-	}
-	return ret
-}
-
-func (tm *TokenModel) UpdateModifyTime(token *TokenDAO) {
-	sqlStr := fmt.Sprintf("UPDATE %v SET %v=? WHERE %v=?",
-		tokenTableName, tokenMTime, tokenID)
-	_, err := tm.mysql.Exec(sqlStr, token.MTime, token.ID)
-	if err != nil {
-		logger.Warn(tokenModelLogTag, "UpdateModifyTime failed: %v", err)
-	}
-}
-
-func (tm *TokenModel) LoginSuccess(uid int64, platform int) *TokenDAO {
+func (tm *TokenModel) LoginSuccess(uid, adminUid, role uint32) *TokenDAO {
 	nowTime := time.Now()
 	token := fmt.Sprintf("%v%v%v%v", md5TokenString, uid, nowTime.UnixNano()/1e6, rand.Float64())
 	token = utils.GetMD5Hex(token)
 
 	dao := &TokenDAO{
 		UID:      uid,
+		AdminUid: adminUid,
+		Role:     role,
 		Token:    token,
-		Platform: platform,
-		CTime:    nowTime,
-		MTime:    nowTime,
 	}
-
-	tm.RemoveOtherPlatform(uid, platform)
-	// 添加token到数据库
-	tm.Replace(dao)
-
 	return dao
+}
+
+func (tm *TokenModel) UserLoginSuccess(uid, role uint32) *TokenDAO {
+	return tm.LoginSuccess(uid, 0, role)
+}
+
+func (tm *TokenModel) AdminLoginSuccess(adminUid, role uint32) *TokenDAO {
+	return tm.LoginSuccess(0, adminUid, role)
+}
+
+func (tm *TokenModel) UpdateTokenWithTx(tx *sql.Tx, dao *TokenDAO, updateTags ...string) (err error) {
+	if tx != nil {
+		err = utils.SqlUpdateWithUpdateTags(tx, tokenTableName, dao, "id", updateTags...)
+	} else {
+		err = utils.SqlUpdateWithUpdateTags(tm.mysql, tokenTableName, dao, "id", updateTags...)
+	}
+	if err != nil {
+		logger.Warn(tokenModelLogTag, "UpdateToken Failed|Err:%v", err)
+		return err
+	}
+	return nil
 }

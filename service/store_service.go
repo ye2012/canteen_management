@@ -434,16 +434,14 @@ func (ss *StoreService) finishOutboundOrder(tx *sql.Tx, outbound *model.Outbound
 		}
 		updateMap[goods.ID] = outNumber
 	}
-	goodsUpdateList := make([]*model.Goods, 0, len(details))
 	for _, item := range details {
 		item.OutboundID = outbound.ID
-		goodsUpdateList = append(goodsUpdateList, &model.Goods{ID: item.GoodsID, Quantity: -item.OutNumber})
 	}
 
 	for _, goods := range goodsList {
 		historyList = append(historyList,
-			model.GenerateOutboundGoodsHistory(goods, updateMap[goods.ID], outbound.ID))
-		goods.Quantity = goods.Quantity + updateMap[goods.ID]
+			model.GenerateOutboundGoodsHistory(goods, -updateMap[goods.ID], outbound.ID))
+		goods.Quantity = goods.Quantity - updateMap[goods.ID]
 	}
 
 	err = ss.goodsModel.BatchUpdateQuantityWithTx(tx, goodsList)

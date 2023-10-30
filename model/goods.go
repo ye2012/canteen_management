@@ -33,6 +33,7 @@ type Goods struct {
 	AveragePrice float64   `json:"average_price"`
 	PriceContent string    `json:"price_content"`
 	Quantity     float64   `json:"quantity"`
+	IsDelete     bool      `json:"is_delete"`
 	CreateAt     time.Time `json:"created_at"`
 	UpdateAt     time.Time `json:"updated_at"`
 }

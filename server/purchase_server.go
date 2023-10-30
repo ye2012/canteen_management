@@ -200,7 +200,7 @@ func (ps *PurchaseServer) RequestReceivePurchase(ctx *gin.Context, rawReq interf
 	}
 
 	details := conv.ConvertFromApplyPurchase(req.GoodsList, goodsMap)
-	err = ps.purchaseService.ReceivePurchaseOrder(req.PurchaseID, uid, details)
+	err = ps.purchaseService.ReceivePurchaseOrder(req.PurchaseID, uid, req.SignPicture, details)
 	if err != nil {
 		res.Code = enum.SqlError
 		res.Msg = err.Error()

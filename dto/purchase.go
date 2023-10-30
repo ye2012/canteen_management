@@ -1,6 +1,10 @@
 package dto
 
-import "github.com/canteen_management/enum"
+import (
+	"fmt"
+
+	"github.com/canteen_management/enum"
+)
 
 type SupplierListReq struct {
 	Name        string `json:"name"`
@@ -85,7 +89,15 @@ type ConfirmPurchaseReq struct {
 }
 
 type ReceivePurchaseReq struct {
-	PurchaseID uint32               `json:"purchase_id"`
-	Uid        uint32               `json:"uid"`
-	GoodsList  []*PurchaseGoodsInfo `json:"goods_list"`
+	PurchaseID  uint32               `json:"purchase_id"`
+	Uid         uint32               `json:"uid"`
+	GoodsList   []*PurchaseGoodsInfo `json:"goods_list"`
+	SignPicture string               `json:"sign_picture"`
+}
+
+func (rpr *ReceivePurchaseReq) CheckParams() error {
+	if rpr.SignPicture == "" {
+		return fmt.Errorf("请完成签名")
+	}
+	return nil
 }

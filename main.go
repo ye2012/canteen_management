@@ -385,13 +385,13 @@ func CheckTokenImpl(token string) (*model.TokenDAO, enum.ErrorCode) {
 		return nil, enum.TokenCheckFailed
 	}
 	nowTime := time.Now()
-	if tokenDAO.MTime.Add(tokenTimeOut).Before(nowTime) {
+	if tokenDAO.UpdateAt.Add(tokenTimeOut).Before(nowTime) {
 		return nil, enum.TokenTimeout
 	}
 
-	if tokenDAO.MTime.Add(updateTokenTimeOut).Before(nowTime) {
-		tokenDAO.MTime = nowTime
-		tokenModel.UpdateModifyTime(tokenDAO)
+	if tokenDAO.UpdateAt.Add(updateTokenTimeOut).Before(nowTime) {
+		tokenDAO.UpdateAt = nowTime
+		tokenModel.UpdateTokenWithTx(nil, tokenDAO, "updated_at")
 	}
 	return tokenDAO, enum.Success
 }
