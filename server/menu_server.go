@@ -80,6 +80,13 @@ func (ms *MenuServer) RequestModifyDishType(ctx *gin.Context, rawReq interface{}
 			res.Code = enum.SqlError
 			return
 		}
+	case enum.OperateTypeDel:
+		err := ms.dishService.DeleteDishType(req.TypeInfo.DishTypeID)
+		if err != nil {
+			res.Code = enum.SqlError
+			res.Msg = err.Error()
+			return
+		}
 	default:
 		logger.Warn(menuServerLogTag, "RequestModifyDishType Unknown OperateType|Type:%v", req.Operate)
 		res.Code = enum.SystemError

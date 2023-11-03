@@ -62,6 +62,7 @@ func ConvertToPurchaseInfoList(purchaseList []*model.PurchaseOrder, detailMap ma
 			Status:        uint8(purchase.Status),
 			CreateTime:    purchase.CreateAt.Unix(),
 			ReceiveTime:   purchase.ReceiveAt.Unix(),
+			SignPicture:   purchase.SignPicture,
 		}
 		if creator, ok := adminMap[purchase.Creator]; ok {
 			retInfo.Creator = creator.NickName

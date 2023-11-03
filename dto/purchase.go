@@ -59,6 +59,7 @@ type PurchaseOrderInfo struct {
 	CreateTime    int64                `json:"create_time"`
 	ReceiveTime   int64                `json:"receive_time"`
 	Receiver      string               `json:"receiver"`
+	SignPicture   string               `json:"sign_picture"`
 }
 
 type PurchaseListReq struct {

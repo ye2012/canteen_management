@@ -124,3 +124,8 @@ type PurchaseGoodsBase struct {
 	GoodsTypeID  uint32  `json:"goods_type_id"`
 	ExpectNumber float64 `json:"expect_number"`
 }
+
+type UploadBase64Req struct {
+	ImgData  string `json:"img_data"`
+	FileName string `json:"file_name"`
+}

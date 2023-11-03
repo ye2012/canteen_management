@@ -312,6 +312,8 @@ func HandleUploadApi(router *gin.Engine) {
 	uploadServer := server.NewUploadServer()
 	uploadRouter.POST("upload", NewHandler(uploadServer.RequestUpload,
 		func() interface{} { return new(dto.Request) }))
+	uploadRouter.POST("uploadBase64", NewHandler(uploadServer.RequestUploadBase64,
+		func() interface{} { return new(dto.UploadBase64Req) }))
 }
 
 type RequestDealFunc func(*gin.Context, interface{}, *dto.Response)

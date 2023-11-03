@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"fmt"
 	"math/rand"
 
 	"github.com/canteen_management/logger"
@@ -77,7 +78,17 @@ func (ds *DishService) GetDishList(dishType uint32, page, pageSize int32) ([]*mo
 }
 
 func (ds *DishService) AddDish(dish *model.Dish) error {
-	err := ds.dishModel.Insert(dish)
+	dishDao, err := ds.dishModel.GetDishByName(dish.DishName)
+	if err != nil {
+		logger.Warn(dishServiceLogTag, "AddDish GetDishByName Failed|Err:%v", err)
+		return err
+
+	}
+	if dishDao != nil {
+		return fmt.Errorf("已有同名菜品，无法添加")
+	}
+
+	err = ds.dishModel.Insert(dish)
 	if err != nil {
 		logger.Warn(dishServiceLogTag, "Insert Dish Failed|Err:%v", err)
 		return err
@@ -146,6 +157,23 @@ func (ds *DishService) ModifyDishType(dishType *model.DishType) error {
 	err := ds.dishTypeModel.UpdateDishType(dishType)
 	if err != nil {
 		logger.Warn(dishServiceLogTag, "Update DishType Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
+func (ds *DishService) DeleteDishType(dishTypeID uint32) error {
+	count, err := ds.dishModel.GetDishesCount(dishTypeID)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "DelDishType GetDishesCount Failed|Err:%v", err)
+		return err
+	}
+	if count > 0 {
+		return fmt.Errorf("该菜品类型下还有菜品，无法删除")
+	}
+	err = ds.dishTypeModel.DeleteDishType(dishTypeID)
+	if err != nil {
+		logger.Warn(storeServiceLogTag, "GetGoodsTypesByID Failed|Err:%v", err)
 		return err
 	}
 	return nil

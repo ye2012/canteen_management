@@ -15,7 +15,7 @@ const (
 )
 
 var (
-	supplierUpdateTags = []string{"name", "phone_number", "id_number", "location", "validity_deadline"}
+	supplierUpdateTags = []string{"name", "phone_number", "id_number", "location"}
 )
 
 type Supplier struct {
