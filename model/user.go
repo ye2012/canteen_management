@@ -83,6 +83,17 @@ func (aum *AdminUserModel) UpdateAdminUserByCondition(adminUser *AdminUser, cond
 	return nil
 }
 
+func (aum *AdminUserModel) UpdateAdminUserByConditionWithTx(tx *sql.Tx, adminUser *AdminUser,
+	conditionTag string, updateTags ...string) error {
+	err := utils.SqlUpdateWithUpdateTags(tx, adminUserTable, adminUser, conditionTag, updateTags...)
+	if err != nil {
+		logger.Warn(adminUserModelLogTag, "UpdateAdminUserByCondition Failed|Err:%v", err)
+		return err
+	}
+
+	return nil
+}
+
 func (aum *AdminUserModel) UpdateAdminUserInfo(adminUser *AdminUser, conditionTag string) error {
 	return aum.UpdateAdminUserByCondition(adminUser, conditionTag, adminUserUpdateTags...)
 }

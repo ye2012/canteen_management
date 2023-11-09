@@ -22,6 +22,7 @@ type UserService struct {
 	supplierModel     *model.SupplierModel
 	routerTypeModel   *model.RouterTypeModel
 	routerDetailModel *model.RouterDetailModel
+	tokenModel        *model.TokenModel
 }
 
 func NewUserService(sqlCli *sql.DB) *UserService {
@@ -31,6 +32,7 @@ func NewUserService(sqlCli *sql.DB) *UserService {
 	supplierModel := model.NewSupplierModelWithDB(sqlCli)
 	routerTypeModel := model.NewRouterTypeModel(sqlCli)
 	routerDetailModel := model.NewRouterDetailModel(sqlCli)
+	tokenModel := model.NewTokenModelWithDB(sqlCli)
 	return &UserService{
 		sqlCli:            sqlCli,
 		wxUserModel:       wxUserModel,
@@ -39,6 +41,7 @@ func NewUserService(sqlCli *sql.DB) *UserService {
 		supplierModel:     supplierModel,
 		routerTypeModel:   routerTypeModel,
 		routerDetailModel: routerDetailModel,
+		tokenModel:        tokenModel,
 	}
 }
 
@@ -89,47 +92,126 @@ func (us *UserService) GetWxUserDiscount(openID string) uint8 {
 	return 0
 }
 
-func (us *UserService) WxUserLogin(openID string) (*model.WxUser, error) {
+func (us *UserService) WxUserLogin(openID string, role uint32) (*model.WxUser, *model.TokenDAO, error) {
 	user, err := us.wxUserModel.GetWxUserByOpenID(openID)
 	if err != nil {
 		logger.Warn(userServiceLogTag, "GetWxUserByOpenID Failed|OpenID:%v|Err:%v", openID, err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	if user != nil {
-		return user, nil
+		token := us.tokenModel.LoginSuccess(user.ID, 0, role)
+		return user, token, nil
 	}
 
 	wxUser := &model.WxUser{OpenID: openID}
 	err = us.wxUserModel.Insert(wxUser)
 	if err != nil {
 		logger.Warn(userServiceLogTag, "Insert WxUser Failed|OpenID:%v|Err:%v", openID, err)
-		return nil, err
+		return nil, nil, err
 	}
-	return wxUser, nil
+	token := us.tokenModel.LoginSuccess(user.ID, 0, role)
+	return wxUser, token, nil
 }
 
-func (us *UserService) AdminLogin(userName, password string) (*model.AdminUser, error) {
+func (us *UserService) AdminLogin(userName, password string) (*model.AdminUser, *model.TokenDAO, error) {
 	condition := " WHERE `user_name` = ? "
 	users, err := us.adminUserModel.GetAdminUserByCondition(condition, userName)
 	if err != nil {
 		logger.Warn(userServiceLogTag, "GetAdminUserByCondition Failed|UserName:%v|Err:%v", userName, err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	if len(users) == 0 {
-		return nil, fmt.Errorf("用户不存在")
+		return nil, nil, fmt.Errorf("用户不存在")
 	}
 	user := users[0]
 	passOk := utils.ComparePass(user.Password, password)
 	if passOk == false {
-		return nil, fmt.Errorf("密码错误")
+		return nil, nil, fmt.Errorf("密码错误")
 	}
-	return user, nil
+
+	token := us.tokenModel.LoginSuccess(0, user.ID, user.Role)
+	return user, token, nil
+}
+
+func (us *UserService) CheckPhoneNumber(phoneNumber string, isExist bool) (*model.WxUser, error) {
+	condition := " WHERE `phone_number` = ?  "
+	users, err := us.wxUserModel.GetWxUserByCondition(condition, phoneNumber)
+	if err != nil {
+		logger.Warn(userServiceLogTag, "GetWxUserByPhoneNumber Failed|phone:%v|Err:%v", phoneNumber, err)
+		return nil, err
+	}
+	if isExist {
+		if users == nil || len(users) == 0 {
+			return nil, fmt.Errorf("手机号未注册，请确认手机号")
+		}
+		return users[0], nil
+	}
+	if users != nil && len(users) > 0 {
+		return users[0], fmt.Errorf("手机号已绑定，请更换手机号重试")
+	}
+	return nil, nil
+}
+
+func (us *UserService) bindSupplier(tx *sql.Tx, phoneNumber, openID string) error {
+	supplier, err := us.supplierModel.GetSupplier(0, "", phoneNumber, "")
+	if err != nil {
+		logger.Warn(userServiceLogTag, "bindSupplier GetUser Failed|phone:%v|Err:%v", phoneNumber, err)
+		return err
+	}
+	if len(supplier) > 0 {
+		supplier[0].OpenID = openID
+		err = us.supplierModel.UpdateOpenIDWithTx(tx, supplier[0].ID, openID)
+		if err != nil {
+			logger.Warn(userServiceLogTag, "bindSupplier Update Failed|SupplierUid:%v|Phone:%v|Err:%v",
+				supplier[0].ID, phoneNumber, err)
+			return err
+		}
+	}
+	return nil
+}
+
+func (us *UserService) bindOrderUser(tx *sql.Tx, phoneNumber, openID string, uid uint32) error {
+	orderUser, err := us.orderUserModel.GetOrderUser("", phoneNumber, 0, 1, 10)
+	if err != nil {
+		logger.Warn(userServiceLogTag, "bindOrderUser GetUser Failed|phone:%v|Err:%v", phoneNumber, err)
+		return err
+	}
+
+	if len(orderUser) > 0 {
+		orderUser[0].OpenID = openID
+		orderUser[0].Uid = uid
+		err = us.orderUserModel.UpdateOrderUserWithTx(tx, orderUser[0], "id", "open_id", "uid")
+		if err != nil {
+			logger.Warn(userServiceLogTag, "bindOrderUser Update Failed|Uid:%v|OrderUser:%v|Err:%v",
+				uid, orderUser[0].ID, err)
+			return err
+		}
+	}
+	return nil
+}
+
+func (us *UserService) bindAdminUser(tx *sql.Tx, phoneNumber, openID string) error {
+	adminUsers, err := us.adminUserModel.GetAdminUserByCondition(" WHERE `phone_number`=? ", phoneNumber)
+	if err != nil {
+		logger.Warn(userServiceLogTag, "bindAdminUser GetUser Failed|phone:%v|Err:%v", phoneNumber, err)
+	}
+
+	if adminUsers != nil && len(adminUsers) > 0 && adminUsers[0].OpenID == "" {
+		adminUser := adminUsers[0]
+		adminUser.OpenID = openID
+		err = us.adminUserModel.UpdateAdminUserByConditionWithTx(tx, adminUser, "id", "open_id")
+		if err != nil {
+			logger.Warn(userServiceLogTag, "bindAdminUser Update Failed|Uid:%v|Admin:%v|Err:%v",
+				adminUser.ID, err)
+			return err
+		}
+	}
+	return nil
 }
 
 func (us *UserService) BindPhoneNumber(uid uint32, phoneNumber string) error {
-	// todo 手机号不能重复
 	condition := " WHERE `id` = ?  "
 	users, err := us.wxUserModel.GetWxUserByCondition(condition, uid)
 	if err != nil {
@@ -146,9 +228,8 @@ func (us *UserService) BindPhoneNumber(uid uint32, phoneNumber string) error {
 		return fmt.Errorf("用户已经绑定过电话了，如需修改，请联系管理员")
 	}
 
-	orderUser, err := us.orderUserModel.GetOrderUser("", phoneNumber, 0, 1, 10)
+	_, err = us.CheckPhoneNumber(phoneNumber, false)
 	if err != nil {
-		logger.Warn(userServiceLogTag, "GetOrderUser Failed|phone:%v|Err:%v", phoneNumber, err)
 		return err
 	}
 
@@ -167,15 +248,17 @@ func (us *UserService) BindPhoneNumber(uid uint32, phoneNumber string) error {
 		return err
 	}
 
-	if len(orderUser) > 0 {
-		orderUser[0].OpenID = wxUser.OpenID
-		orderUser[0].Uid = wxUser.ID
-		err = us.orderUserModel.UpdateOrderUserWithTx(tx, orderUser[0], "id", "open_id", "uid")
-		if err != nil {
-			logger.Warn(userServiceLogTag, "UpdateOrderUserWithTx Failed|Uid:%v|OrderUser:%v|Err:%v",
-				uid, orderUser[0].ID, err)
-			return err
-		}
+	err = us.bindOrderUser(tx, wxUser.OpenID, wxUser.PhoneNumber, wxUser.ID)
+	if err != nil {
+		return err
+	}
+	err = us.bindAdminUser(tx, wxUser.OpenID, wxUser.PhoneNumber)
+	if err != nil {
+		return err
+	}
+	err = us.bindSupplier(tx, wxUser.OpenID, wxUser.PhoneNumber)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -206,14 +289,27 @@ func (us *UserService) AddOrderUser(userList []*model.OrderUser) error {
 }
 
 func (us *UserService) BindOrderUser(id uint32, openID string) error {
-	wxUser, err := us.wxUserModel.GetWxUserByOpenID(openID)
-	if err != nil || wxUser == nil {
-		logger.Warn(userServiceLogTag, "BindOrderUser GetWxUser Failed|Err:%v", err)
-		return fmt.Errorf("用户不存在")
+	uid := uint32(0)
+	if openID != "" {
+		wxUser, err := us.wxUserModel.GetWxUserByOpenID(openID)
+		if err != nil || wxUser == nil {
+			logger.Warn(userServiceLogTag, "BindOrderUser GetWxUser Failed|Err:%v", err)
+			return fmt.Errorf("用户不存在")
+		}
+
+		orderUserList, err := us.orderUserModel.GetOrderUserByCondition(" WHERE `open_id`=? ", wxUser.OpenID)
+		if err != nil {
+			logger.Warn(userServiceLogTag, "BindOrderUser GetOrderUser Failed|Err:%v", err)
+			return err
+		}
+		if orderUserList != nil && len(orderUserList) > 0 {
+			return fmt.Errorf("改微信已绑定，请解绑后重试")
+		}
+		uid = wxUser.ID
 	}
 
-	orderUser := &model.OrderUser{ID: id, OpenID: openID, Uid: wxUser.ID}
-	err = us.orderUserModel.UpdateOrderUserWithTx(nil, orderUser, "id", "open_id", "uid")
+	orderUser := &model.OrderUser{ID: id, OpenID: openID, Uid: uid}
+	err := us.orderUserModel.UpdateOrderUserWithTx(nil, orderUser, "id", "open_id", "uid")
 	if err != nil {
 		logger.Warn(userServiceLogTag, "BindOrderUser Failed|Err:%v", err)
 		return err
@@ -305,6 +401,11 @@ func (us *UserService) AddAdminUser(user *model.AdminUser) error {
 		if wxUser == nil {
 			logger.Warn(userServiceLogTag, "WxUser NotExist|OpenID:%v", user.OpenID)
 			return fmt.Errorf("用户不存在，请确认OpenID是否正确")
+		}
+	} else if user.PhoneNumber != "" {
+		wxUser, _ := us.CheckPhoneNumber(user.PhoneNumber, true)
+		if wxUser != nil {
+			user.OpenID = wxUser.OpenID
 		}
 	}
 	err := us.adminUserModel.Insert(user)

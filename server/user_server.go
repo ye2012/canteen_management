@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/canteen_management/config"
 	"github.com/canteen_management/conv"
@@ -17,6 +18,10 @@ import (
 
 const (
 	userServerLogTag = "UserServer"
+)
+
+var (
+	tokenTimeOut = time.Minute * 30
 )
 
 type UserServer struct {
@@ -61,18 +66,21 @@ func (us *UserServer) RequestCanteenLogin(ctx *gin.Context, rawReq interface{}, 
 		return
 	}
 
-	user, err := us.userService.WxUserLogin(openID)
+	role := us.userService.GetWxUserRole(openID)
+	user, tokenDao, err := us.userService.WxUserLogin(openID, role)
 	if err != nil {
 		res.Code = enum.SqlError
 		res.Msg = err.Error()
 		return
 	}
-	role := us.userService.GetWxUserRole(openID)
+	timeOut := time.Now().Add(tokenTimeOut)
 	resData := &dto.CanteenLoginRes{
 		Uid:         user.ID,
 		OpenID:      user.OpenID,
 		PhoneNumber: user.PhoneNumber,
 		RoleList:    conv.ConvertToRoleList(role),
+		Token:       tokenDao.Token,
+		Expire:      timeOut.Unix(),
 	}
 	discountType := us.userService.GetWxUserDiscount(user.OpenID)
 	resData.ExtraPay, resData.Discount, resData.DiscountLeft, err = us.orderService.LoginUserOrderDiscountInfo(user.ID, discountType)
@@ -123,18 +131,21 @@ func (us *UserServer) RequestKitchenLogin(ctx *gin.Context, rawReq interface{}, 
 		return
 	}
 
-	user, err := us.userService.WxUserLogin(openID)
+	role := us.userService.GetWxUserRole(openID)
+	user, token, err := us.userService.WxUserLogin(openID, role)
 	if err != nil {
 		res.Code = enum.SqlError
 		res.Msg = err.Error()
 		return
 	}
-	role := us.userService.GetWxUserRole(openID)
+	timeOut := time.Now().Add(tokenTimeOut)
 	resData := &dto.KitchenLoginRes{
 		Uid:         user.ID,
 		OpenID:      user.OpenID,
 		PhoneNumber: user.PhoneNumber,
 		RoleList:    conv.ConvertToRoleList(role),
+		Token:       token.Token,
+		Expire:      timeOut.Unix(),
 	}
 
 	res.Data = resData
@@ -313,15 +324,18 @@ func (us *UserServer) RequestAdminLogin(ctx *gin.Context, rawReq interface{}, re
 		return
 	}
 
-	user, err := us.userService.AdminLogin(req.UserName, req.Password)
+	user, token, err := us.userService.AdminLogin(req.UserName, req.Password)
 	if err != nil {
 		res.Code = enum.SystemError
 		res.Msg = err.Error()
 		return
 	}
 
+	timeOut := time.Now().Add(tokenTimeOut)
 	res.Data = &dto.AdminLoginRes{
 		Router: conv.ConvertToRouterNode(routerList, routerTypeList, user.Role),
+		Token:  token.Token,
+		Expire: timeOut.Unix(),
 	}
 }
 

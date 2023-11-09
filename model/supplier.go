@@ -110,6 +110,16 @@ func (sm *SupplierModel) UpdateOpenID(id uint32, openID string) error {
 	return nil
 }
 
+func (sm *SupplierModel) UpdateOpenIDWithTx(tx *sql.Tx, id uint32, openID string) error {
+	dao := &Supplier{ID: id, OpenID: openID}
+	err := utils.SqlUpdateWithUpdateTags(tx, supplierTable, dao, "id", "open_id")
+	if err != nil {
+		logger.Warn(supplierLogTag, "UpdateOpenID Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
 func (sm *SupplierModel) UpdateValidityTime(id uint32, endTime int64) error {
 	dao := &Supplier{ID: id, ValidityDeadline: time.Unix(endTime, 0)}
 	err := utils.SqlUpdateWithUpdateTags(sm.sqlCli, supplierTable, dao, "id", "validity_deadline")

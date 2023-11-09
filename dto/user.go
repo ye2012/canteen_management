@@ -26,6 +26,8 @@ type RouterNode struct {
 
 type AdminLoginRes struct {
 	Router []*RouterNode `json:"router"`
+	Token  string        `json:"token"`  //登录成功返回token
+	Expire int64         `json:"expire"` //token过期时间
 }
 
 type CanteenLoginReq struct {
@@ -40,6 +42,8 @@ type CanteenLoginRes struct {
 	DiscountLeft float64  `json:"discount_left"`
 	ExtraPay     float64  `json:"extra_pay"`
 	RoleList     []uint32 `json:"role_list"`
+	Token        string   `json:"token"`  //登录成功返回token
+	Expire       int64    `json:"expire"` //token过期时间
 }
 
 type CanteenUserCenterReq struct {
@@ -67,9 +71,7 @@ func (bpn *BindPhoneNumberReq) CheckParams() error {
 }
 
 type KitchenLoginReq struct {
-	Code     string `json:"code"`
-	UserName string `json:"user_name"`
-	Password string `json:"password"`
+	Code string `json:"code"`
 }
 
 type KitchenLoginRes struct {
@@ -77,6 +79,8 @@ type KitchenLoginRes struct {
 	OpenID      string   `json:"open_id"`
 	PhoneNumber string   `json:"phone_number"`
 	RoleList    []uint32 `json:"role_list"`
+	Token       string   `json:"token"`  //登录成功返回token
+	Expire      int64    `json:"expire"` //token过期时间
 }
 
 type KitchenUserCenterReq struct {

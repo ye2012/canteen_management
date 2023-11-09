@@ -121,8 +121,9 @@ func SqlUpsert(mysql SqlHandle, tableName string, dao interface{}, skipTags ...s
 	allField := GetFieldsTagByKey(dao, "json", skipTags...)
 	allValue := GetFieldsValue(dao, skipTags...)
 
-	sqlStr := fmt.Sprintf("INSERT INTO `%v`(`%v`) VALUES(%v) ON DUPLICATE KEY UPDATE", tableName,
-		strings.Join(allField, "`,`"), GetSqlPlaceholder(len(allField)))
+	sqlStr := fmt.Sprintf("INSERT INTO `%v`(`%v`) VALUES(%v) ON DUPLICATE KEY UPDATE %v=?", tableName,
+		strings.Join(allField, "`,`"), GetSqlPlaceholder(len(allField)), strings.Join(allField, "=?,"))
+	allValue = append(allValue, allValue...)
 
 	result, err := mysql.Exec(sqlStr, allValue...)
 	if err != nil {

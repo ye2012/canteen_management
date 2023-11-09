@@ -88,6 +88,7 @@ func (tm *TokenModel) LoginSuccess(uid, adminUid, role uint32) *TokenDAO {
 		Role:     role,
 		Token:    token,
 	}
+	tm.Replace(dao)
 	return dao
 }
 

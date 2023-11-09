@@ -73,6 +73,12 @@ func (ps *PurchaseService) GetSupplierList(name, phoneNumber string) ([]*model.S
 }
 
 func (ps *PurchaseService) AddSupplier(supplier *model.Supplier) error {
+	if supplier.PhoneNumber != "" {
+		users, _ := ps.wxUserModel.GetWxUserByCondition(" WHERE `phone_number` = ?  ", supplier.PhoneNumber)
+		if users != nil && len(users) > 0 {
+			supplier.OpenID = users[0].OpenID
+		}
+	}
 	err := ps.supplierModel.Insert(supplier)
 	if err != nil {
 		logger.Warn(purchaseServiceLogTag, "Insert Supplier Failed|Err:%v", err)
@@ -100,14 +106,16 @@ func (ps *PurchaseService) BindSupplier(supplierID uint32, openID string) error 
 		return fmt.Errorf("供应商未找到|ID:%v", supplierID)
 	}
 
-	wxUser, err := ps.wxUserModel.GetWxUserByOpenID(openID)
-	if err != nil {
-		logger.Warn(userServiceLogTag, "GetWxUserByOpenID Failed|Err:%v", err)
-		return err
-	}
-	if wxUser == nil {
-		logger.Warn(userServiceLogTag, "WxUser NotExist|OpenID:%v", openID)
-		return fmt.Errorf("要绑定的用户不存在，请确认OpenID是否正确")
+	if openID != "" {
+		wxUser, err := ps.wxUserModel.GetWxUserByOpenID(openID)
+		if err != nil {
+			logger.Warn(userServiceLogTag, "GetWxUserByOpenID Failed|Err:%v", err)
+			return err
+		}
+		if wxUser == nil {
+			logger.Warn(userServiceLogTag, "WxUser NotExist|OpenID:%v", openID)
+			return fmt.Errorf("要绑定的用户不存在，请确认OpenID是否正确")
+		}
 	}
 
 	err = ps.supplierModel.UpdateOpenID(supplierID, openID)
