@@ -33,6 +33,7 @@ type OrderService struct {
 	orderModel         *model.OrderModel
 	orderDetailModel   *model.OrderDetailModel
 	orderDiscountModel *model.OrderDiscountModel
+	orderUserModel     *model.OrderUserModel
 }
 
 func NewOrderService(sqlCli *sql.DB) *OrderService {
@@ -40,11 +41,13 @@ func NewOrderService(sqlCli *sql.DB) *OrderService {
 	orderModel := model.NewOrderModel(sqlCli)
 	orderDetailModel := model.NewOrderDetailModel(sqlCli)
 	orderDiscountModel := model.NewOrderDiscountModel(sqlCli)
+	orderUserModel := model.NewOrderUserModel(sqlCli)
 	return &OrderService{
 		payOrderModel:      payOrderModel,
 		orderModel:         orderModel,
 		orderDetailModel:   orderDetailModel,
 		orderDiscountModel: orderDiscountModel,
+		orderUserModel:     orderUserModel,
 		sqlCli:             sqlCli,
 	}
 }
@@ -88,7 +91,9 @@ func (os *OrderService) ApplyPayOrder(applyInfo *ApplyPayOrderInfo, dishMap map[
 	}
 	extraPay := extraPayAmount
 	for _, prePay := range prePayOrders {
-		extraPay = 0
+		if prePay.Status == enum.PayOrderFinish {
+			extraPay = 0
+		}
 		discountAmount -= prePay.DiscountAmount
 	}
 	if discountAmount < 0 {
@@ -238,7 +243,7 @@ func (os *OrderService) GetOrderListByPayOrderID(payOrderList []uint32) ([]*mode
 	for _, order := range orderList {
 		orderIDList = append(orderIDList, order.ID)
 	}
-	details, err := os.orderDetailModel.GetOrderDetailByOrderList(orderIDList, 0)
+	details, err := os.orderDetailModel.GetOrderDetailByOrderList(orderIDList, 0, 0)
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "GetOrderDetailByOrderList Failed|Err:%v", err)
 		return nil, nil, err
@@ -265,7 +270,7 @@ func (os *OrderService) GetFloors(buildingID uint32, status int8, startTime, end
 }
 
 func (os *OrderService) GetAllOrder(mealType uint8, startTime, endTime int64, status int8,
-	dishType uint32) ([]*model.OrderDao, map[uint32][]*model.OrderDetail, error) {
+	dishType, dishID uint32) ([]*model.OrderDao, map[uint32][]*model.OrderDetail, error) {
 	orderList, err := os.orderModel.GetAllOrder(mealType, startTime, endTime, status, -1)
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "GetAllOrder Failed|Err:%v", err)
@@ -280,7 +285,7 @@ func (os *OrderService) GetAllOrder(mealType uint8, startTime, endTime int64, st
 	for _, order := range orderList {
 		orderIDList = append(orderIDList, order.ID)
 	}
-	details, err := os.orderDetailModel.GetOrderDetailByOrderList(orderIDList, dishType)
+	details, err := os.orderDetailModel.GetOrderDetailByOrderList(orderIDList, dishType, dishID)
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "GetOrderDetailByOrderList Failed|Err:%v", err)
 		return nil, nil, err
@@ -316,7 +321,7 @@ func (os *OrderService) GetOrderList(orderIDList []uint32, uid uint32, mealType 
 	for _, order := range orderList {
 		orderIDList = append(orderIDList, order.ID)
 	}
-	details, err := os.orderDetailModel.GetOrderDetailByOrderList(orderIDList, 0)
+	details, err := os.orderDetailModel.GetOrderDetailByOrderList(orderIDList, 0, 0)
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "GetOrderDetailByOrderList Failed|Err:%v", err)
 		return nil, 0, nil, err
@@ -373,6 +378,26 @@ func (os *OrderService) AddOrderDiscount(discountInfo *model.OrderDiscount) erro
 
 func (os *OrderService) UpdateOrderDiscount(discountInfo *model.OrderDiscount) error {
 	return os.orderDiscountModel.UpdateDiscountType(discountInfo)
+}
+
+func (os *OrderService) DeleteOrderDiscount(id uint32) error {
+	condition := " WHERE `discount_level` = ? "
+	userList, err := os.orderUserModel.GetOrderUserByCondition(condition, id)
+	if err != nil {
+		logger.Warn(orderServiceLogTag, "DeleteOrderDiscount GetOrderUser Failed|Err:%v", err)
+		return err
+	}
+	if len(userList) > 0 {
+		return fmt.Errorf("该折扣类型下还有人员，无法删除")
+	}
+
+	err = os.orderDiscountModel.DeleteDiscountType(id)
+	if err != nil {
+		logger.Warn(orderServiceLogTag, "DeleteOrderDiscount Failed|Err:%v", err)
+		return err
+	}
+
+	return nil
 }
 
 func (os *OrderService) LoginUserOrderDiscountInfo(uid uint32, discountType uint8) (float64, float64, float64, error) {

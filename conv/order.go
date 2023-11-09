@@ -118,6 +118,7 @@ func ConvertToOrderInfoList(orderList []*model.OrderDao, detailMap map[uint32][]
 			PaymentAmount: order.PayAmount,
 			OrderItems:    make([]*dto.ApplyItem, 0),
 			CreateTime:    order.CreateAt.Unix(),
+			DeliverTime:   order.DeliverTime.Unix(),
 			OrderStatus:   order.Status,
 		}
 		if details, ok := detailMap[order.ID]; ok {
@@ -126,6 +127,7 @@ func ConvertToOrderInfoList(orderList []*model.OrderDao, detailMap map[uint32][]
 				item := &dto.ApplyItem{
 					DishID:   detail.DishID,
 					DishName: dishMap[detail.DishID].DishName,
+					Picture:  dishMap[detail.DishID].Picture,
 					Price:    detail.Price,
 					Quantity: detail.Quantity,
 				}

@@ -273,6 +273,7 @@ func (os *OrderServer) RequestPayOrderList(ctx *gin.Context, rawReq interface{},
 			PayMethod:      payOrder.PayMethod,
 			PaymentAmount:  payOrder.PayAmount,
 			DiscountAmount: payOrder.DiscountAmount,
+			CreateTime:     payOrder.CreateAt.Unix(),
 			Status:         payOrder.Status,
 		}
 		payOrderIDMap[payOrder.ID] = len(payOrderInfoList)
@@ -314,7 +315,8 @@ func (os *OrderServer) RequestOrderDishAnalysis(ctx *gin.Context, rawReq interfa
 
 	startTime := utils.GetZeroTime(req.OrderDate)
 	endTime := utils.GetDayEndTime(req.OrderDate)
-	_, detailMap, err := os.orderService.GetAllOrder(req.MealType, startTime, endTime, enum.OrderPaid, req.DishType)
+	_, detailMap, err := os.orderService.GetAllOrder(req.MealType, startTime, endTime, enum.OrderPaid,
+		req.DishType, req.DishID)
 	if err != nil {
 		logger.Warn(orderServerLogTag, "GetAllOrder Failed|Err:%v", err)
 		res.Code = enum.SqlError
@@ -333,7 +335,6 @@ func (os *OrderServer) RequestOrderDishAnalysis(ctx *gin.Context, rawReq interfa
 				orderNumberMap[detailInfo.DishID] = 1
 			}
 		}
-
 	}
 	retData := &dto.OrderDishAnalysisRes{Summary: make([]*dto.OrderDishSummaryInfo, 0)}
 	for dishID, quantity := range quantityMap {
@@ -461,6 +462,12 @@ func (os *OrderServer) RequestModifyDiscount(ctx *gin.Context, rawReq interface{
 			return
 		}
 	case enum.OperateTypeModify:
+		err = os.orderService.UpdateOrderDiscount(discount)
+		if err != nil {
+			res.Code = enum.SqlError
+			return
+		}
+	case enum.OperateTypeDel:
 		err = os.orderService.UpdateOrderDiscount(discount)
 		if err != nil {
 			res.Code = enum.SqlError

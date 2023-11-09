@@ -3,6 +3,7 @@ package model
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"github.com/canteen_management/logger"
 	"github.com/canteen_management/utils"
 	"time"
@@ -86,6 +87,17 @@ func (odm *OrderDiscountModel) UpdateDiscountType(dao *OrderDiscount) error {
 		logger.Warn(orderDiscountLogTag, "UpdateDiscount Failed|Err:%v", err)
 		return err
 	}
+	return nil
+}
+
+func (odm *OrderDiscountModel) DeleteDiscountType(id uint32) error {
+	sqlStr := fmt.Sprintf(" DELETE FROM %v WHERE `id` = ? ", orderDiscountTable)
+	_, err := odm.sqlCli.Exec(sqlStr, id)
+	if err != nil {
+		logger.Warn(orderDiscountLogTag, "DeleteDiscountType Failed|Err:%v", err)
+		return err
+	}
+
 	return nil
 }
 

@@ -153,7 +153,7 @@ func (dtm *DishTypeModel) DeleteDishType(id uint32) error {
 	sqlStr := fmt.Sprintf(" DELETE FROM %v WHERE `id` = ? ", dishTypeTable)
 	_, err := dtm.sqlCli.Exec(sqlStr, id)
 	if err != nil {
-		logger.Warn(goodsTypeLogTag, "DeleteDishType Failed|Err:%v", err)
+		logger.Warn(dishTypeLogTag, "DeleteDishType Failed|Err:%v", err)
 		return err
 	}
 

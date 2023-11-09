@@ -24,6 +24,7 @@ type ApplyItem struct {
 	DishName string  `json:"dish_name"`
 	Price    float64 `json:"price"`
 	Quantity int32   `json:"quantity"`
+	Picture  string  `json:"picture"`
 }
 
 type ApplyPayOrderReq = PayOrderInfo
@@ -71,6 +72,7 @@ type PayOrderInfo struct {
 	PayMethod      uint8        `json:"pay_method"`
 	PaymentAmount  float64      `json:"payment_amount"`
 	DiscountAmount float64      `json:"discount_amount"`
+	CreateTime     int64        `json:"create_time"`
 	Status         uint8        `json:"status"`
 }
 
@@ -90,6 +92,7 @@ type OrderInfo struct {
 	PaymentAmount float64      `json:"payment_amount"`
 	OrderItems    []*ApplyItem `json:"order_items"`
 	CreateTime    int64        `json:"create_time"`
+	DeliverTime   int64        `json:"deliver_time"`
 	OrderStatus   uint8        `json:"order_status"`
 }
 
@@ -128,6 +131,7 @@ type OrderDishAnalysisReq struct {
 	OrderDate int64  `json:"order_date"`
 	MealType  uint8  `json:"meal_type"`
 	DishType  uint32 `json:"dish_type"`
+	DishID    uint32 `json:"dish_id"`
 }
 
 type OrderDishSummaryInfo struct {

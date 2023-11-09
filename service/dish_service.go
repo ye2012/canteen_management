@@ -173,7 +173,7 @@ func (ds *DishService) DeleteDishType(dishTypeID uint32) error {
 	}
 	err = ds.dishTypeModel.DeleteDishType(dishTypeID)
 	if err != nil {
-		logger.Warn(storeServiceLogTag, "GetGoodsTypesByID Failed|Err:%v", err)
+		logger.Warn(storeServiceLogTag, "DeleteDishType Failed|Err:%v", err)
 		return err
 	}
 	return nil
