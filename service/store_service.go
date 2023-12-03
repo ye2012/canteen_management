@@ -3,13 +3,13 @@ package service
 import (
 	"database/sql"
 	"fmt"
-	"github.com/canteen_management/enum"
-	"github.com/canteen_management/utils"
 	"math"
 	"time"
 
+	"github.com/canteen_management/enum"
 	"github.com/canteen_management/logger"
 	"github.com/canteen_management/model"
+	"github.com/canteen_management/utils"
 )
 
 const (
@@ -401,7 +401,8 @@ func (ss *StoreService) FinishOutboundOrder(outboundID uint32) error {
 	err = ss.finishOutboundOrder(tx, order, details)
 	if err == nil {
 		order.Status = enum.OutboundFinish
-		err = ss.outboundModel.UpdateOutboundWithTx(tx, order, "status")
+		order.OutboundTime = time.Now()
+		err = ss.outboundModel.UpdateOutboundWithTx(tx, order, "status", "outbound_time")
 		if err != nil {
 			logger.Warn(storeServiceLogTag, "UpdateOutboundStatus Failed|Err:%v", err)
 			return err

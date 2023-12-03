@@ -48,6 +48,11 @@ type ApplyCashOrderReq struct {
 	Uid uint32 `json:"uid"`
 }
 
+type ApplyStaffOrderReq struct {
+	*PayOrderInfo
+	Uid uint32 `json:"uid"`
+}
+
 type CancelPayOrderReq struct {
 	OrderID uint32 `json:"order_id"`
 }
@@ -132,6 +137,8 @@ type OrderDishAnalysisReq struct {
 	MealType  uint8  `json:"meal_type"`
 	DishType  uint32 `json:"dish_type"`
 	DishID    uint32 `json:"dish_id"`
+	StartTime int64  `json:"start_time"`
+	EndTime   int64  `json:"end_time"`
 }
 
 type OrderDishSummaryInfo struct {

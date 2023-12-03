@@ -117,6 +117,25 @@ func SqlInsert(mysql SqlHandle, tableName string, dao interface{}, skipTags ...s
 	return result.LastInsertId()
 }
 
+func SqlReplace(mysql SqlHandle, tableName string, dao interface{}, skipTags ...string) (lastInsertID int64, err error) {
+	allField := GetFieldsTagByKey(dao, "json", skipTags...)
+	allValue := GetFieldsValue(dao, skipTags...)
+
+	sqlStr := fmt.Sprintf("REPLACE INTO `%v`(`%v`) VALUES(%v) ", tableName,
+		strings.Join(allField, "`,`"), GetSqlPlaceholder(len(allField)))
+	result, err := mysql.Exec(sqlStr, allValue...)
+	if err != nil {
+		logger.Warn(logTagMysqlUtil, "SqlReplace Failed|Err: %v", err)
+		return 0, err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil || rows > 2 {
+		return 0, fmt.Errorf("SqlInsert Failed|Sql:%v|Params:%v|Affect:%v|Err:%v",
+			sqlStr, allValue, rows, err)
+	}
+	return result.LastInsertId()
+}
+
 func SqlUpsert(mysql SqlHandle, tableName string, dao interface{}, skipTags ...string) (lastInsertID int64, err error) {
 	allField := GetFieldsTagByKey(dao, "json", skipTags...)
 	allValue := GetFieldsValue(dao, skipTags...)
@@ -131,7 +150,7 @@ func SqlUpsert(mysql SqlHandle, tableName string, dao interface{}, skipTags ...s
 	}
 	rows, err := result.RowsAffected()
 	if err != nil || rows != 1 {
-		return 0, fmt.Errorf("SqlInsert failed, table:%v affect rows:%v err:%v", tableName, rows, err)
+		return 0, fmt.Errorf("SqlInsert Failed|Sql:%v|Affect:%v|Err:%v", sqlStr, rows, err)
 	}
 	return result.LastInsertId()
 }

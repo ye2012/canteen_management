@@ -121,9 +121,15 @@ func (ps *PurchaseServer) RequestPurchaseList(ctx *gin.Context, rawReq interface
 		res.Code = enum.SystemError
 		return
 	}
+	supplierID := uint32(0)
+	for _, supplierInfo := range supplierMap {
+		if supplierInfo.Uid == req.Uid {
+			supplierID = supplierInfo.ID
+		}
+	}
 
 	purchaseList, totalNumber, detailMap, err := ps.purchaseService.GetPurchaseList(req.Status, req.Uid, req.PurchaseID,
-		req.StartTime, req.EndTime, req.Page, req.PageSize)
+		supplierID, req.StartTime, req.EndTime, req.Page, req.PageSize)
 	if err != nil {
 		logger.Warn(purchaseServerLogTag, "GetPurchaseList Failed|Err:%v", err)
 		res.Code = enum.SqlError

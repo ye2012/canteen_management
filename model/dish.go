@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/canteen_management/logger"
 	"github.com/canteen_management/utils"
+	"strings"
 	"time"
 )
 
@@ -61,6 +62,15 @@ func (dm *DishesModel) Insert(dao *Dish) error {
 	return nil
 }
 
+func (dm *DishesModel) BatchInsert(daoList []*Dish) error {
+	err := utils.SqlInsertBatch(dm.sqlCli, dishTable, daoList, "id", "created_at", "updated_at")
+	if err != nil {
+		logger.Warn(dishLogTag, "BatchInsert Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
 func (dm *DishesModel) GetDishByCondition(condition string, params ...interface{}) ([]*Dish, error) {
 	retList, err := utils.SqlQuery(dm.sqlCli, dishTable, &Dish{}, condition, params...)
 	if err != nil {
@@ -92,6 +102,23 @@ func (dm *DishesModel) GetDishByName(dishName string) (*Dish, error) {
 		return dishList[0], nil
 	}
 	return nil, nil
+}
+
+func (dm *DishesModel) GetDishByNameList(dishNameList []string) ([]*Dish, error) {
+	if len(dishNameList) == 0 {
+		return make([]*Dish, 0), nil
+	}
+	params := make([]interface{}, 0, len(dishNameList))
+	for _, dishName := range dishNameList {
+		params = append(params, dishName)
+	}
+	condition := fmt.Sprintf(" WHERE `dish_name` in (%v) ", strings.Repeat(",?", len(dishNameList))[1:])
+	dishList, err := dm.GetDishByCondition(condition, params...)
+	if err != nil {
+		logger.Warn(dishLogTag, "GetDishByName Failed|Err:%v", err)
+		return nil, err
+	}
+	return dishList, nil
 }
 
 func (dm *DishesModel) GetDishes(dishType uint32, page, pageSize int32) ([]*Dish, error) {
@@ -126,5 +153,16 @@ func (dm *DishesModel) UpdateDish(dao *Dish) error {
 		logger.Warn(dishLogTag, "UpdateDish Failed|Err:%v", err)
 		return err
 	}
+	return nil
+}
+
+func (dm *DishesModel) DeleteDish(dishID uint32) error {
+	sqlStr := fmt.Sprintf(" DELETE FROM %v WHERE `id` = ? ", dishTable)
+	_, err := dm.sqlCli.Exec(sqlStr, dishID)
+	if err != nil {
+		logger.Warn(dishLogTag, "DeleteDish Failed|Err:%v", err)
+		return err
+	}
+
 	return nil
 }

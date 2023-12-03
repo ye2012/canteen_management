@@ -16,12 +16,13 @@ const (
 )
 
 type OutboundOrder struct {
-	ID          uint32    `json:"id"`
-	Creator     uint32    `json:"creator"`
-	TotalAmount float64   `json:"total_amount"`
-	Status      int8      `json:"status"`
-	CreateAt    time.Time `json:"created_at"`
-	UpdateAt    time.Time `json:"updated_at"`
+	ID           uint32    `json:"id"`
+	Creator      uint32    `json:"creator"`
+	TotalAmount  float64   `json:"total_amount"`
+	Status       int8      `json:"status"`
+	OutboundTime time.Time `json:"outbound_time"`
+	CreateAt     time.Time `json:"created_at"`
+	UpdateAt     time.Time `json:"updated_at"`
 }
 
 type OutboundOrderModel struct {
@@ -65,11 +66,11 @@ func (oom *OutboundOrderModel) GenerateCondition(id, creator uint32, startTime, 
 		params = append(params, creator)
 	}
 	if startTime > 0 {
-		condition += " AND `created_at` >= ? "
+		condition += " AND `outbound_time` >= ? "
 		params = append(params, time.Unix(startTime, 0))
 	}
 	if endTime > startTime {
-		condition += " AND `created_at` <= ? "
+		condition += " AND `outbound_time` <= ? "
 		params = append(params, time.Unix(endTime, 0))
 	}
 	if status != -1 {

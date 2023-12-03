@@ -1,9 +1,9 @@
 package server
 
 import (
-	"github.com/canteen_management/conv"
 	"time"
 
+	"github.com/canteen_management/conv"
 	"github.com/canteen_management/dto"
 	"github.com/canteen_management/enum"
 	"github.com/canteen_management/logger"
@@ -128,16 +128,45 @@ func (ms *MenuServer) RequestModifyDish(ctx *gin.Context, rawReq interface{}, re
 		err := ms.dishService.AddDish(conv.ConvertFromDishInfo(&req.DishInfo))
 		if err != nil {
 			res.Code = enum.SqlError
+			res.Msg = err.Error()
 			return
 		}
 	case enum.OperateTypeModify:
 		err := ms.dishService.ModifyDish(conv.ConvertFromDishInfo(&req.DishInfo))
 		if err != nil {
 			res.Code = enum.SqlError
+			res.Msg = err.Error()
+			return
+		}
+	case enum.OperateTypeDel:
+		err := ms.dishService.DeleteDish(req.DishInfo.DishID)
+		if err != nil {
+			res.Code = enum.SqlError
+			res.Msg = err.Error()
 			return
 		}
 	default:
 		logger.Warn(menuServerLogTag, "RequestModifyDish Unknown OperateType|Type:%v", req.Operate)
+		res.Code = enum.SystemError
+	}
+	return
+}
+
+func (ms *MenuServer) RequestBatchModifyDish(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.BatchModifyDishReq)
+
+	logger.Info(menuServerLogTag, "RequestBatchModifyDish Req:%#v", req)
+
+	switch req.Operate {
+	case enum.OperateTypeAdd:
+		err := ms.dishService.BatchAddDish(conv.ConvertFromDishList(req.DishList))
+		if err != nil {
+			res.Code = enum.SqlError
+			res.Msg = err.Error()
+			return
+		}
+	default:
+		logger.Warn(menuServerLogTag, "RequestBatchModifyDish Unknown OperateType|Type:%v", req.Operate)
 		res.Code = enum.SystemError
 	}
 	return

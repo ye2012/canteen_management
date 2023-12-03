@@ -8,6 +8,7 @@ import (
 var Config = &struct {
 	MysqlConfig      utils.Config `json:"mysql"`
 	FileStorePath    string       `json:"file_store_path"`
+	Secret           string       `json:"secret"`
 	MchID            string       `json:"mch_id"`
 	MchCertSerialNum string       `json:"mch_cert_serial_num"`
 	MchApiV3Key      string       `json:"mch_api_v3_key"`
@@ -30,4 +31,4 @@ func LoadConfig(configPath string) error {
 }
 
 const CustomKey = "Custom"
-const TokenKey = "Token"
+const TokenKey = "token"

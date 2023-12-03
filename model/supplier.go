@@ -26,6 +26,7 @@ type Supplier struct {
 	Location         string    `json:"location"`
 	ValidityDeadline time.Time `json:"validity_deadline"`
 	OpenID           string    `json:"open_id"`
+	Uid              uint32    `json:"uid"`
 	CreateAt         time.Time `json:"created_at"`
 	UpdateAt         time.Time `json:"updated_at"`
 }
@@ -100,9 +101,9 @@ func (sm *SupplierModel) UpdateSupplier(dao *Supplier) error {
 	return nil
 }
 
-func (sm *SupplierModel) UpdateOpenID(id uint32, openID string) error {
-	dao := &Supplier{ID: id, OpenID: openID}
-	err := utils.SqlUpdateWithUpdateTags(sm.sqlCli, supplierTable, dao, "id", "open_id")
+func (sm *SupplierModel) UpdateOpenID(id uint32, openID string, uid uint32) error {
+	dao := &Supplier{ID: id, OpenID: openID, Uid: uid}
+	err := utils.SqlUpdateWithUpdateTags(sm.sqlCli, supplierTable, dao, "id", "open_id", "uid")
 	if err != nil {
 		logger.Warn(supplierLogTag, "UpdateOpenID Failed|Err:%v", err)
 		return err
@@ -110,9 +111,9 @@ func (sm *SupplierModel) UpdateOpenID(id uint32, openID string) error {
 	return nil
 }
 
-func (sm *SupplierModel) UpdateOpenIDWithTx(tx *sql.Tx, id uint32, openID string) error {
-	dao := &Supplier{ID: id, OpenID: openID}
-	err := utils.SqlUpdateWithUpdateTags(tx, supplierTable, dao, "id", "open_id")
+func (sm *SupplierModel) UpdateOpenIDWithTx(tx *sql.Tx, id uint32, openID string, uid uint32) error {
+	dao := &Supplier{ID: id, OpenID: openID, Uid: uid}
+	err := utils.SqlUpdateWithUpdateTags(tx, supplierTable, dao, "id", "open_id", "uid")
 	if err != nil {
 		logger.Warn(supplierLogTag, "UpdateOpenID Failed|Err:%v", err)
 		return err

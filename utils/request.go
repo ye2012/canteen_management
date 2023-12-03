@@ -1,11 +1,14 @@
 package utils
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/canteen_management/logger"
 	"io/ioutil"
 	"net/http"
+	"sort"
+
+	"github.com/canteen_management/logger"
 )
 
 const (
@@ -42,4 +45,24 @@ func MiniProgramLogin(appID, secret, code string) (string, error) {
 		return "", fmt.Errorf("login failed|msg:%v", res.Message)
 	}
 	return res.OpenID, nil
+}
+
+func GenerateSign(paramMap map[string]string, signSecret string) string {
+	delete(paramMap, "sign")
+
+	key := make([]string, 0)
+	for k := range paramMap {
+		key = append(key, k)
+	}
+	sort.Strings(key)
+
+	paramStr := &bytes.Buffer{}
+	for _, k := range key {
+		paramStr.WriteString(k)
+		paramStr.WriteString(fmt.Sprintf("%v", paramMap[k]))
+	}
+	paramStr.WriteString(signSecret)
+
+	// 使用MD5对待签名串求签
+	return GetMD5Hex(paramStr.String())
 }

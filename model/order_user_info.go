@@ -127,3 +127,14 @@ func (oum *OrderUserModel) UpdateOrderUserWithTx(tx *sql.Tx, userInfo *OrderUser
 	}
 	return nil
 }
+
+func (oum *OrderUserModel) DeleteOrderUser(id uint32) error {
+	sqlStr := fmt.Sprintf(" DELETE FROM %v WHERE `id` = ? ", orderUserTable)
+	_, err := oum.sqlCli.Exec(sqlStr, id)
+	if err != nil {
+		logger.Warn(orderUserLogTag, "DeleteOrderUser Failed|Err:%v", err)
+		return err
+	}
+
+	return nil
+}

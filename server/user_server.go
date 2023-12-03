@@ -235,6 +235,12 @@ func (us *UserServer) RequestModifyOrderUser(ctx *gin.Context, rawReq interface{
 			res.Code = enum.SqlError
 			return
 		}
+	case enum.OperateTypeDel:
+		err := us.userService.DeleteOrderUser(userList[0].ID)
+		if err != nil {
+			res.Code = enum.SqlError
+			return
+		}
 	default:
 		logger.Warn(userServerLogTag, "RequestModifyOrderUser Unknown OperateType|Type:%v", req.Operate)
 		res.Code = enum.SystemError
@@ -368,6 +374,12 @@ func (us *UserServer) RequestModifyRouterType(ctx *gin.Context, rawReq interface
 			res.Code = enum.SqlError
 			return
 		}
+	case enum.OperateTypeDel:
+		err := us.userService.DelRouterType(routerType.ID)
+		if err != nil {
+			res.Code = enum.SqlError
+			return
+		}
 	default:
 		logger.Warn(userServerLogTag, "RequestModifyRouterType Unknown OperateType|Type:%v", req.Operate)
 		res.Code = enum.SystemError
@@ -402,6 +414,14 @@ func (us *UserServer) RequestModifyRouter(ctx *gin.Context, rawReq interface{}, 
 		err := us.userService.UpdateRouter(router)
 		if err != nil {
 			res.Code = enum.SqlError
+			res.Msg = err.Error()
+			return
+		}
+	case enum.OperateTypeDel:
+		err := us.userService.DeleteRouter(router.ID)
+		if err != nil {
+			res.Code = enum.SqlError
+			res.Msg = err.Error()
 			return
 		}
 	default:

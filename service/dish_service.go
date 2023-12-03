@@ -96,10 +96,55 @@ func (ds *DishService) AddDish(dish *model.Dish) error {
 	return nil
 }
 
+func (ds *DishService) BatchAddDish(dishList []*model.Dish) error {
+	dishNameList := make([]string, 0, len(dishList))
+	for _, dish := range dishList {
+		dishNameList = append(dishNameList, dish.DishName)
+	}
+	dishDao, err := ds.dishModel.GetDishByNameList(dishNameList)
+	if err != nil {
+		logger.Warn(dishServiceLogTag, "BatchAddDish GetDishByNameList Failed|Err:%v", err)
+		return err
+	}
+	addDishList := make([]*model.Dish, 0, len(dishList))
+	if dishDao != nil {
+		for _, dish := range dishList {
+			found := false
+			for _, repeatedDish := range dishDao {
+				if repeatedDish.DishName == dish.DishName {
+					found = true
+					break
+				}
+			}
+			if found == false {
+				addDishList = append(addDishList, dish)
+			}
+		}
+	} else {
+		addDishList = dishList
+	}
+
+	err = ds.dishModel.BatchInsert(addDishList)
+	if err != nil {
+		logger.Warn(dishServiceLogTag, "BatchInsert Dish Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
 func (ds *DishService) ModifyDish(dish *model.Dish) error {
 	err := ds.dishModel.UpdateDish(dish)
 	if err != nil {
 		logger.Warn(dishServiceLogTag, "Update Dish Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
+func (ds *DishService) DeleteDish(dishID uint32) error {
+	err := ds.dishModel.DeleteDish(dishID)
+	if err != nil {
+		logger.Warn(dishServiceLogTag, "Delete Dish Failed|Err:%v", err)
 		return err
 	}
 	return nil

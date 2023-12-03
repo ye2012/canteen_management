@@ -51,3 +51,8 @@ type ModifyDishReq struct {
 	Operate  enum.OperateType `json:"operate"`
 	DishInfo DishInfo         `json:"dish_info"`
 }
+
+type BatchModifyDishReq struct {
+	Operate  enum.OperateType `json:"operate"`
+	DishList []*DishInfo      `json:"dish_list"`
+}

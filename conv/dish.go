@@ -57,6 +57,14 @@ func ConvertFromDishInfo(info *dto.DishInfo) *model.Dish {
 		Picture: info.Picture, Price: info.Price, Material: info.Material}
 }
 
+func ConvertFromDishList(infoList []*dto.DishInfo) []*model.Dish {
+	retList := make([]*model.Dish, 0, len(infoList))
+	for _, dishInfo := range infoList {
+		retList = append(retList, ConvertFromDishInfo(dishInfo))
+	}
+	return retList
+}
+
 func ConvertFromWeekMenuInfo(weekMenu *dto.WeekMenuDetailInfo) (*model.WeekMenu, error) {
 	menuContent := make([]map[uint8][]uint32, 0)
 	for _, menu := range weekMenu.MenuList {

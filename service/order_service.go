@@ -72,14 +72,17 @@ func (os *OrderService) ApplyPayOrder(applyInfo *ApplyPayOrderInfo, dishMap map[
 	}
 	defer utils.End(tx, err)
 
-	prePayOrder, err := os.payOrderModel.GetPayOrderByCondition(tx, " WHERE `cart_id` = ?", cartID)
-	if err != nil && err != sql.ErrNoRows {
-		logger.Warn(orderServiceLogTag, "ApplyPayOrder GetPayOrderByCartID Failed|Err:%v", err)
-		return
-	}
-	if prePayOrder != nil {
-		logger.Warn(orderServiceLogTag, "ApplyPayOrder Cart Already Processed|CartID:%v", cartID)
-		return "", 0, 0, fmt.Errorf("订单已经提交了")
+	if cartID > 0 {
+		prePayOrder := (*model.PayOrderDao)(nil)
+		prePayOrder, err = os.payOrderModel.GetPayOrderByCondition(tx, " WHERE `cart_id` = ?", cartID)
+		if err != nil && err != sql.ErrNoRows {
+			logger.Warn(orderServiceLogTag, "ApplyPayOrder GetPayOrderByCartID Failed|Err:%v", err)
+			return
+		}
+		if prePayOrder != nil {
+			logger.Warn(orderServiceLogTag, "ApplyPayOrder Cart Already Processed|CartID:%v", cartID)
+			return "", 0, 0, fmt.Errorf("订单已经提交了")
+		}
 	}
 
 	timeStart, timeEnd := utils.GetDayTimeRange(applyInfo.OrderList[0].Order.OrderDate.Unix())
@@ -132,8 +135,18 @@ func (os *OrderService) ApplyPayOrder(applyInfo *ApplyPayOrderInfo, dishMap map[
 	return
 }
 
-func (os *OrderService) CancelPayOrder(orderID uint32) (err error) {
-	payOrder := &model.PayOrderDao{ID: orderID, Status: enum.PayOrderCancel}
+func (os *OrderService) CancelPayOrder(orderID uint32, payMethod uint8) (err error) {
+	payOrder, err := os.payOrderModel.GetPayOrder(orderID)
+	if err != nil {
+		logger.Warn(orderServiceLogTag, "CancelPayOrder Get Failed|ID:%v|Err:%v", orderID, err)
+		return err
+	}
+	if payOrder.PayMethod != payMethod {
+		logger.Warn(orderServiceLogTag, "CancelPayOrder PayMethod Not Match|ID:%v|Err:%v", orderID, err)
+		return fmt.Errorf("订单类型不匹配")
+	}
+
+	payOrder.Status = enum.PayOrderCancel
 	err = os.payOrderModel.UpdatePayOrderInfoByID(nil, payOrder, "status")
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "CancelPayOrder Failed|Dao:%v|Err:%v", payOrder, err)
@@ -145,8 +158,18 @@ func (os *OrderService) CancelPayOrder(orderID uint32) (err error) {
 	return
 }
 
-func (os *OrderService) FinishPayOrder(orderID uint32) (err error) {
-	payOrder := &model.PayOrderDao{ID: orderID, Status: enum.PayOrderFinish}
+func (os *OrderService) FinishPayOrder(orderID uint32, payMethod uint8) (err error) {
+	payOrder, err := os.payOrderModel.GetPayOrder(orderID)
+	if err != nil {
+		logger.Warn(orderServiceLogTag, "FinishPayOrder Get Failed|ID:%v|Err:%v", orderID, err)
+		return err
+	}
+	if payOrder.PayMethod != payMethod {
+		logger.Warn(orderServiceLogTag, "FinishPayOrder PayMethod Not Match|ID:%v|Err:%v", orderID, err)
+		return fmt.Errorf("订单类型不匹配")
+	}
+
+	payOrder.Status = enum.PayOrderFinish
 	err = os.payOrderModel.UpdatePayOrderInfoByID(nil, payOrder, "status")
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "CancelPayOrder Failed|Dao:%v|Err:%v", payOrder, err)
@@ -175,10 +198,9 @@ func (os *OrderService) ApplyOrder(tx *sql.Tx, order *model.OrderDao, items []*m
 		dish := dishMap[item.DishID]
 		item.Price = dish.Price
 		item.DishType = dish.DishType
-		totalAmount = totalAmount + (item.Price * float64(item.Quantity))
+		totalAmount += item.Price * float64(item.Quantity)
 	}
-	payAmount := totalAmount
-	payAmount = payAmount - discountAmount
+	payAmount := totalAmount - discountAmount
 	realDiscount := discountAmount
 	if payAmount < 0 {
 		realDiscount = totalAmount

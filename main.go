@@ -1,9 +1,13 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"flag"
+	"io/ioutil"
 	"net/http"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/canteen_management/config"
@@ -37,8 +41,14 @@ func StartServer() {
 		logger.Warn(serverLogTag, "InitTokenService Failed|Err:%v", err)
 		return
 	}
+	router.Use(CheckSign)
 	//router.Use(CheckToken)
 
+	err = HandleAuthApi(router)
+	if err != nil {
+		logger.Warn(serverLogTag, "HandleAuthApi Failed|Err:%v", err)
+		return
+	}
 	err = HandleUserApi(router)
 	if err != nil {
 		logger.Warn(serverLogTag, "HandleUserApi Failed|Err:%v", err)
@@ -70,6 +80,22 @@ func StartServer() {
 	router.Run(":8081")
 }
 
+func HandleAuthApi(router *gin.Engine) error {
+	authRouter := router.Group("/api/auth")
+	userServer, err := server.NewUserServer(config.Config.MysqlConfig)
+	if err != nil {
+		logger.Warn(serverLogTag, "NewUserServer Failed|Err:%v", err)
+		return err
+	}
+	authRouter.POST("/adminLogin", NewHandler(userServer.RequestAdminLogin,
+		func() interface{} { return new(dto.AdminLoginReq) }))
+	authRouter.POST("/canteenLogin", NewHandler(userServer.RequestCanteenLogin,
+		func() interface{} { return new(dto.CanteenLoginReq) }))
+	authRouter.POST("/kitchenLogin", NewHandler(userServer.RequestKitchenLogin,
+		func() interface{} { return new(dto.KitchenLoginReq) }))
+	return nil
+}
+
 func HandleUserApi(router *gin.Engine) error {
 	userRouter := router.Group("/api/user")
 	userServer, err := server.NewUserServer(config.Config.MysqlConfig)
@@ -77,8 +103,7 @@ func HandleUserApi(router *gin.Engine) error {
 		logger.Warn(serverLogTag, "NewUserServer Failed|Err:%v", err)
 		return err
 	}
-	userRouter.POST("/adminLogin", NewHandler(userServer.RequestAdminLogin,
-		func() interface{} { return new(dto.AdminLoginReq) }))
+	userRouter.Use(CheckToken)
 	userRouter.POST("/routerTypeList", NewHandler(userServer.RequestRouterTypeList,
 		func() interface{} { return new(dto.RouterTypeListReq) }))
 	userRouter.POST("/modifyRouterType", NewHandler(userServer.RequestModifyRouterType,
@@ -87,11 +112,6 @@ func HandleUserApi(router *gin.Engine) error {
 		func() interface{} { return new(dto.RouterListReq) }))
 	userRouter.POST("/modifyRouter", NewHandler(userServer.RequestModifyRouter,
 		func() interface{} { return new(dto.ModifyRouterReq) }))
-
-	userRouter.POST("/canteenLogin", NewHandler(userServer.RequestCanteenLogin,
-		func() interface{} { return new(dto.CanteenLoginReq) }))
-	userRouter.POST("/kitchenLogin", NewHandler(userServer.RequestKitchenLogin,
-		func() interface{} { return new(dto.KitchenLoginReq) }))
 	userRouter.POST("/bindPhoneNumber", NewHandler(userServer.RequestBindPhoneNumber,
 		func() interface{} { return new(dto.BindPhoneNumberReq) }))
 	userRouter.POST("/canteenUserCenter", NewHandler(userServer.RequestCanteenUserCenter,
@@ -124,7 +144,7 @@ func HandlePurchaseApi(router *gin.Engine) error {
 		logger.Warn(serverLogTag, "NewPurchaseServer Failed|Err:%v", err)
 		return err
 	}
-
+	purchaseRouter.Use(CheckToken)
 	purchaseRouter.POST("/purchaseList", NewHandler(purchaseServer.RequestPurchaseList,
 		func() interface{} { return new(dto.PurchaseListReq) }))
 	purchaseRouter.POST("/applyPurchase", NewHandler(purchaseServer.RequestApplyPurchase,
@@ -163,7 +183,7 @@ func HandleStorehouseApi(router *gin.Engine) error {
 		logger.Warn(serverLogTag, "NewStorehouseServer Failed|Err:%v", err)
 		return err
 	}
-
+	storeRouter.Use(CheckToken)
 	storeRouter.POST("/storeTypeList", NewHandler(storeServer.RequestStoreTypeList,
 		func() interface{} { return new(dto.StoreTypeListReq) }))
 	storeRouter.POST("/modifyStoreType", NewHandler(storeServer.RequestModifyStoreType,
@@ -210,6 +230,7 @@ func HandleMenuApi(router *gin.Engine) error {
 		logger.Warn(serverLogTag, "NewMenuServer Failed|Err:%v", err)
 		return err
 	}
+	menuRouter.Use(CheckToken)
 	menuRouter.POST("/dishTypeList", NewHandler(menuServer.RequestDishTypeList,
 		func() interface{} { return new(dto.DishTypeListReq) }))
 	menuRouter.POST("/modifyDishType", NewHandler(menuServer.RequestModifyDishType,
@@ -219,6 +240,8 @@ func HandleMenuApi(router *gin.Engine) error {
 		func() interface{} { return new(dto.DishListReq) }))
 	menuRouter.POST("/modifyDish", NewHandler(menuServer.RequestModifyDish,
 		func() interface{} { return new(dto.ModifyDishReq) }))
+	menuRouter.POST("/batchModifyDish", NewHandler(menuServer.RequestBatchModifyDish,
+		func() interface{} { return new(dto.BatchModifyDishReq) }))
 
 	menuRouter.POST("/weekMenuList", NewHandler(menuServer.RequestWeekMenuList,
 		func() interface{} { return new(dto.WeekMenuListReq) }))
@@ -275,6 +298,7 @@ func HandleOrderApi(router *gin.Engine) error {
 		logger.Warn(serverLogTag, "NewOrderServer Failed|Err:%v", err)
 		return err
 	}
+	orderRouter.Use(CheckToken)
 	orderRouter.POST("/orderMenuList", NewHandler(orderServer.RequestOrderMenu,
 		func() interface{} { return new(dto.OrderMenuReq) }))
 	orderRouter.POST("/orderAnalysis", NewHandler(orderServer.RequestOrderDishAnalysis,
@@ -283,9 +307,15 @@ func HandleOrderApi(router *gin.Engine) error {
 		func() interface{} { return new(dto.ApplyPayOrderReq) }))
 	orderRouter.POST("/applyCashOrder", NewHandler(orderServer.RequestApplyCashOrder,
 		func() interface{} { return new(dto.ApplyCashOrderReq) }))
+	orderRouter.POST("/applyStaffOrder", NewHandler(orderServer.RequestApplyStaffOrder,
+		func() interface{} { return new(dto.ApplyCashOrderReq) }))
 	orderRouter.POST("/cancelPayOrder", NewHandler(orderServer.RequestCancelPayOrder,
 		func() interface{} { return new(dto.CancelPayOrderReq) }))
 	orderRouter.POST("/finishPayOrder", NewHandler(orderServer.RequestFinishPayOrder,
+		func() interface{} { return new(dto.FinishPayOrderReq) }))
+	orderRouter.POST("/cancelCashOrder", NewHandler(orderServer.RequestCancelCashOrder,
+		func() interface{} { return new(dto.CancelPayOrderReq) }))
+	orderRouter.POST("/finishCashOrder", NewHandler(orderServer.RequestFinishCashOrder,
 		func() interface{} { return new(dto.FinishPayOrderReq) }))
 	orderRouter.POST("/payOrderList", NewHandler(orderServer.RequestPayOrderList,
 		func() interface{} { return new(dto.PayOrderListReq) }))
@@ -416,5 +446,51 @@ func CheckToken(c *gin.Context) {
 
 	custom.Token = tokenDao
 	c.Set(config.CustomKey, custom)
+	c.Next()
+}
+
+func CheckSign(c *gin.Context) {
+	paramJson := make(map[string]json.RawMessage)
+	jsonStr, err := ioutil.ReadAll(c.Request.Body)
+	if err != nil {
+		logger.Warn(serverLogTag, "Read RequestBody Failed|Err:%v")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	err = json.Unmarshal(jsonStr, &paramJson)
+	if err != nil {
+		logger.Warn(serverLogTag, "Parse Request Json Failed|Err:%v")
+		c.AbortWithError(http.StatusBadRequest, err)
+		return
+	}
+
+	paramMap := make(map[string]string)
+	if signStr, ok := paramJson["sign"]; ok {
+		for k, v := range paramJson {
+			paramMap[k] = strings.Trim(string(v), "\"")
+		}
+		expectSign := utils.GenerateSign(paramMap, config.Config.Secret)
+		if expectSign != strings.Trim(string(signStr), "\"") {
+			logger.Warn(serverLogTag, "CheckSign Failed|ReqSign:%v|ExpectSign:%v", string(signStr), expectSign)
+			//c.AbortWithError(http.StatusBadRequest, fmt.Errorf("CheckSign Failed"))
+		} else {
+			logger.Debug(serverLogTag, "check sign ok")
+		}
+	} else {
+		logger.Warn(serverLogTag, "no sign")
+		//c.AbortWithError(http.StatusBadRequest, fmt.Errorf("no sign"))
+		//return
+		for k, v := range paramJson {
+			paramMap[k] = strings.Trim(string(v), "\"")
+		}
+	}
+
+	logger.Debug(serverLogTag, "Params:v", paramMap)
+
+	custom := dto.GetCustomContextInfo(c)
+	custom.ParamMap = paramMap
+	c.Set(config.CustomKey, custom)
+	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(jsonStr))
 	c.Next()
 }

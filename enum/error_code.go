@@ -10,6 +10,8 @@ const (
 	TokenCheckFailed
 	TokenTimeout
 
+	OrderTimeLimit = 100
+
 	SystemError ErrorCode = 999
 )
 

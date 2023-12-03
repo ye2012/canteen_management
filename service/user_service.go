@@ -154,15 +154,16 @@ func (us *UserService) CheckPhoneNumber(phoneNumber string, isExist bool) (*mode
 	return nil, nil
 }
 
-func (us *UserService) bindSupplier(tx *sql.Tx, phoneNumber, openID string) error {
+func (us *UserService) bindSupplier(tx *sql.Tx, openID, phoneNumber string, uid uint32) error {
 	supplier, err := us.supplierModel.GetSupplier(0, "", phoneNumber, "")
 	if err != nil {
 		logger.Warn(userServiceLogTag, "bindSupplier GetUser Failed|phone:%v|Err:%v", phoneNumber, err)
 		return err
 	}
-	if len(supplier) > 0 {
+	if len(supplier) > 0 && supplier[0].OpenID == "" {
 		supplier[0].OpenID = openID
-		err = us.supplierModel.UpdateOpenIDWithTx(tx, supplier[0].ID, openID)
+		supplier[0].Uid = uid
+		err = us.supplierModel.UpdateOpenIDWithTx(tx, supplier[0].ID, openID, uid)
 		if err != nil {
 			logger.Warn(userServiceLogTag, "bindSupplier Update Failed|SupplierUid:%v|Phone:%v|Err:%v",
 				supplier[0].ID, phoneNumber, err)
@@ -172,14 +173,14 @@ func (us *UserService) bindSupplier(tx *sql.Tx, phoneNumber, openID string) erro
 	return nil
 }
 
-func (us *UserService) bindOrderUser(tx *sql.Tx, phoneNumber, openID string, uid uint32) error {
+func (us *UserService) bindOrderUser(tx *sql.Tx, openID, phoneNumber string, uid uint32) error {
 	orderUser, err := us.orderUserModel.GetOrderUser("", phoneNumber, 0, 1, 10)
 	if err != nil {
 		logger.Warn(userServiceLogTag, "bindOrderUser GetUser Failed|phone:%v|Err:%v", phoneNumber, err)
 		return err
 	}
 
-	if len(orderUser) > 0 {
+	if len(orderUser) > 0 && orderUser[0].OpenID == "" {
 		orderUser[0].OpenID = openID
 		orderUser[0].Uid = uid
 		err = us.orderUserModel.UpdateOrderUserWithTx(tx, orderUser[0], "id", "open_id", "uid")
@@ -192,7 +193,7 @@ func (us *UserService) bindOrderUser(tx *sql.Tx, phoneNumber, openID string, uid
 	return nil
 }
 
-func (us *UserService) bindAdminUser(tx *sql.Tx, phoneNumber, openID string) error {
+func (us *UserService) bindAdminUser(tx *sql.Tx, openID, phoneNumber string) error {
 	adminUsers, err := us.adminUserModel.GetAdminUserByCondition(" WHERE `phone_number`=? ", phoneNumber)
 	if err != nil {
 		logger.Warn(userServiceLogTag, "bindAdminUser GetUser Failed|phone:%v|Err:%v", phoneNumber, err)
@@ -256,7 +257,7 @@ func (us *UserService) BindPhoneNumber(uid uint32, phoneNumber string) error {
 	if err != nil {
 		return err
 	}
-	err = us.bindSupplier(tx, wxUser.OpenID, wxUser.PhoneNumber)
+	err = us.bindSupplier(tx, wxUser.OpenID, wxUser.PhoneNumber, uid)
 	if err != nil {
 		return err
 	}
@@ -346,6 +347,15 @@ func (us *UserService) UpdateOrderUser(updateInfo *model.OrderUser) error {
 		return err
 	}
 
+	return nil
+}
+
+func (us *UserService) DeleteOrderUser(orderUseID uint32) error {
+	err := us.orderUserModel.DeleteOrderUser(orderUseID)
+	if err != nil {
+		logger.Warn(userServiceLogTag, "DeleteOrderUser Failed|Err:%v", err)
+		return err
+	}
 	return nil
 }
 
@@ -492,6 +502,23 @@ func (us *UserService) UpdateRouterType(routerType *model.RouterType) error {
 	return nil
 }
 
+func (us *UserService) DelRouterType(routerTypeID uint32) error {
+	list, err := us.routerDetailModel.GetRouterDetail(routerTypeID)
+	if err != nil {
+		logger.Warn(userServiceLogTag, "DelRouterType GetRouterDetail Failed|Err:%v", err)
+		return err
+	}
+	if len(list) > 0 {
+		return fmt.Errorf("该路由类型下还有路由，无法删除")
+	}
+	err = us.routerTypeModel.DeleteRouterType(routerTypeID)
+	if err != nil {
+		logger.Warn(userServiceLogTag, "DeleteRouterType Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
 func (us *UserService) AddRouter(router *model.RouterDetail) error {
 	err := us.routerDetailModel.Insert(router)
 	if err != nil {
@@ -505,6 +532,15 @@ func (us *UserService) UpdateRouter(router *model.RouterDetail) error {
 	err := us.routerDetailModel.UpdateDetail(router)
 	if err != nil {
 		logger.Warn(userServiceLogTag, "UpdateRouter Failed|Err:%v", err)
+		return err
+	}
+	return nil
+}
+
+func (us *UserService) DeleteRouter(routerID uint32) error {
+	err := us.routerDetailModel.DeleteByID(routerID)
+	if err != nil {
+		logger.Warn(userServiceLogTag, "DeleteRouter Failed|Err:%v", err)
 		return err
 	}
 	return nil

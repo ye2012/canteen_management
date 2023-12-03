@@ -58,7 +58,7 @@ func (tm *TokenModel) RemoveAdminUser(adminUid uint32) error {
 }
 
 func (tm *TokenModel) Replace(dao *TokenDAO) error {
-	id, err := utils.SqlUpsert(tm.mysql, tokenTableName, dao, "id", "created_at", "updated_at")
+	id, err := utils.SqlReplace(tm.mysql, tokenTableName, dao, "id", "created_at", "updated_at")
 	if err != nil {
 		logger.Warn(tokenModelLogTag, "get new token ID failed, err: %v", err)
 		return err

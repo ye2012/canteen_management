@@ -47,6 +47,7 @@ type PayMethod = uint8
 const (
 	PayMethodWeChat PayMethod = iota
 	PayMethodCash
+	PayMethodStaff
 )
 
 type OutboundStatus = int8

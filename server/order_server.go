@@ -113,6 +113,11 @@ func (os *OrderServer) RequestApplyOrder(ctx *gin.Context, rawReq interface{}, r
 	req := rawReq.(*dto.ApplyPayOrderReq)
 	uid := req.Uid
 
+	if time.Now().Hour() >= 22 {
+		res.Code = enum.OrderTimeLimit
+		res.Msg = "不在点餐时间范围内"
+	}
+
 	prepareID, code, msg := os.ProcessApplyOrder(uid, req, enum.PayMethodWeChat)
 	if code != enum.Success {
 		res.Code = code
@@ -125,6 +130,10 @@ func (os *OrderServer) RequestApplyOrder(ctx *gin.Context, rawReq interface{}, r
 		PrepareID:    prepareID,
 	}
 	res.Data = resData
+}
+
+func (os *OrderServer) ProcessApplyStaffOrder() {
+
 }
 
 func (os *OrderServer) ProcessApplyOrder(uid uint32, req *dto.ApplyPayOrderReq, payMethod enum.PayMethod) (string, enum.ErrorCode, string) {
@@ -174,10 +183,12 @@ func (os *OrderServer) ProcessApplyOrder(uid uint32, req *dto.ApplyPayOrderReq, 
 		return "", enum.ParamsError, "ID不合法"
 	}
 
-	err = os.cartService.CheckCart(req.CartID, req.Uid, enum.CartTypeOrder)
-	if err != nil {
-		logger.Warn(orderServerLogTag, "CheckCart Failed|Err:%v", err)
-		return "", enum.SystemError, err.Error()
+	if payMethod == enum.PayMethodWeChat {
+		err = os.cartService.CheckCart(req.CartID, req.Uid, enum.CartTypeOrder)
+		if err != nil {
+			logger.Warn(orderServerLogTag, "CheckCart Failed|Err:%v", err)
+			return "", enum.SystemError, err.Error()
+		}
 	}
 
 	applyPay.PayOrder.MealTime = applyPay.OrderList[0].Order.OrderDate
@@ -187,11 +198,10 @@ func (os *OrderServer) ProcessApplyOrder(uid uint32, req *dto.ApplyPayOrderReq, 
 		return "", enum.SqlError, err.Error()
 	}
 
-	os.cartService.ClearCart(uid, enum.CartTypeOrder)
-
 	req.TotalAmount = totalAmount
+	req.PaymentAmount = payAmount
 	if payMethod == enum.PayMethodWeChat {
-		req.PaymentAmount = payAmount
+		os.cartService.ClearCart(uid, enum.CartTypeOrder)
 	}
 	return prepareID, enum.Success, ""
 }
@@ -214,9 +224,27 @@ func (os *OrderServer) RequestApplyCashOrder(ctx *gin.Context, rawReq interface{
 	res.Data = resData
 }
 
+func (os *OrderServer) RequestApplyStaffOrder(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.ApplyStaffOrderReq)
+	uid := req.Uid
+
+	prepareID, code, msg := os.ProcessApplyOrder(uid, req.PayOrderInfo, enum.PayMethodStaff)
+	if code != enum.Success {
+		res.Code = code
+		res.Msg = msg
+		return
+	}
+
+	resData := &dto.ApplyOrderRes{
+		PayOrderInfo: req.PayOrderInfo,
+		PrepareID:    prepareID,
+	}
+	res.Data = resData
+}
+
 func (os *OrderServer) RequestCancelPayOrder(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.CancelPayOrderReq)
-	err := os.orderService.CancelPayOrder(req.OrderID)
+	err := os.orderService.CancelPayOrder(req.OrderID, enum.PayMethodWeChat)
 	if err != nil {
 		logger.Warn(orderServerLogTag, "CancelPayOrder Failed|Err:%v", err)
 		res.Code = enum.SqlError
@@ -224,11 +252,33 @@ func (os *OrderServer) RequestCancelPayOrder(ctx *gin.Context, rawReq interface{
 	}
 }
 
+func (os *OrderServer) RequestCancelCashOrder(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.CancelPayOrderReq)
+	// todo 检查权限
+	err := os.orderService.CancelPayOrder(req.OrderID, enum.PayMethodCash)
+	if err != nil {
+		logger.Warn(orderServerLogTag, "CancelCashOrder Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		return
+	}
+}
+
 func (os *OrderServer) RequestFinishPayOrder(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
 	req := rawReq.(*dto.FinishPayOrderReq)
-	err := os.orderService.FinishPayOrder(req.OrderID)
+	err := os.orderService.FinishPayOrder(req.OrderID, enum.PayMethodWeChat)
 	if err != nil {
 		logger.Warn(orderServerLogTag, "FinishPayOrder Failed|Err:%v", err)
+		res.Code = enum.SqlError
+		return
+	}
+}
+
+func (os *OrderServer) RequestFinishCashOrder(ctx *gin.Context, rawReq interface{}, res *dto.Response) {
+	req := rawReq.(*dto.FinishPayOrderReq)
+	// todo 检查权限
+	err := os.orderService.FinishPayOrder(req.OrderID, enum.PayMethodCash)
+	if err != nil {
+		logger.Warn(orderServerLogTag, "FinishCashOrder Failed|Err:%v", err)
 		res.Code = enum.SqlError
 		return
 	}
@@ -313,9 +363,7 @@ func (os *OrderServer) RequestOrderDishAnalysis(ctx *gin.Context, rawReq interfa
 		return
 	}
 
-	startTime := utils.GetZeroTime(req.OrderDate)
-	endTime := utils.GetDayEndTime(req.OrderDate)
-	_, detailMap, err := os.orderService.GetAllOrder(req.MealType, startTime, endTime, enum.OrderPaid,
+	_, detailMap, err := os.orderService.GetAllOrder(req.MealType, req.StartTime, req.EndTime, enum.OrderPaid,
 		req.DishType, req.DishID)
 	if err != nil {
 		logger.Warn(orderServerLogTag, "GetAllOrder Failed|Err:%v", err)

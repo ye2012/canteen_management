@@ -77,6 +77,7 @@ func (ps *PurchaseService) AddSupplier(supplier *model.Supplier) error {
 		users, _ := ps.wxUserModel.GetWxUserByCondition(" WHERE `phone_number` = ?  ", supplier.PhoneNumber)
 		if users != nil && len(users) > 0 {
 			supplier.OpenID = users[0].OpenID
+			supplier.Uid = users[0].ID
 		}
 	}
 	err := ps.supplierModel.Insert(supplier)
@@ -106,6 +107,7 @@ func (ps *PurchaseService) BindSupplier(supplierID uint32, openID string) error 
 		return fmt.Errorf("供应商未找到|ID:%v", supplierID)
 	}
 
+	uid := uint32(0)
 	if openID != "" {
 		wxUser, err := ps.wxUserModel.GetWxUserByOpenID(openID)
 		if err != nil {
@@ -116,9 +118,10 @@ func (ps *PurchaseService) BindSupplier(supplierID uint32, openID string) error 
 			logger.Warn(userServiceLogTag, "WxUser NotExist|OpenID:%v", openID)
 			return fmt.Errorf("要绑定的用户不存在，请确认OpenID是否正确")
 		}
+		uid = wxUser.ID
 	}
 
-	err = ps.supplierModel.UpdateOpenID(supplierID, openID)
+	err = ps.supplierModel.UpdateOpenID(supplierID, openID, uid)
 	if err != nil {
 		logger.Warn(purchaseServiceLogTag, "UpdateOpenID GetSupplier Failed|Err:%v", err)
 		return err
@@ -153,14 +156,14 @@ func (ps *PurchaseService) RenewSupplier(supplierID uint32, endTime int64) error
 	return nil
 }
 
-func (ps *PurchaseService) GetPurchaseList(status int8, uid, purchaseID uint32, startTime, endTime int64,
+func (ps *PurchaseService) GetPurchaseList(status int8, uid, purchaseID, supplierID uint32, startTime, endTime int64,
 	page, pageSize int32) ([]*model.PurchaseOrder, int32, map[uint32][]*model.PurchaseDetail, error) {
-	purchaseList, err := ps.purchaseOrderModel.GetPurchaseOrderList(purchaseID, status, 0, uid, startTime, endTime, page, pageSize)
+	purchaseList, err := ps.purchaseOrderModel.GetPurchaseOrderList(purchaseID, status, supplierID, uid, startTime, endTime, page, pageSize)
 	if err != nil {
 		logger.Warn(purchaseServiceLogTag, "GetPurchaseOrder Failed|Err:%v", err)
 		return nil, 0, nil, err
 	}
-	purchaseCount, err := ps.purchaseOrderModel.GetPurchaseOrderCount(purchaseID, status, 0, uid, startTime, endTime)
+	purchaseCount, err := ps.purchaseOrderModel.GetPurchaseOrderCount(purchaseID, status, supplierID, uid, startTime, endTime)
 	if err != nil {
 		logger.Warn(orderServiceLogTag, "GetPurchaseOrderCount Failed|Err:%v", err)
 		return nil, 0, nil, err

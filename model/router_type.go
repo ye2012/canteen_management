@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/canteen_management/logger"
@@ -62,5 +63,16 @@ func (rtm *RouterTypeModel) UpdateRouterType(dao *RouterType) error {
 		logger.Warn(routerTypeLogTag, "UpdateStorehouseType Failed|Err:%v", err)
 		return err
 	}
+	return nil
+}
+
+func (rtm *RouterTypeModel) DeleteRouterType(id uint32) error {
+	sqlStr := fmt.Sprintf(" DELETE FROM %v WHERE `id` = ? ", routerTypeTable)
+	_, err := rtm.sqlCli.Exec(sqlStr, id)
+	if err != nil {
+		logger.Warn(routerTypeLogTag, "DeleteRouterType Failed|Err:%v", err)
+		return err
+	}
+
 	return nil
 }

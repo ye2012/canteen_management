@@ -192,7 +192,7 @@ func (om *OrderModel) GetOrderList(idList []uint32, uid uint32, mealType uint8, 
 	status, payMethod int8, startTime, endTime int64, page, pageSize int32) ([]*OrderDao, error) {
 	condition, params := om.GenerateCondition(idList, uid, status, buildingID, floor, room, startTime, endTime,
 		mealType, payMethod)
-	condition += " ORDER BY `id` ASC LIMIT ?,? "
+	condition += " ORDER BY `id` DESC LIMIT ?,? "
 	params = append(params, (page-1)*pageSize, pageSize)
 	retList, err := utils.SqlQuery(om.sqlCli, orderTable, &OrderDao{}, condition, params...)
 	if err != nil {

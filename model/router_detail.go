@@ -127,3 +127,14 @@ func (rdm *RouterDetailModel) DeleteWithTx(tx *sql.Tx, routerTypes []uint32) (er
 func (rdm *RouterDetailModel) Delete(routerTypes []uint32) error {
 	return rdm.DeleteWithTx(nil, routerTypes)
 }
+
+func (rdm *RouterDetailModel) DeleteByID(routerID uint32) error {
+	sqlStr := fmt.Sprintf(" DELETE FROM %v WHERE `id` = ? ", routerDetailTable)
+	_, err := rdm.sqlCli.Exec(sqlStr, routerID)
+	if err != nil {
+		logger.Warn(routerDetailLogTag, "DeleteByID Failed|Err:%v", err)
+		return err
+	}
+
+	return nil
+}
