@@ -138,13 +138,13 @@ func (ms *MenuServer) RequestModifyDish(ctx *gin.Context, rawReq interface{}, re
 			res.Msg = err.Error()
 			return
 		}
-	case enum.OperateTypeDel:
-		err := ms.dishService.DeleteDish(req.DishInfo.DishID)
-		if err != nil {
-			res.Code = enum.SqlError
-			res.Msg = err.Error()
-			return
-		}
+	//case enum.OperateTypeDel:
+	//	err := ms.dishService.DeleteDish(req.DishInfo.DishID)
+	//	if err != nil {
+	//		res.Code = enum.SqlError
+	//		res.Msg = err.Error()
+	//		return
+	//	}
 	default:
 		logger.Warn(menuServerLogTag, "RequestModifyDish Unknown OperateType|Type:%v", req.Operate)
 		res.Code = enum.SystemError

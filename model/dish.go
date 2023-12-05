@@ -3,10 +3,11 @@ package model
 import (
 	"database/sql"
 	"fmt"
-	"github.com/canteen_management/logger"
-	"github.com/canteen_management/utils"
 	"strings"
 	"time"
+
+	"github.com/canteen_management/logger"
+	"github.com/canteen_management/utils"
 )
 
 const (

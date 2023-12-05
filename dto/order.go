@@ -27,7 +27,7 @@ type ApplyItem struct {
 	Picture  string  `json:"picture"`
 }
 
-type ApplyPayOrderReq = PayOrderInfo
+type ApplyPayOrderReq PayOrderInfo
 
 func (apo *ApplyPayOrderReq) CheckParams() error {
 	if len(apo.OrderList) == 0 {

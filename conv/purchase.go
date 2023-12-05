@@ -132,7 +132,7 @@ func ConvertToOutboundInfoList(outboundList []*model.OutboundOrder, detailMap ma
 			Status:      outbound.Status,
 		}
 		if retInfo.Status == enum.OutboundFinish {
-			retInfo.OutboundTime = outbound.UpdateAt.Unix()
+			retInfo.OutboundTime = outbound.OutboundTime.Unix()
 		}
 		if sender, ok := adminMap[outbound.Creator]; ok {
 			retInfo.Sender = sender.NickName

@@ -69,7 +69,11 @@ func StartServer() {
 		logger.Warn(serverLogTag, "HandleMenuApi Failed|Err:%v", err)
 		return
 	}
-	HandleStatisticApi(router)
+	err = HandleStatisticApi(router)
+	if err != nil {
+		logger.Warn(serverLogTag, "HandleStatisticApi Failed|Err:%v", err)
+		return
+	}
 	err = HandleOrderApi(router)
 	if err != nil {
 		logger.Warn(serverLogTag, "HandleOrderApi Failed|Err:%v", err)
@@ -285,10 +289,17 @@ func HandleMenuApi(router *gin.Engine) error {
 	return nil
 }
 
-func HandleStatisticApi(router *gin.Engine) {
-	//statisticRouter := router.Group("/statistic")
-	//statisticServer := server.NewStatisticServer()
-	//statisticRouter.POST("enterDinerNumber", NewHandler(statisticServer))
+func HandleStatisticApi(router *gin.Engine) error {
+	statisticRouter := router.Group("/api/statistic")
+	statisticServer, err := server.NewStatisticServer(config.Config.MysqlConfig)
+	if err != nil {
+		logger.Warn(serverLogTag, "NewOrderServer Failed|Err:%v", err)
+		return err
+	}
+	statisticRouter.Use(CheckToken)
+	statisticRouter.POST("dashboard", NewHandler(statisticServer.RequestDashboard,
+		func() interface{} { return new(dto.OrderMenuReq) }))
+	return nil
 }
 
 func HandleOrderApi(router *gin.Engine) error {
@@ -433,14 +444,14 @@ func CheckToken(c *gin.Context) {
 	token, ok := custom.ParamMap[config.TokenKey]
 	if !ok {
 		logger.Warn(serverLogTag, "Get Token Failed")
-		c.AbortWithStatusJSON(http.StatusOK, dto.Response{Code: enum.ParamsError, Msg: "token not found"})
+		c.AbortWithStatusJSON(http.StatusOK, dto.Response{Code: enum.TokenCheckFailed, Msg: "token not found"})
 		return
 	}
 
 	tokenDao, code := CheckTokenImpl(token)
 	if code != enum.Success {
 		logger.Warn(serverLogTag, "Check Token Failed|Token:%v|Code:%v", token, code)
-		c.AbortWithStatusJSON(http.StatusOK, dto.Response{Code: enum.ParamsError, Msg: "token check failed"})
+		c.AbortWithStatusJSON(http.StatusOK, dto.Response{Code: enum.TokenCheckFailed, Msg: "token check failed"})
 		return
 	}
 

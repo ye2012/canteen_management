@@ -66,11 +66,11 @@ func (oom *OutboundOrderModel) GenerateCondition(id, creator uint32, startTime, 
 		params = append(params, creator)
 	}
 	if startTime > 0 {
-		condition += " AND `outbound_time` >= ? "
+		condition += " AND `created_at` >= ? "
 		params = append(params, time.Unix(startTime, 0))
 	}
 	if endTime > startTime {
-		condition += " AND `outbound_time` <= ? "
+		condition += " AND `created_at` <= ? "
 		params = append(params, time.Unix(endTime, 0))
 	}
 	if status != -1 {

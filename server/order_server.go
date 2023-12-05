@@ -118,7 +118,7 @@ func (os *OrderServer) RequestApplyOrder(ctx *gin.Context, rawReq interface{}, r
 		res.Msg = "不在点餐时间范围内"
 	}
 
-	prepareID, code, msg := os.ProcessApplyOrder(uid, req, enum.PayMethodWeChat)
+	prepareID, code, msg := os.ProcessApplyOrder(uid, (*dto.PayOrderInfo)(req), enum.PayMethodWeChat)
 	if code != enum.Success {
 		res.Code = code
 		res.Msg = msg
@@ -126,7 +126,7 @@ func (os *OrderServer) RequestApplyOrder(ctx *gin.Context, rawReq interface{}, r
 	}
 
 	resData := &dto.ApplyOrderRes{
-		PayOrderInfo: req,
+		PayOrderInfo: (*dto.PayOrderInfo)(req),
 		PrepareID:    prepareID,
 	}
 	res.Data = resData
@@ -136,7 +136,7 @@ func (os *OrderServer) ProcessApplyStaffOrder() {
 
 }
 
-func (os *OrderServer) ProcessApplyOrder(uid uint32, req *dto.ApplyPayOrderReq, payMethod enum.PayMethod) (string, enum.ErrorCode, string) {
+func (os *OrderServer) ProcessApplyOrder(uid uint32, req *dto.PayOrderInfo, payMethod enum.PayMethod) (string, enum.ErrorCode, string) {
 	dishMap, err := os.dishService.GetDishIDMap()
 	if err != nil {
 		logger.Warn(orderServerLogTag, "GetDishIDMap Failed|Err:%v", err)
